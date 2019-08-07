@@ -1,6 +1,14 @@
-import 'esiur.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:esiur/esiur.dart';
 
-main() async
+void main() {
+  test('adds one to input values', () {
+	connect();
+  });
+}
+
+
+connect() async
 {
     // connect to the server
     var x = await Warehouse.get("iip://localhost:5000/db/my", {"username": "demo", "password": "1234"});

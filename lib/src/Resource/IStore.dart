@@ -28,7 +28,10 @@ import '../Data/KeyList.dart';
 import './Template/PropertyTemplate.dart';
 import '../Data/PropertyValue.dart';
 
-abstract class IStore extends IResource
+// old 
+// abstract class IStore extends IResource
+// new
+abstract class IStore implements IResource
 {
     AsyncReply<IResource> get(String path);
     AsyncReply<IResource> retrieve(int iid);
