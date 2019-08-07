@@ -1,0 +1,5 @@
+    enum ProgressType
+    {
+        Execution,
+        Network,
+    }

@@ -1,0 +1,4 @@
+class ValueObject
+{
+  dynamic value;
+}

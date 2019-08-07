@@ -1,0 +1,34 @@
+
+import 'MemberType.dart';
+import '../../Data/DC.dart';
+import './ResourceTemplate.dart';
+
+class MemberTemplate
+{
+    
+    int get index => _index;
+    String get name => _name;
+    MemberType get type => _type;
+
+    ResourceTemplate _template;
+    String _name;
+    MemberType _type;
+    int _index;
+
+    ResourceTemplate get template => _template;
+
+    MemberTemplate(ResourceTemplate template, MemberType type, int index, String name)
+    {
+        this._template = template;
+        this._type = type;
+        this._index = index;
+        this._name = name;
+    }
+
+    String get fullname => _template.className + "." + _name;
+
+    DC compose()
+    {
+       // return DC.ToBytes(Name);
+    }
+}
