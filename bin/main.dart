@@ -12,9 +12,10 @@ main() async
     // use await
     print("Added successfully ${await x.Add(40)}");
     // use named arguments
-    await x.Add(value: 20);
+    print(await x.Add(value: 20));
     // test chunks
     x.Stream(10).chunk((c)=>print(c));
+    // property setter
     x.Level += 900;
 
     print("Done");
