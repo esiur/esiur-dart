@@ -2,7 +2,8 @@ import 'esiur.dart';
 
 main() async
 {
-    var x = await Warehouse.get("iip://localhost:5000/db/my", {"username": "demo", "password": "1234"});//.then((x){
+    // connect to the server
+    var x = await Warehouse.get("iip://localhost:5000/db/my", {"username": "demo", "password": "1234"});
 
     // get property
     print(x.Level);
