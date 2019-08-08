@@ -1,19 +1,14 @@
 name: esiur
-description: A new Flutter package project.
-version: 0.0.1
+description: Distributed Object Framework.
+version: 1.0.0
 author: Ahmed Zamil <ahmed@dijlh.com>
 homepage: https://github.com/esiur/esiur-dart
 
 environment:
   sdk: ">=2.1.0 <3.0.0"
 
-dependencies:
-  flutter:
-    sdk: flutter
-
 dev_dependencies:
-  flutter_test:
-    sdk: flutter
+  test: ^1.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://www.dartlang.org/tools/pub/pubspec

@@ -54,7 +54,7 @@ class Warehouse
     //public static event StoreConnectedEvent StoreConnected;
     ///public static event StoreDisconnectedEvent StoreDisconnected;
 
-    static KeyList<String, IStore Function()> protocols = getProtocols();
+    static KeyList<String, IStore Function()> protocols = _getSupportedProtocols();
 
     /// <summary>
     /// Get a store by its name.
@@ -448,11 +448,13 @@ class Warehouse
 
         return true;
       }
+
+
+    static KeyList<String, IStore Function()> _getSupportedProtocols()
+    {
+      var rt = new KeyList<String, IStore Function()>();
+      rt.add("iip", () => new DistributedConnection());
+      return rt;
+    }
 }
 
-KeyList<String, IStore Function()> getProtocols()
-{
-  var rt = new KeyList<String, IStore Function()>();
-  rt.add("iip", () => new DistributedConnection());
-  return rt;
-}

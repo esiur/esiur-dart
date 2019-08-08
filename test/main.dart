@@ -1,15 +1,10 @@
-import 'package:flutter_test/flutter_test.dart';
+import "package:test/test.dart";
 import 'package:esiur/esiur.dart';
 
-void main() {
-  test('adds one to input values', () {
-	connect();
-  });
-}
-
-
-connect() async
+main()
 {
+    test("Connect to server", () async {
+
     // connect to the server
     var x = await Warehouse.get("iip://localhost:5000/db/my", {"username": "demo", "password": "1234"});
 
@@ -27,5 +22,5 @@ connect() async
     x.Level += 900;
 
     print("Done");
-
+  });
 }
