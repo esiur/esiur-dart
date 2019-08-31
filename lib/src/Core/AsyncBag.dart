@@ -49,10 +49,4 @@ class AsyncBag<T> extends AsyncReply<List<T>>
           add(r);
         });
     }
-
-    AsyncBag()
-    {
-
-    }
-
 }
