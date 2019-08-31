@@ -1,5 +1,1 @@
-enum ErrorType
-{
-    Management,
-    Exception
-}
+enum ErrorType { Management, Exception }

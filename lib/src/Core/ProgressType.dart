@@ -1,5 +1,4 @@
-    enum ProgressType
-    {
-        Execution,
-        Network,
-    }
+enum ProgressType {
+  Execution,
+  Network,
+}
