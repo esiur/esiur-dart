@@ -30,4 +30,4 @@ The main purpose of this repository is to continue to evolve EsiurDart, making i
 
 ### License
 
-React is [MIT licensed](./LICENSE).
+EsiurDart is [MIT licensed](./LICENSE).
