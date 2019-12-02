@@ -30,31 +30,20 @@ import 'SocketState.dart';
 import 'IPEndPoint.dart';
 import '../../Core/AsyncReply.dart';
 
-class TCPSocket extends ISocket
+import 'package:web_socket_channel/io.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:web_socket_channel/status.dart' as status;
+
+class WSSocket extends ISocket
 {
-    Socket sock;
+    WebSocketChannel sock;
+
     NetworkBuffer receiveNetworkBuffer = new NetworkBuffer();
 
-    //bool asyncSending;
     bool began = false;
 
     SocketState _state = SocketState.Initial;
 
-    //public event ISocketReceiveEvent OnReceive;
-    //public event ISocketConnectEvent OnConnect;
-    //public event ISocketCloseEvent OnClose;
-    //public event DestroyedEvent OnDestroy;
-
-    //SocketAsyncEventArgs socketArgs = new SocketAsyncEventArgs();
-
-    /*
-    void connected(Task t)
-    {
-        state = SocketState.Established;
-        OnConnect?.Invoke();
-        Begin();
-    }
-    */
 
     IPEndPoint _localEP, _remoteEP;
 
@@ -65,7 +54,7 @@ class TCPSocket extends ISocket
 
         began = true;
 
-        _localEP = IPEndPoint(sock.address.rawAddress, sock.port);
+        _localEP = IPEndPoint(sock. address.rawAddress, sock.port);
         _remoteEP = IPEndPoint(sock.remoteAddress.rawAddress, sock.remotePort);
         return true;
     }
@@ -105,6 +94,7 @@ class TCPSocket extends ISocket
       sock.destroy();
     }
 
+
     AsyncReply<bool> connect(String hostname, int port)
     {
       var rt = new AsyncReply<bool>();
@@ -113,6 +103,9 @@ class TCPSocket extends ISocket
         {
             _state = SocketState.Connecting;
 
+            WebSocket()
+            prefix0.WebSocket(url) 
+            IOWebSocketChannel.
             Socket.connect(hostname, port).then((s){
                 sock = s;
                 s.listen(dataHandler, 
@@ -192,22 +185,5 @@ class TCPSocket extends ISocket
 
         var reply = new AsyncReply<ISocket>();
         return reply;
-
-/*
-  ServerSocket.bind(InternetAddress.ANY_IP_V4, 4567).then(
-    (ServerSocket server) {
-      server.listen(handleClient);
-    }
-  );
-
-  void handleClient(Socket client){
-  print('Connection from '
-    '${client.remoteAddress.address}:${client.remotePort}');
-
-  client.write("Hello from simple server!\n");
-  client.close();
-}
-
-*/
     }
 }

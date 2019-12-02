@@ -86,8 +86,8 @@ class IIPPacket
     {
         if (offset + needed > ends)
         {
-            //dataLengthNeeded = needed - (ends - offset);
-            _dataLengthNeeded = needed - (ends - _originalOffset);
+            _dataLengthNeeded = needed - (ends - offset);
+            //_dataLengthNeeded = (needed - (ends - offset)) + (offset - _originalOffset);
 
             return true;
         }

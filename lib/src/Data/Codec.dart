@@ -493,10 +493,10 @@ class Codec
                     return new AsyncReply<int>.ready(data.getUint64(offset));
 
                 case DataType.Float32:
-                    return new AsyncReply<int>.ready(data.getFloat32(offset));
+                    return new AsyncReply<double>.ready(data.getFloat32(offset));
 
                 case DataType.Float64:
-                    return new AsyncReply<int>.ready(data.getFloat64(offset));
+                    return new AsyncReply<double>.ready(data.getFloat64(offset));
 
                 case DataType.String:
                     return new AsyncReply<String>.ready(data.getString(offset, contentLength));
@@ -649,6 +649,8 @@ class Codec
     /// <returns>Array of resources.</returns>
     static AsyncBag<IResource> parseResourceArray(DC data, int offset, int length, DistributedConnection connection)
     {
+        //print("parseResourceArray ${offset} ${length}");
+
         var reply = new AsyncBag<IResource>();
         if (length == 0)
         {
@@ -912,6 +914,9 @@ class Codec
     /// <returns></returns>
     static AsyncBag<PropertyValue> parsePropertyValueArray(DC data, int offset, int length, DistributedConnection connection)//, bool ageIncluded = true)
     {
+
+      //print("parsePropertyValueArray ${offset} ${length}");
+
         var rt = new AsyncBag<PropertyValue>();
 
         var sizeObject = new SizeObject();

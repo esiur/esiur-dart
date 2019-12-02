@@ -1,8 +1,8 @@
-name: esiur
+name: esyur
 description: Distributed Object Framework.
-version: 1.0.0
+version: 1.0.5
 author: Ahmed Zamil <ahmed@dijlh.com>
-homepage: https://github.com/esiur/esiur-dart
+homepage: https://github.com/esyur/esyur-dart
 
 environment:
   sdk: ">=2.1.0 <3.0.0"

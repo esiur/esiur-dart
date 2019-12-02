@@ -341,13 +341,17 @@ class DistributedConnection extends NetworkConnection with IStore
      
             if (rt <= 0)
             {
+              // print("hold");
                 var size = ends - offset;
                 data.holdFor(msg, offset, size, size - rt);
                 return ends;
             }
             else
             {
+                //print("CMD ${packet.command} ${offset} ${ends}");
+
                 offset += rt;
+
 
                 if (packet.command == IIPPacketCommand.Event)
                 {
@@ -2158,15 +2162,23 @@ class DistributedConnection extends NetworkConnection with IStore
           var reply = new AsyncReply<DistributedResource>();
           _resourceRequests.add(id, reply);
 
+          //print("fetch ${id}");
+
           sendRequest(IIPPacketAction.AttachResource)
                       .addUint32(id)
                       .done()
                       .then((rt)
                       {
+
+                        //print("fetched ${id}");
+
                           var dr = new DistributedResource(this, id, rt[1], rt[2]);
+
 
                           getTemplate(rt[0] as Guid).then((tmp)
                           {
+                              //print("New template ");
+
                               // ClassId, ResourceAge, ResourceLink, Content
                               Warehouse.put(dr, id.toString(), this, null, tmp);
 
@@ -2174,6 +2186,7 @@ class DistributedConnection extends NetworkConnection with IStore
 
                               Codec.parsePropertyValueArray(d, 0, d.length, this).then((ar)
                               {
+                                //print("attached");
                                   dr.attached(ar);
                                   _resourceRequests.remove(id);
                                   reply.trigger(dr);

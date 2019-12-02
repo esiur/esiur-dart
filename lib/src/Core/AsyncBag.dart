@@ -11,6 +11,8 @@ class AsyncBag<T> extends AsyncReply<List<T>>
 
     seal()
     {
+        //print("SEALED");
+      
         if (_sealedBag)
             return;
 
@@ -28,8 +30,11 @@ class AsyncBag<T> extends AsyncReply<List<T>>
             {
                 _results[index] = r;
                 _count++;
+                //print("Seal ${_count}/${_results.length}");
                 if (_count == _results.length)
                     trigger(_results);
+            }).error((ex){
+              triggerError(ex);
             });
         }
     }

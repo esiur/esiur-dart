@@ -107,18 +107,7 @@ class AsyncReply<T> implements Future<T>
   {
     return this;
   }
-
-    AsyncReply<T> _then_old(Function(T) callback)
-    {
-        _callbacks.add(callback);
-
-        if (_resultReady)
-            callback(result);
-
-        return this;
-    }
-
-    
+ 
     AsyncReply<T> error(Function(dynamic) callback)
     {
         _errorCallbacks.add(callback);

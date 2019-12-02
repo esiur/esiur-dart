@@ -91,6 +91,7 @@ class NetworkConnection extends IDestructible
     {
         try
         {
+
             // Unassigned ?
             if (_sock == null)
                 return;
@@ -121,8 +122,10 @@ class NetworkConnection extends IDestructible
         }
         catch (ex)
         {
+          print(ex);
             //Global.Log("NetworkConnection", LogType.Warning, ex.ToString());
         }
+
     }
 
     ISocket unassign()

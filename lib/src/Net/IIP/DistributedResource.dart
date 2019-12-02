@@ -80,7 +80,7 @@ class DistributedResource extends IResource
     /// <summary>
     /// Resource is attached when all its properties are received.
     /// </summary>
-    bool get IsAttached => _isAttached;
+    bool get isAttached => _isAttached;
    
 
     // public DistributedResourceStack Stack
@@ -185,6 +185,19 @@ class DistributedResource extends IResource
         return connection.sendInvokeByArrayArguments(_instanceId, index, args);
     }
 
+      operator [](String index) 
+      {
+          var pt = instance.template.getPropertyTemplateByName(index);
+          if (pt != null)
+            return get(pt.index);
+      }
+
+      operator []=(String index, value) 
+      {
+          var pt = instance.template.getPropertyTemplateByName(index);
+          if (pt != null)
+              set(pt.index, value);
+      }
 
     String _getMemberName(Symbol symbol)
     {

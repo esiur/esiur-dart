@@ -433,6 +433,7 @@ class Instance extends IEventHandler
         }
 
         emitArgs("resourceModified", [_resource, pt.name, value]);
+        _resource.emitArgs("modified", [pt.name, value]);
     }
 
     /// <summary>
