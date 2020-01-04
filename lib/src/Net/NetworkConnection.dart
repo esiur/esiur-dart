@@ -153,9 +153,10 @@ class NetworkConnection extends IDestructible
     
     void close()
     {
-      
+
         try
         {
+
             if (_sock != null)
                 _sock.close();
         }

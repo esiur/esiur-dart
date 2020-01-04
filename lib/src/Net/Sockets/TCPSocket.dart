@@ -102,6 +102,7 @@ class TCPSocket extends ISocket
     }
 
     void doneHandler(){
+      close();
       sock.destroy();
     }
 

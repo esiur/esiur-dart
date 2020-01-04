@@ -22,6 +22,8 @@ SOFTWARE.
 
 */
 
+/*
+
 import 'dart:io';
 import 'ISocket.dart';
 import '../../Data/DC.dart';
@@ -187,3 +189,4 @@ class WSSocket extends ISocket
         return reply;
     }
 }
+*/

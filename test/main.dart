@@ -6,12 +6,22 @@ main()
 {
     test("Connect to server", () async {
 
-
     // connect to the server
-    var x = await Warehouse.get("iip://localhost:5000/db/my", {"username": "demo", "password": "1234"});
+    var x = await Warehouse.get("iip://192.168.88.220:5000/sys/su", {"username": "admin", "password": "1234"
+    , "domain": "khalid.com"});
  
- //   x.instance.store.on("close", ()=>print("Closed"));
+    x.instance.store.on("close", (x){
+        print("Closed");
+      });
 
+  x.on("modified", (peoperty, value){
+
+  });
+
+   // var users = await x.Users.Slice(0, 10);
+
+   // print(users);
+ //   await sleep(Duration(seconds: 10));
 
     // get property
     print(x.Level);

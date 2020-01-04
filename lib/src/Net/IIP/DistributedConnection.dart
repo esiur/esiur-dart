@@ -175,11 +175,13 @@ class DistributedConnection extends NetworkConnection with IStore
         if (instance.attributes.containsKey("username")
           && instance.attributes.containsKey("password"))
         {
-            var hostname = instance.name.split ("://").skip(1).join("://").split("/")[0];
+
+          
+            var host = instance.name.split(":");// ("://").skip(1).join("://").split("/")[0];
             // assign domain from hostname if not provided
 
-            var address = hostname.split(":")[0];
-            var port = int.parse(hostname.split(":")[1]);
+            var address = host[0];
+            var port = int.parse(host[1]);
             var username = instance.attributes["username"].toString();
 
             var domain = instance.attributes.containsKey("domain") ? instance.attributes["domain"] : address;
@@ -195,7 +197,7 @@ class DistributedConnection extends NetworkConnection with IStore
             var sock = new TCPSocket();
 
 
-            sock.connect(domain, port).then((x){
+            sock.connect(domain, port).then<dynamic>((x){
               assign(sock);
               //rt.trigger(true);
             }).error((x)=>_openReply.triggerError(x));
@@ -1987,7 +1989,7 @@ class DistributedConnection extends NetworkConnection with IStore
                           if (r is DistributedResource)
                           {
                               // propagation
-                              (r as DistributedResource).set(index, value).then((x)
+                              (r as DistributedResource).set(index, value).then<dynamic>((x)
                               {
                                   sendReply(IIPPacketAction.SetProperty, callback).done();
                               }).error((x)
@@ -2087,7 +2089,7 @@ class DistributedConnection extends NetworkConnection with IStore
           sendRequest(IIPPacketAction.TemplateFromClassId)
                       .addGuid(classId)
                       .done()
-                      .then((rt)
+                      .then<dynamic>((rt)
                       {
                           _templateRequests.remove(classId);
                           _templates[(rt[0] as ResourceTemplate).classId] = rt[0] as ResourceTemplate;
@@ -2112,7 +2114,7 @@ class DistributedConnection extends NetworkConnection with IStore
 
           var rt = new AsyncReply<IResource>();
 
-          query(path).then((ar)
+          query(path).then<dynamic>((ar)
           {
               if (ar?.length > 0)
                   rt.trigger(ar[0]);
@@ -2167,7 +2169,7 @@ class DistributedConnection extends NetworkConnection with IStore
           sendRequest(IIPPacketAction.AttachResource)
                       .addUint32(id)
                       .done()
-                      .then((rt)
+                      .then<dynamic>((rt)
                       {
 
                         //print("fetched ${id}");
@@ -2175,7 +2177,7 @@ class DistributedConnection extends NetworkConnection with IStore
                           var dr = new DistributedResource(this, id, rt[1], rt[2]);
 
 
-                          getTemplate(rt[0] as Guid).then((tmp)
+                          getTemplate(rt[0] as Guid).then<dynamic>((tmp)
                           {
                               //print("New template ");
 
@@ -2211,7 +2213,7 @@ class DistributedConnection extends NetworkConnection with IStore
           sendRequest(IIPPacketAction.ResourceChildren)
                       .addUint32(resource.instance.id)
                       .done()
-                      .then((ar)
+                      .then<dynamic>((ar)
                       {
                           var d = ar[0] as DC;
                           Codec.parseResourceArray(d, 0, d.length, this).then((resources)
@@ -2230,10 +2232,10 @@ class DistributedConnection extends NetworkConnection with IStore
           sendRequest(IIPPacketAction.ResourceParents)
               .addUint32(resource.instance.id)
               .done()
-              .then((ar)
+              .then<dynamic>((ar)
               {
                   var d = ar[0] as DC;
-                  Codec.parseResourceArray(d, 0, d.length, this).then((resources)
+                  Codec.parseResourceArray(d, 0, d.length, this).then<dynamic>((resources)
                   {
                       rt.trigger(resources);
                   }).error((ex) => rt.triggerError(ex));
@@ -2250,7 +2252,7 @@ class DistributedConnection extends NetworkConnection with IStore
               sendRequest(IIPPacketAction.ClearAllAttributes)
                   .addUint32(resource.instance.id)
                   .done()
-                  .then((ar) => rt.trigger(true))
+                  .then<dynamic>((ar) => rt.trigger(true))
                   .error((ex) => rt.triggerError(ex));
           else
           {
@@ -2260,7 +2262,7 @@ class DistributedConnection extends NetworkConnection with IStore
                   .addInt32(attrs.length)
                   .addDC(attrs)
                   .done()
-                  .then((ar) => rt.trigger(true))
+                  .then<dynamic>((ar) => rt.trigger(true))
                   .error((ex) => rt.triggerError(ex));
           }
 
@@ -2275,7 +2277,7 @@ class DistributedConnection extends NetworkConnection with IStore
               .addUint32(resource.instance.id)
               .addDC(Codec.composeStructure(attributes, this, true, true, true))
               .done()
-              .then((ar) => rt.trigger(true))
+              .then<dynamic>((ar) => rt.trigger(true))
               .error((ex) => rt.triggerError(ex));
 
           return rt;
@@ -2293,7 +2295,7 @@ class DistributedConnection extends NetworkConnection with IStore
                   .then((ar)
                   {
                       var d = ar[0] as DC;
-                      Codec.parseStructure(d, 0, d.length, this).then((st)
+                      Codec.parseStructure(d, 0, d.length, this).then<dynamic>((st)
                       {
                           resource.instance.setAttributes(st);
                           rt.trigger(st);
@@ -2311,7 +2313,7 @@ class DistributedConnection extends NetworkConnection with IStore
                   .then((ar)
                   {
                       var d = ar[0] as DC;
-                      Codec.parseStructure(d, 0, d.length, this).then((st)
+                      Codec.parseStructure(d, 0, d.length, this).then<dynamic>((st)
                       {
 
                           resource.instance.setAttributes(st);
@@ -2347,7 +2349,7 @@ class DistributedConnection extends NetworkConnection with IStore
                   .addDateTime(fromDate)
                   .addDateTime(toDate)
                   .done()
-                  .then((rt)
+                  .then<dynamic>((rt)
                   {
                       var content = rt[0] as DC;
 
@@ -2376,7 +2378,7 @@ class DistributedConnection extends NetworkConnection with IStore
                       .addUint16(str.length)
                       .addDC(str)
                       .done()
-                      .then((args)
+                      .then<dynamic>((args)
                       {
                           var content = args[0] as DC;
 

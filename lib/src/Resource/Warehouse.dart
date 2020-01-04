@@ -46,7 +46,6 @@ class Warehouse
 
     static KeyList<Guid, ResourceTemplate> _templates = new KeyList<Guid, ResourceTemplate>();
 
-    static bool storeIsOpen = false;
 
     //public delegate void StoreConnectedEvent(IStore store, string name);
     //public delegate void StoreDisconnectedEvent(IStore store);
@@ -54,7 +53,11 @@ class Warehouse
     //public static event StoreConnectedEvent StoreConnected;
     ///public static event StoreDisconnectedEvent StoreDisconnected;
 
+    static bool _warehouseIsOpen = false;
+
     static KeyList<String, IStore Function()> protocols = _getSupportedProtocols();
+
+    static final _urlRegex = RegExp(r'^(?:([^\s|:]*):\/\/([^\/]*)\/?(.*))');
 
     /// <summary>
     /// Get a store by its name.
@@ -125,7 +128,7 @@ class Warehouse
                     }
 
                 rt.trigger(true);
-                storeIsOpen = true;
+                _warehouseIsOpen = true;
             });
 
         });
@@ -240,7 +243,65 @@ class Warehouse
     /// <returns>Resource instance.</returns>
     static AsyncReply<dynamic> get(String path, [attributes = null, IResource parent = null, IPermissionsManager manager = null])
     {
+            var rt = new AsyncReply<IResource>();
 
+            // Should we create a new store ?
+
+            if (_urlRegex.hasMatch(path))
+            //if (path.contains("://"))
+            {
+                var url = _urlRegex.allMatches(path).first;
+
+                //var url = path.split(_urlRegex);
+
+                //var url = path.split(new string[] { "://" }, 2, StringSplitOptions.None);
+                //var hostname = url[1].Split(new char[] { '/' }, 2)[0];
+                //var pathname = string.Join("/", url[1].Split(new char[] { '/' }).Skip(1));
+
+
+                if (protocols.containsKey(url[1]))
+                {
+                    var handler = protocols[url[1]];
+
+                    var store = handler();
+                    put(store, url[2], null, parent, null, 0, manager, attributes);
+
+
+                    store.trigger(ResourceTrigger.Open).then<dynamic>((x)
+                    {
+
+                        _warehouseIsOpen = true;
+
+                        if (url[3].length > 0 && url[3] != "")
+                            store.get(url[3]).then<dynamic>((r)
+                            {
+                                rt.trigger(r);
+                            }).error((e) => rt.triggerError(e));
+                        else
+                            rt.trigger(store);
+                    }).error((e)
+                    {
+                        rt.triggerError(e);
+                        Warehouse.remove(store);
+                    });
+
+                    return rt;
+                }
+            }
+
+
+            query(path).then((rs)
+            {
+                if (rs != null && rs.length > 0)
+                    rt.trigger(rs[0]);
+                else
+                    rt.trigger(null);
+            });
+
+            return rt;
+
+
+/*
         var p = path.split('/');
         IResource res;
 
@@ -286,9 +347,9 @@ class Warehouse
                 put(store, url[0] + "://" + hostname, null, parent, null, 0, manager, attributes);
 
 
-                store.trigger(ResourceTrigger.Open).then((x){
+                store.trigger(ResourceTrigger.Open).then<dynamic>((x){
                     if (pathname.length > 0 && pathname != "")
-                        store.get(pathname).then((r) => rt.trigger(r)
+                        store.get(pathname).then<dynamic>((r) => rt.trigger(r)
                             ).error((e) => 
                             
                             rt.triggerError(e)
@@ -307,6 +368,7 @@ class Warehouse
 
 
         return new AsyncReply<IResource>.ready(null);
+        */
     }
 
     /// <summary>
@@ -348,8 +410,8 @@ class Warehouse
 
         _resources[resource.instance.id] = resource;
 
-        //if (!storeIsOpen)
-        //      resource.trigger(ResourceTrigger.Initialize);
+        if (_warehouseIsOpen)
+              resource.trigger(ResourceTrigger.Initialize);
 
     }
 

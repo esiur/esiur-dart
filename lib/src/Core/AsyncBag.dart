@@ -26,7 +26,7 @@ class AsyncBag<T> extends AsyncReply<List<T>>
             var k = _replies[i];
             var index = i;
 
-            k.then((r)
+            k.then<dynamic>((r)
             {
                 _results[index] = r;
                 _count++;

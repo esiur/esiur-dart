@@ -59,8 +59,15 @@ class AsyncReply<T> implements Future<T>
     {
       _resultReady = val;
     }
+ 
 
-  AsyncReply<R> then<R>(FutureOr<R> onValue(T value), {Function onError})
+  AsyncReply<T> next(Function(T) callback)
+  {
+    then(callback);
+    return this;
+  }
+
+  AsyncReply<R> then<R>(FutureOr<R> onValue(T value), {Function onError}) 
   {
       _callbacks.add(onValue);
       if (onError != null)
@@ -83,8 +90,10 @@ class AsyncReply<T> implements Future<T>
       if (_resultReady)
           onValue(result);
 
-      return this as AsyncReply<R>;
-      
+      if (R == Null)
+        return null;
+      else
+        return this as AsyncReply<R>;
   }
 
   AsyncReply<T> whenComplete(FutureOr action())
