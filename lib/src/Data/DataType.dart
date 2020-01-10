@@ -21,7 +21,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
-
 class DataType
 {
     static const int Void = 0x0,
@@ -49,8 +48,8 @@ class DataType
     //Array = 0x80,
     VarArray = 0x80,
     BoolArray = 0x81,
-    UInt8Array = 0x82,
-    Int8Array = 0x83,
+    Int8Array = 0x82,
+    UInt8Array  = 0x83,
     CharArray = 0x84,
     Int16Array = 0x85,
     UInt16Array = 0x86,
