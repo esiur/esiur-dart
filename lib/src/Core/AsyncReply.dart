@@ -177,30 +177,17 @@ class AsyncReply<T> implements Future<T>
 
     triggerProgress(ProgressType type, int value, int max)
     {
-        if (_resultReady)
-            return;
-
-        //lock (callbacksLock)
-        //{
-          _progressCallbacks.forEach((x) {
-            x(type, value, max);
-          });
-        //}
+        _progressCallbacks.forEach((x) {
+          x(type, value, max);
+        });
     }
 
     
     triggerChunk(T value)
     {
-        if (_resultReady)
-            return;
-
-        //lock (callbacksLock)
-        //{
-          _chunkCallbacks.forEach((x) {
-              x(value);
-          });
-
-        //}
+        _chunkCallbacks.forEach((x) {
+            x(value);
+        });
     }
 
 

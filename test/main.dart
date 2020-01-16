@@ -7,8 +7,8 @@ main()
     test("Connect to server", () async {
 
     // connect to the server
-    var x = await Warehouse.get("iip://192.168.88.220:5000/sys/su", {"username": "admin", "password": "1234"
-    , "domain": "khalid.com"});
+    var x = await Warehouse.get("iip://localhost:5000/sys/su", {"username": "admin", "password": "1234"
+    , "domain": "example.com"});
  
     x.instance.store.on("close", (x){
         print("Closed");
