@@ -197,7 +197,7 @@ class DistributedConnection extends NetworkConnection with IStore
             var sock = new TCPSocket();
 
 
-            sock.connect(domain, port).then<dynamic>((x){
+            sock.connect(address, port).then<dynamic>((x){
               assign(sock);
               //rt.trigger(true);
             }).error((x)=>_openReply.triggerError(x));

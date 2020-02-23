@@ -9,6 +9,8 @@ main()
     // connect to the server
     var x = await Warehouse.get("iip://localhost:5000/sys/su", {"username": "admin", "password": "1234"
     , "domain": "example.com"});
+
+
  
     x.instance.store.on("close", (x){
         print("Closed");
