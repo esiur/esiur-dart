@@ -33,6 +33,7 @@ class AsyncQueue<T> extends AsyncReply<T>
                   if (_list[i].ready)
                   {
                       super.trigger(_list[i].result);
+                      super.ready = false;
                       _list.removeAt(i);
                       i--;
                   }

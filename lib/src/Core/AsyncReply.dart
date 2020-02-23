@@ -50,6 +50,11 @@ class AsyncReply<T> implements Future<T>
         return _resultReady;
     }
 
+    set ready(value)
+    {
+        _resultReady = value; 
+    }
+    
     T get result
     {
         return _result;

@@ -732,9 +732,9 @@ class DistributedConnection extends NetworkConnection with IStore
                             {
                                 sendParams()
                                             .addUint8(0xc0)
-                                            .addUint8(1)
-                                            .addUint16(5)
-                                            .addString("Error")
+                                            .addUint8(ExceptionCode.ChallengeFailed.index)
+                                            .addUint16(16)
+                                            .addString("Challenge Failed")
                                             .done();
 
                                 //SendParams((byte)0xc0, 1, 5, DC.ToBytes("Error"));

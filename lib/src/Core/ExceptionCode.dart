@@ -3,6 +3,8 @@ enum ExceptionCode
 {
         HostNotReachable,
         AccessDenied,
+        UserNotFound,
+        ChallengeFailed,
         ResourceNotFound,
         AttachDenied,
         InvalidMethod,
