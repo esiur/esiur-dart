@@ -23,6 +23,8 @@ SOFTWARE.
 */
 
 import 'dart:io';
+import 'package:esyur/esyur.dart';
+
 import 'ISocket.dart';
 import '../../Data/DC.dart';
 import '../NetworkBuffer.dart';
@@ -127,14 +129,14 @@ class TCPSocket extends ISocket
 
             }).catchError((ex){
               close();
-              rt.triggerError(ex);
+              rt.triggerError(AsyncException(ErrorType.Management, ExceptionCode.HostNotReachable.index, ex.toString()));
             });
 
             
         }
         catch(ex)
         {
-            rt.triggerError(ex);
+            rt.triggerError(AsyncException(ErrorType.Management, ExceptionCode.HostNotReachable.index, ex.toString()));
         }
 
         return rt;

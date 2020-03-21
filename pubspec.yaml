@@ -1,14 +1,14 @@
 name: esyur
 description: Distributed Object Framework.
-version: 1.1.5
-author: Ahmed Zamil <ahmed@dijlh.com>
+version: 1.1.9
+# author: Ahmed Zamil <ahmed@dijlh.com>
 homepage: https://github.com/esyur/esyur-dart
 
 environment:
   sdk: ">=2.1.0 <3.0.0"
 
 dev_dependencies:
-  test: ^1.0.0
+  test: ^1.14.2
 
 # For information on the generic Dart part of this file, see the
 # following page: https://www.dartlang.org/tools/pub/pubspec

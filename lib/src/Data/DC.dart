@@ -587,10 +587,10 @@ class DC with IterableMixin<int>
        _dv.setUint64(offset, value);
     }
 
-    setDateTime(offset, value)
+    setDateTime(offset, DateTime value)
     {
         // Unix Epoch
-        var ticks = 621355968000000000 + (value.getTime() * 10000);
+        var ticks = UNIX_EPOCH + (value.millisecondsSinceEpoch * 10000);
         this.setUint64(offset, ticks);
     }
 
