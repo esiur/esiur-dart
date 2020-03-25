@@ -260,36 +260,24 @@ class DistributedConnection extends NetworkConnection with IStore
 
     Future<bool> reconnect() async
     {
-      try
-      {
         if (await connect())
         {
-          try
-          {
-            var bag = AsyncBag();
+          var bag = AsyncBag();
 
-            for(var i = 0; i < _resources.keys.length; i++)
-            {
-              var index = _resources.keys.elementAt(i);
-             // print("Re $i ${_resources[index].instance.template.className}");
-              bag.add(fetch(index));
-            }
-
-            bag.seal();
-            await bag;
-          }
-          catch(ex)
+          for(var i = 0; i < _resources.keys.length; i++)
           {
-            print(ex.toString());
+            var index = _resources.keys.elementAt(i);
+            // print("Re $i ${_resources[index].instance.template.className}");
+            bag.add(fetch(index));
           }
+
+          bag.seal();
+          await bag;
+
+          return true;
         }
-      }
-      catch(ex)
-      {
+        
         return false;
-      }
-
-      return true;
     }
 
     /// <summary>

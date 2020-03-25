@@ -220,6 +220,9 @@ class IIPPacket
                 var cl = data.getUint32( offset);
                 offset += 4;
 
+                if (_notEnough(offset, ends, cl))
+                    return -_dataLengthNeeded;
+
                 content = data.clip(offset, cl);
                 offset += cl;
 

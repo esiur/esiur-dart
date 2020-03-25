@@ -7,8 +7,8 @@ main() async
     //test("Connect to server", () async {
 
     // connect to the server
-    var x = await Warehouse.get("iip://localhost:5000/sys/su", {"username": "admin", "password": "1234"
-    , "domain": "example.com"});
+   var x = await Warehouse.get("iip://localhost:5000/sys/su", {"username": "admin", "password": "1234"
+   , "domain": "example.com"});
 
     var now = DateTime.now();
 
@@ -24,18 +24,23 @@ main() async
     print(x.suspended);
 
     DistributedConnection con = x.connection;
-    con.close();
+    //con.close();
         print(x.suspended);
 
    now = DateTime.now();
 
-    await con.reconnect();
+    //await con.reconnect();
 
     print("Time ${DateTime.now().difference(now).inSeconds}");
     print(x.suspended);
     var u = await x.getMyTrackers();
     print(trackers[0].suspended);
 
+    u[0].on("moved", (x){
+      print("Movvvvvvvvvvvvvvvvved");
+    });
+    
+  Future.delayed(Duration(seconds: 100));
   // for(var i = 0; i < trackers.length; i++)
   //   print(trackers[i].name);
 
