@@ -48,11 +48,17 @@ class NetworkConnection extends IDestructible
     bool _processing = false;
 
 
+    // to be overridden
+    void connectionClosed()
+    {
+
+    }
+
     void destroy()
     {
         // if (connected)
         close();
-        emitArgs("close", [this]);
+        //emitArgs("close", [this]);
         //OnDestroy?.Invoke(this);
     }
 
@@ -73,7 +79,6 @@ class NetworkConnection extends IDestructible
         socket.on("receive", socket_OnReceive);
         socket.on("close", socket_OnClose);
         socket.on("connect", socket_OnConnect);
-        
     }
 
     
@@ -84,6 +89,7 @@ class NetworkConnection extends IDestructible
 
     void socket_OnClose()
     {
+        connectionClosed();
         emitArgs("close", [this]);
     }
 
@@ -153,10 +159,8 @@ class NetworkConnection extends IDestructible
     
     void close()
     {
-
         try
         {
-
             if (_sock != null)
                 _sock.close();
         }

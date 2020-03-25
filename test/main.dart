@@ -2,20 +2,39 @@ import "package:test/test.dart";
 import 'package:esyur/esyur.dart';
 import 'dart:io';
 
-main()
+main() async
 {
-    test("Connect to server", () async {
+    //test("Connect to server", () async {
 
     // connect to the server
-   // var x = await Warehouse.get("iip://localhost:5000/sys/su", {"username": "admin", "password": "1234"
-   // , "domain": "example.com"});
+    var x = await Warehouse.get("iip://localhost:5000/sys/su", {"username": "admin", "password": "1234"
+    , "domain": "example.com"});
+
+    var now = DateTime.now();
 
 
 
 
   // desc(x);
  
- //  List<dynamic> trackers = await x.getMyTrackers();
+    List<dynamic> trackers = await x.getMyTrackers();
+
+    print("Time ${DateTime.now().difference(now).inSeconds}");
+
+    print(x.suspended);
+
+    DistributedConnection con = x.connection;
+    con.close();
+        print(x.suspended);
+
+   now = DateTime.now();
+
+    await con.reconnect();
+
+    print("Time ${DateTime.now().difference(now).inSeconds}");
+    print(x.suspended);
+    var u = await x.getMyTrackers();
+    print(trackers[0].suspended);
 
   // for(var i = 0; i < trackers.length; i++)
   //   print(trackers[i].name);
@@ -53,7 +72,7 @@ main()
 
         //print("Done");
 
-  });
+  //});
 
   
 }

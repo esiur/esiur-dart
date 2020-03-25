@@ -246,18 +246,9 @@ class Warehouse
             var rt = new AsyncReply<IResource>();
 
             // Should we create a new store ?
-
             if (_urlRegex.hasMatch(path))
-            //if (path.contains("://"))
             {
                 var url = _urlRegex.allMatches(path).first;
-
-                //var url = path.split(_urlRegex);
-
-                //var url = path.split(new string[] { "://" }, 2, StringSplitOptions.None);
-                //var hostname = url[1].Split(new char[] { '/' }, 2)[0];
-                //var pathname = string.Join("/", url[1].Split(new char[] { '/' }).Skip(1));
-
 
                 if (protocols.containsKey(url[1]))
                 {
@@ -265,7 +256,6 @@ class Warehouse
 
                     var store = handler();
                     put(store, url[2], null, parent, null, 0, manager, attributes);
-
 
                     store.trigger(ResourceTrigger.Open).then<dynamic>((x)
                     {

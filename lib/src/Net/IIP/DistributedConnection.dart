@@ -21,6 +21,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
+
+import '../../Core/AsyncBag.dart';
+
 import '../Sockets/TCPSocket.dart';
 import 'DistributedPropertyContext.dart';
 import '../../Data/PropertyValue.dart';
@@ -97,15 +100,17 @@ class DistributedConnection extends NetworkConnection with IStore
     DC _localPassword;
     DC _localNonce, _remoteNonce;
 
-    bool _ready = false, _readyToEstablish = false;
+    String _hostname;
+    int _port;
 
-    DateTime _loginDate;
+    bool _ready = false, _readyToEstablish = false;
 
 
     KeyList<int, DistributedResource> _resources = new KeyList<int, DistributedResource>();
+
     KeyList<int, AsyncReply<DistributedResource>> _resourceRequests = new KeyList<int, AsyncReply<DistributedResource>>();
     KeyList<Guid, AsyncReply<ResourceTemplate>> _templateRequests = new KeyList<Guid, AsyncReply<ResourceTemplate>>();
-    KeyList<String, AsyncReply<IResource>> _pathRequests = new KeyList<String, AsyncReply<IResource>>();
+    //KeyList<String, AsyncReply<IResource>> _pathRequests = new KeyList<String, AsyncReply<IResource>>();
     Map<Guid, ResourceTemplate> _templates = new Map<Guid, ResourceTemplate>();
     KeyList<int, AsyncReply<dynamic>> _requests = new KeyList<int, AsyncReply<dynamic>>();
     int _callbackCounter = 0;
@@ -177,7 +182,7 @@ class DistributedConnection extends NetworkConnection with IStore
         {
 
           
-            var host = instance.name.split(":");// ("://").skip(1).join("://").split("/")[0];
+            var host = instance.name.split(":");
             // assign domain from hostname if not provided
 
             var address = host[0];
@@ -186,27 +191,105 @@ class DistributedConnection extends NetworkConnection with IStore
 
             var domain = instance.attributes.containsKey("domain") ? instance.attributes["domain"] : address;
 
-            _session = new Session(new ClientAuthentication()
-                                        , new HostAuthentication());
-
-            _session.localAuthentication.domain = domain;
-            _session.localAuthentication.username = username;
-            _localPassword = DC.stringToBytes(instance.attributes["password"].toString());
-
-            _openReply = new AsyncReply<bool>();
-            var sock = new TCPSocket();
+            var password = DC.stringToBytes(instance.attributes["password"].toString());
 
 
-            sock.connect(address, port).then<dynamic>((x){
-              assign(sock);
-              //rt.trigger(true);
-            }).error((x)=>_openReply.triggerError(x));
 
-            return _openReply;
+            return connect(domain: domain, hostname: address, port: port, password: password, username: username);
+
         }
       }
 
       return new AsyncReply<bool>.ready(true);
+    }
+
+    AsyncReply<bool> connect({ISocket socket, String hostname, int port, String username, DC password, String domain})
+    {
+      if (_openReply != null)
+        throw AsyncException(ErrorType.Exception, 0, "Connection in progress");
+
+      _openReply = new AsyncReply<bool>();
+
+      if (hostname != null)
+      {
+        _session = new Session(new ClientAuthentication()
+                                  , new HostAuthentication());
+
+        _session.localAuthentication.domain = domain;
+        _session.localAuthentication.username = username;
+        _localPassword = password;
+      }
+      
+      if (_session == null)
+        throw AsyncException(ErrorType.Exception, 0, "Session not initialized");
+
+      if (socket == null)
+        socket = new TCPSocket();
+
+      _port = port ?? _port;
+      _hostname = hostname ?? _hostname;
+
+      socket.connect(_hostname,  _port).then<dynamic>((x){
+        assign(socket);
+      }).error((x){
+          _openReply.triggerError(x);
+          _openReply = null;
+      });
+
+      return _openReply; 
+    }
+
+
+    @override
+    void connectionClosed()
+    {
+      // clean up
+      _ready = false;
+      _readyToEstablish = false;
+      
+      _requests.values.forEach((x)=>x.triggerError(AsyncException(ErrorType.Management, 0, "Connection closed")));
+      _resourceRequests.values.forEach((x)=>x.triggerError(AsyncException(ErrorType.Management, 0, "Connection closed")));
+      _templateRequests.values.forEach((x)=>x.triggerError(AsyncException(ErrorType.Management, 0, "Connection closed")));
+      
+      _requests.clear();
+      _resourceRequests.clear();
+      _templateRequests.clear();
+
+      _resources.values.forEach((x)=>x.suspend());
+    }
+
+    Future<bool> reconnect() async
+    {
+      try
+      {
+        if (await connect())
+        {
+          try
+          {
+            var bag = AsyncBag();
+
+            for(var i = 0; i < _resources.keys.length; i++)
+            {
+              var index = _resources.keys.elementAt(i);
+             // print("Re $i ${_resources[index].instance.template.className}");
+              bag.add(fetch(index));
+            }
+
+            bag.seal();
+            await bag;
+          }
+          catch(ex)
+          {
+            print(ex.toString());
+          }
+        }
+      }
+      catch(ex)
+      {
+        return false;
+      }
+
+      return true;
     }
 
     /// <summary>
@@ -227,10 +310,10 @@ class DistributedConnection extends NetworkConnection with IStore
     {
         super.assign(socket);
 
-        session.remoteAuthentication.source.attributes.add(SourceAttributeType.IPv4, socket.remoteEndPoint.address);
-        session.remoteAuthentication.source.attributes.add(SourceAttributeType.Port, socket.remoteEndPoint.port);
-        session.localAuthentication.source.attributes.add(SourceAttributeType.IPv4, socket.localEndPoint.address);
-        session.localAuthentication.source.attributes.add(SourceAttributeType.Port, socket.localEndPoint.port);
+        session.remoteAuthentication.source.attributes[SourceAttributeType.IPv4] = socket.remoteEndPoint.address;
+        session.remoteAuthentication.source.attributes[SourceAttributeType.Port] = socket.remoteEndPoint.port;
+        session.localAuthentication.source.attributes[SourceAttributeType.IPv4]  = socket.localEndPoint.address;
+        session.localAuthentication.source.attributes[SourceAttributeType.Port] = socket.localEndPoint.port;
 
         if (session.localAuthentication.type == AuthenticationType.Client)
         {
@@ -680,6 +763,7 @@ class DistributedConnection extends NetworkConnection with IStore
                                 _ready = true;
 
                                 _openReply.trigger(true);
+                                _openReply = null;
                                 emitArgs("ready", []);
                                 //OnReady?.Invoke(this);
                                // server.membership.login(session);
@@ -747,6 +831,7 @@ class DistributedConnection extends NetworkConnection with IStore
                             _ready = true;
 
                             _openReply.trigger(true);
+                            _openReply = null;
                             emitArgs("ready", []);
 
                             //OnReady?.Invoke(this);
@@ -757,6 +842,7 @@ class DistributedConnection extends NetworkConnection with IStore
                     {
                         var ex = AsyncException(ErrorType.Management, _authPacket.errorCode, _authPacket.errorMessage);
                         _openReply.triggerError(ex);
+                        _openReply = null;
                         emitArgs("error", [ex]);
                         //OnError?.Invoke(this, authPacket.ErrorCode, authPacket.ErrorMessage);
                         close();
@@ -815,6 +901,10 @@ class DistributedConnection extends NetworkConnection with IStore
       return true;
     }
 
+
+    
+
+    
     bool record(IResource resource, String propertyName, value, int age, DateTime dateTime)
     {
         // nothing to do
@@ -874,6 +964,18 @@ class DistributedConnection extends NetworkConnection with IStore
           return reply;
       }
 
+      AsyncReply<dynamic> sendDetachRequest(int instanceId)
+      {
+          try
+          {
+            return sendRequest(IIPPacketAction.DetachResource).addUint32(instanceId).done();
+          }
+          catch(ex)
+          {
+            return null;
+          }
+      }
+      
       AsyncReply<dynamic> sendInvokeByNamedArguments(int instanceId, int index, Structure parameters)
       {
           var pb = Codec.composeStructure(parameters, this, true, true, true);
@@ -2148,48 +2250,44 @@ class DistributedConnection extends NetworkConnection with IStore
       /// <returns>DistributedResource</returns>
       AsyncReply<DistributedResource> fetch(int id)
       {
-          if (_resourceRequests.containsKey(id) && _resources.containsKey(id))
-          {
-              //Console.WriteLine("DEAD LOCK " + id);
+          var resource = _resources[id];
+          var request = _resourceRequests[id];
 
-              return new AsyncReply<DistributedResource>.ready(_resources[id]);
+          if (request != null)
+          {
               // dig for dead locks
-              //return resourceRequests[id];
+              if (resource != null) // dead lock
+                return new AsyncReply<DistributedResource>.ready(_resources[id]);
+              else
+                return request;
           }
-          else if (_resourceRequests.containsKey(id))
-              return _resourceRequests[id];
-          else if (_resources.containsKey(id))
-              return new AsyncReply<DistributedResource>.ready(_resources[id]);
+          else if (resource != null && !resource.suspended)
+              return new AsyncReply<DistributedResource>.ready(resource);
 
           var reply = new AsyncReply<DistributedResource>();
           _resourceRequests.add(id, reply);
-
-          //print("fetch ${id}");
-
+          
           sendRequest(IIPPacketAction.AttachResource)
                       .addUint32(id)
                       .done()
                       .then<dynamic>((rt)
                       {
-
-                        //print("fetched ${id}");
-
-                          var dr = new DistributedResource(this, id, rt[1], rt[2]);
-
+                          var dr = resource ?? new DistributedResource(this, id, rt[1], rt[2]);
 
                           getTemplate(rt[0] as Guid).then<dynamic>((tmp)
                           {
                               //print("New template ");
 
                               // ClassId, ResourceAge, ResourceLink, Content
-                              Warehouse.put(dr, id.toString(), this, null, tmp);
+                              if (resource == null)
+                                Warehouse.put(dr, id.toString(), this, null, tmp);
 
                               var d = rt[3] as DC;
 
                               Codec.parsePropertyValueArray(d, 0, d.length, this).then((ar)
                               {
                                 //print("attached");
-                                  dr.attached(ar);
+                                  dr.attach(ar);
                                   _resourceRequests.remove(id);
                                   reply.trigger(dr);
                               });

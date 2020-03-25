@@ -22,6 +22,8 @@ SOFTWARE.
 
 */
 
+import 'package:esyur/esyur.dart';
+
 import '../../Resource/IResource.dart';
 import '../../Core/AsyncReply.dart';
 import '../../Data/PropertyValue.dart';
@@ -36,11 +38,8 @@ class DistributedResource extends IResource
     int _instanceId;
     DistributedConnection _connection;
 
-
-    bool _isAttached = false;
-    bool _isReady = false;
-
-
+    bool _attached = false;
+    //bool _isReady = false;
 
     String _link;
     List _properties;
@@ -63,24 +62,37 @@ class DistributedResource extends IResource
     /// </summary>
     int get id => _instanceId;
 
+    //bool get destroyed => _destroyed;
+
+    bool get suspended => _suspended;
+    bool _suspended = true;
+
     /// <summary>
     /// IDestructible interface.
     /// </summary>
     void destroy()
     {
         _destroyed = true;
+        _attached = false;
+        _connection.sendDetachRequest(_instanceId);
         emitArgs("destroy", [this]);
     }
-      
+    
+    void suspend()
+    {
+      _suspended = true;
+      _attached = false;
+    }
+    
     /// <summary>
     /// Resource is ready when all its properties are attached.
     /// </summary>
-    bool get isReady => _isReady;
+   // bool get isReady => _isReady;
     
     /// <summary>
     /// Resource is attached when all its properties are received.
     /// </summary>
-    bool get isAttached => _isAttached;
+    bool get attached => _attached;
    
 
     // public DistributedResourceStack Stack
@@ -102,10 +114,10 @@ class DistributedResource extends IResource
         this._instanceId = instanceId;
     }
 
-    void _ready()
-    {
-        _isReady = true;
-    }
+    //void _ready()
+    //{
+      //  _isReady = true;
+   // }
 
     /// <summary>
     /// Export all properties with ResourceProperty attributed as bytes array.
@@ -123,12 +135,14 @@ class DistributedResource extends IResource
         return props;
     }
 
-    bool attached(List<PropertyValue> properties)
+    bool attach(List<PropertyValue> properties)
     {
-        if (_isAttached)
+        if (_attached)
             return false;
         else
         {
+            _suspended = false;
+
             _properties = new List(properties.length);// object[properties.Length];
 
             //_events = new DistributedResourceEvent[Instance.Template.Events.Length];
@@ -146,7 +160,7 @@ class DistributedResource extends IResource
 
             //afterAttachmentTriggers.Clear();
 
-            _isAttached = true;
+            _attached = true;
 
         }
         return true;
@@ -166,6 +180,9 @@ class DistributedResource extends IResource
         if (_destroyed)
             throw new Exception("Trying to access destroyed object");
 
+        if (_suspended)
+            throw new Exception("Trying to access suspended object");
+
         if (index >= instance.template.functions.length)
             throw new Exception("Function index is incorrect");
 
@@ -173,10 +190,15 @@ class DistributedResource extends IResource
         return connection.sendInvokeByNamedArguments(_instanceId, index, namedArgs);
     }
 
+
+
     AsyncReply<dynamic> invokeByArrayArguments(int index, List<dynamic> args)
     {
         if (_destroyed)
             throw new Exception("Trying to access destroyed object");
+
+        if (_suspended)
+            throw new Exception("Trying to access suspended object");
 
         if (index >= instance.template.functions.length)
             throw new Exception("Function index is incorrect");
@@ -217,7 +239,7 @@ class DistributedResource extends IResource
       {
           var ft = instance.template.getFunctionTemplateByName(memberName);
         
-          if (_isAttached && ft!=null)
+          if (_attached && ft!=null)
           {
             if (invocation.namedArguments.length > 0)
             {
