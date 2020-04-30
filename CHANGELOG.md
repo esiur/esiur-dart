@@ -1,3 +1,9 @@
+## [1.2.3] - Release
+Improved property updating
+
+## [1.2.2] - Hotfix
+Bugfix
+
 ## [1.2.1] - Release.
 Reconnect error handling
 

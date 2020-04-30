@@ -1257,12 +1257,6 @@ class DistributedConnection extends NetworkConnection with IStore
                   }
 
                   var r = res as IResource;
-                  r.instance.on("resourceEventOccurred", _instance_EventOccurred);
-                  r.instance.on("resourceModified", _instance_PropertyModified);
-                  r.instance.on("resourceDestroyed", _instance_ResourceDestroyed);
-                  r.instance.children.on("add", _children_OnAdd);
-                  r.instance.children.on("removed", _children_OnRemoved);
-                  r.instance.attributes.on("modified", _attributes_OnModified);
 
                   var link = DC.stringToBytes(r.instance.link);
 
@@ -1288,6 +1282,14 @@ class DistributedConnection extends NetworkConnection with IStore
                               .addDC(Codec.composePropertyValueArray(r.instance.serialize(), this, true))
                               .done();
                   }
+
+                  r.instance.on("resourceEventOccurred", _instance_EventOccurred);
+                  r.instance.on("resourceModified", _instance_PropertyModified);
+                  r.instance.on("resourceDestroyed", _instance_ResourceDestroyed);
+                  r.instance.children.on("add", _children_OnAdd);
+                  r.instance.children.on("removed", _children_OnRemoved);
+                  r.instance.attributes.on("modified", _attributes_OnModified);
+
               }
               else
               {

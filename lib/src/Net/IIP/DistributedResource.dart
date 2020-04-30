@@ -23,6 +23,7 @@ SOFTWARE.
 */
 
 import 'package:esyur/esyur.dart';
+import 'package:esyur/src/Data/KeyValuePair.dart';
 
 import '../../Resource/IResource.dart';
 import '../../Core/AsyncReply.dart';
@@ -43,9 +44,10 @@ class DistributedResource extends IResource
 
     String _link;
     List _properties;
-
-
     bool _destroyed = false;
+
+
+    List<KeyValuePair<int, dynamic>> _queued_updates =List<KeyValuePair<int, dynamic>>();
 
     /// <summary>
     /// Connection responsible for the distributed resource.
@@ -162,12 +164,22 @@ class DistributedResource extends IResource
 
             _attached = true;
 
+            if (_queued_updates.length > 0)
+            {
+              _queued_updates.forEach((kv)=>updatePropertyByIndex(kv.key, kv.value));
+              _queued_updates.clear();
+            }
+
         }
         return true;
     }
 
     void emitEventByIndex(int index, List<dynamic> args)
     {
+        // neglect events when the object is not yet attached
+        if (!_attached)
+          return;
+
         var et = instance.template.getEventTemplateByIndex(index);
         //events[index]?.Invoke(this, args);
         emitArgs(et.name, args);
@@ -296,9 +308,16 @@ class DistributedResource extends IResource
 
     void updatePropertyByIndex(int index, dynamic value)
     {
-        var pt = instance.template.getPropertyTemplateByIndex(index);
-        _properties[index] = value;
-        instance.emitModification(pt, value);
+        if (!_attached)
+        {
+           _queued_updates.add(KeyValuePair(index, value));
+        }
+        else
+        {
+          var pt = instance.template.getPropertyTemplateByIndex(index);
+          _properties[index] = value;
+          instance.emitModification(pt, value);
+        }
     }
 
     /// <summary>

@@ -5,19 +5,28 @@ import 'dart:io';
 main() async
 {
     //test("Connect to server", () async {
-
-    // connect to the server
-   var x = await Warehouse.get("iip://localhost:5000/sys/su", {"username": "admin", "password": "1234"
-   , "domain": "example.com"});
-
     var now = DateTime.now();
 
+  // //   // connect to the server
+  //  var x = await Warehouse.get("iip://localhost:5000/sys/su", {"username": "admin", "password": "1234"
+  //  , "domain": "example.com"});
 
+
+         var x = await Warehouse.get("iip://gps.dijlh.com:2628/app", {"username": "delta", "password": "interactivereflection2020"
+     , "domain": "gps.dijlh.com"});
 
 
   // desc(x);
- 
+  var date = DateTime.now();
+
+         var from =DateTime(date.year, date.month, date.day);
+        var to =DateTime(date.year, date.month, date.day + 1);
+
     List<dynamic> trackers = await x.getMyTrackers();
+
+
+
+      var rt = await x.getObjectTracks(trackers[0], from, to, 0, 0, 0);
 
     print("Time ${DateTime.now().difference(now).inSeconds}");
 
