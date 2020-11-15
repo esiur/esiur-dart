@@ -23,7 +23,7 @@ SOFTWARE.
 */
 
 import 'dart:io';
-import 'package:esyur/esyur.dart';
+import 'package:esiur/esiur.dart';
 
 import 'ISocket.dart';
 import '../../Data/DC.dart';

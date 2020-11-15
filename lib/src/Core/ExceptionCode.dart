@@ -3,7 +3,7 @@ enum ExceptionCode
 {
         HostNotReachable,
         AccessDenied,
-        UserNotFound,
+        UserOrTokenNotFound,
         ChallengeFailed,
         ResourceNotFound,
         AttachDenied,
@@ -29,5 +29,6 @@ enum ExceptionCode
         MethodNotFound,
         PropertyNotFound,
         SetPropertyDenied,
-        ReadOnlyProperty
+        ReadOnlyProperty,
+        GeneralFailure
 }

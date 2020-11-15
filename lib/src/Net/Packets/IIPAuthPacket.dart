@@ -24,7 +24,7 @@ SOFTWARE.
 import '../../Data/DC.dart';
 import 'IIPAuthPacketAction.dart';
 import 'IIPAuthPacketCommand.dart';
-import 'IIPAuthPacketMethod.dart';
+import '../../Security/Authority/AuthenticationMethod.dart';
 
 class IIPAuthPacket
 {
@@ -35,7 +35,7 @@ class IIPAuthPacket
     int errorCode;
     String errorMessage;
 
-    int localMethod;
+    AuthenticationMethod localMethod;
 
     DC sourceInfo;
 
@@ -43,7 +43,7 @@ class IIPAuthPacket
 
     DC sessionId;
 
-    int remoteMethod;
+    AuthenticationMethod remoteMethod;
 
     String domain;
 
@@ -66,6 +66,8 @@ class IIPAuthPacket
     DC localNonce;
 
     DC remoteNonce;
+
+    int remoteTokenIndex;
 
     int _dataLengthNeeded;
 
@@ -149,8 +151,8 @@ class IIPAuthPacket
         }
         else if (command == IIPAuthPacketCommand.Declare)
         {
-            remoteMethod = ((data[offset] >> 4) & 0x3);
-            localMethod = ((data[offset] >> 2) & 0x3);
+            remoteMethod = AuthenticationMethod.values[((data[offset] >> 4) & 0x3)];
+            localMethod = AuthenticationMethod.values[((data[offset] >> 2) & 0x3)];
             var encrypt = ((data[offset++] & 0x2) == 0x2);
 
 
@@ -168,9 +170,9 @@ class IIPAuthPacket
             offset += domainLength;
         
 
-            if (remoteMethod == IIPAuthPacketMethod.Credentials)
+            if (remoteMethod == AuthenticationMethod.Credentials)
             {
-                if (localMethod == IIPAuthPacketMethod.None)
+                if (localMethod == AuthenticationMethod.None)
                 {
                     if (_notEnough(offset, ends, 33))
                         return -_dataLengthNeeded;
@@ -191,7 +193,24 @@ class IIPAuthPacket
                     offset += length;
                 }
             }
+            else if (remoteMethod == AuthenticationMethod.Token)
+            {
+                if (localMethod == AuthenticationMethod.None)
+                {
+                    if (_notEnough(offset, ends, 40))
+                            return -_dataLengthNeeded;
+                    
+                    remoteNonce = data.clip(offset, 32);
 
+                    offset += 32;
+
+                    remoteTokenIndex = data.getUint64(offset);
+                    offset += 8;
+                 }
+            }
+
+
+        
             if (encrypt)
             {
                 if (_notEnough(offset, ends, 2))
@@ -220,9 +239,10 @@ class IIPAuthPacket
                 return -_dataLengthNeeded;
 
 
-            if (remoteMethod == IIPAuthPacketMethod.Credentials)
+            if (remoteMethod == AuthenticationMethod.Credentials
+              || remoteMethod == AuthenticationMethod.Token)
             {
-                if (localMethod == IIPAuthPacketMethod.None)
+                if (localMethod == AuthenticationMethod.None)
                 {
                     if (_notEnough(offset, ends, 32))
                         return -_dataLengthNeeded;

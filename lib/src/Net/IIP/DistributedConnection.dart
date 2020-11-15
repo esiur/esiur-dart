@@ -22,6 +22,10 @@ SOFTWARE.
 
 */
 
+import 'dart:ffi';
+
+import 'package:esiur/src/Security/Authority/AuthenticationMethod.dart';
+
 import '../../Core/AsyncBag.dart';
 
 import '../Sockets/TCPSocket.dart';
@@ -61,7 +65,6 @@ import '../Packets/IIPPacketAction.dart';
 import '../Packets/IIPPacketCommand.dart';
 import '../Packets/IIPPacketEvent.dart';
 import '../Packets/IIPPacketReport.dart';
-import '../Packets/IIPAuthPacketMethod.dart';
 import '../../Data/BinaryList.dart';
 import '../NetworkConnection.dart';
 import '../../Data/Guid.dart';
@@ -97,7 +100,7 @@ class DistributedConnection extends NetworkConnection with IStore
 
     Session _session;
 
-    DC _localPassword;
+    DC _localPasswordOrToken;
     DC _localNonce, _remoteNonce;
 
     String _hostname;
@@ -181,7 +184,6 @@ class DistributedConnection extends NetworkConnection with IStore
           && instance.attributes.containsKey("password"))
         {
 
-          
             var host = instance.name.split(":");
             // assign domain from hostname if not provided
 
@@ -193,17 +195,29 @@ class DistributedConnection extends NetworkConnection with IStore
 
             var password = DC.stringToBytes(instance.attributes["password"].toString());
 
+            return connect(method: AuthenticationMethod.Credentials, domain: domain, hostname: address, port: port, passwordOrToken: password, username: username);
 
+        }
+        else if (instance.attributes.containsKey("token"))
+        {
+            var host = instance.name.split(":");
+            // assign domain from hostname if not provided
 
-            return connect(domain: domain, hostname: address, port: port, password: password, username: username);
+            var address = host[0];
+            var port = int.parse(host[1]);
 
+            var domain = instance.attributes.containsKey("domain") ? instance.attributes["domain"] : address;
+
+            var token = DC.stringToBytes(instance.attributes["token"].toString());
+            var tokenIndex = instance.attributes["tokenIndex"] ?? 0;
+            return connect(method: AuthenticationMethod.Credentials, domain: domain, hostname: address, port: port, passwordOrToken: token, tokenIndex: tokenIndex);
         }
       }
 
       return new AsyncReply<bool>.ready(true);
     }
 
-    AsyncReply<bool> connect({ISocket socket, String hostname, int port, String username, DC password, String domain})
+    AsyncReply<bool> connect({AuthenticationMethod method, ISocket socket, String hostname, int port, String username, int tokenIndex, DC passwordOrToken, String domain})
     {
       if (_openReply != null)
         throw AsyncException(ErrorType.Exception, 0, "Connection in progress");
@@ -215,9 +229,11 @@ class DistributedConnection extends NetworkConnection with IStore
         _session = new Session(new ClientAuthentication()
                                   , new HostAuthentication());
 
+        _session.localAuthentication.method = method;
+        _session.localAuthentication.tokenIndex = tokenIndex;
         _session.localAuthentication.domain = domain;
         _session.localAuthentication.username = username;
-        _localPassword = password;
+        _localPasswordOrToken = passwordOrToken;
       }
       
       if (_session == null)
@@ -350,15 +366,34 @@ class DistributedConnection extends NetworkConnection with IStore
     {
         _session = new Session(new ClientAuthentication()
                                     , new HostAuthentication());
-
+        
+        _session.localAuthentication.method = AuthenticationMethod.Credentials;
         _session.localAuthentication.domain = domain;
         _session.localAuthentication.username = username;
-        _localPassword = DC.stringToBytes(password);
+        
+        _localPasswordOrToken = DC.stringToBytes(password);
 
         init();
 
         assign(socket);
     }
+
+    DistributedConnection.connectWithToken(ISocket socket, String domain, int tokenIndex, String token)
+    {
+        _session = new Session(new ClientAuthentication()
+                                    , new HostAuthentication());
+        
+        _session.localAuthentication.method = AuthenticationMethod.Token;
+        _session.localAuthentication.domain = domain;
+        _session.localAuthentication.tokenIndex = tokenIndex;
+        
+        _localPasswordOrToken = DC.stringToBytes(token);
+
+        init();
+
+        assign(socket);
+    }
+
 
     /// <summary>
     /// Create a new instance of a distributed connection
@@ -670,7 +705,7 @@ class DistributedConnection extends NetworkConnection with IStore
                 {
                     if (_authPacket.command == IIPAuthPacketCommand.Declare)
                     {
-                        if (_authPacket.remoteMethod == IIPAuthPacketMethod.Credentials && _authPacket.localMethod == IIPAuthPacketMethod.None)
+                        if (_authPacket.remoteMethod == AuthenticationMethod.Credentials && _authPacket.localMethod == AuthenticationMethod.None)
                         {
 
                             /*
@@ -768,7 +803,7 @@ class DistributedConnection extends NetworkConnection with IStore
 
                         // send our hash
                         var localHash = SHA256.compute(new BinaryList()
-                                                            .addDC(_localPassword)
+                                                            .addDC(_localPasswordOrToken)
                                                             .addDC(_localNonce)
                                                             .addDC(_remoteNonce)
                                                             .toDC());
@@ -788,7 +823,7 @@ class DistributedConnection extends NetworkConnection with IStore
                             var remoteHash = SHA256.compute(new BinaryList()
                                                                     .addDC(_remoteNonce)
                                                                     .addDC(_localNonce)
-                                                                    .addDC(_localPassword)
+                                                                    .addDC(_localPasswordOrToken)
                                                                     .toDC());
 
                             

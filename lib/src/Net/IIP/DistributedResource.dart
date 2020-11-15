@@ -22,8 +22,8 @@ SOFTWARE.
 
 */
 
-import 'package:esyur/esyur.dart';
-import 'package:esyur/src/Data/KeyValuePair.dart';
+import 'package:esiur/esiur.dart';
+import 'package:esiur/src/Data/KeyValuePair.dart';
 
 import '../../Resource/IResource.dart';
 import '../../Core/AsyncReply.dart';

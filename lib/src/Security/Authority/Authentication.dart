@@ -22,12 +22,17 @@ SOFTWARE.
 
 */
 
+import 'AuthenticationMethod.dart';
+
 import 'AuthenticationType.dart';
 import 'Source.dart';
 
 class Authentication
 {
       
+    int tokenIndex;
+    AuthenticationMethod method;
+
     String username;
     //Certificate certificate;
     String domain;
