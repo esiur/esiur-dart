@@ -916,12 +916,12 @@ class DistributedConnection extends NetworkConnection with IStore
     /// </summary>
     /// <param name="resource">Resource.</param>
     /// <returns></returns>
-    bool put(IResource resource)
+    AsyncReply<bool> put(IResource resource)
     {
       if (Codec.isLocalResource(resource, this))
         _resources.add((resource as DistributedResource).id, resource);
       // else .. put it in the server....
-      return true;
+      return AsyncReply.ready(true);
     }
 
 

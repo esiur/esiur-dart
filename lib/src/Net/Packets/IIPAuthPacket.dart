@@ -231,8 +231,8 @@ class IIPAuthPacket
         }
         else if (command == IIPAuthPacketCommand.Acknowledge)
         {
-            remoteMethod  = ((data[offset] >> 4) & 0x3);
-            localMethod = ((data[offset] >> 2) & 0x3);
+            remoteMethod  = AuthenticationMethod.values[ ((data[offset] >> 4) & 0x3)];
+            localMethod = AuthenticationMethod.values[ ((data[offset] >> 2) & 0x3)];
             var encrypt = ((data[offset++] & 0x2) == 0x2);
 
             if (_notEnough(offset, ends, 1))

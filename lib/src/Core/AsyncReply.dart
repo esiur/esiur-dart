@@ -89,6 +89,10 @@ class AsyncReply<T> implements Future<T>
         {
           _errorCallbacks.add((ex)=>onError());
         }
+        else if (onError is Function(Object, StackTrace))
+        {
+          _errorCallbacks.add((ex)=>onError(ex, null));
+        }
       }
 
 
@@ -169,10 +173,17 @@ class AsyncReply<T> implements Future<T>
         if (_resultReady)
             return;
 
-        _exception = AsyncException.toAsyncException(exception);
+        if (exception is AsyncException)
+            _exception = exception;
+        else
+            _exception = AsyncException.toAsyncException(exception);
 
         ///lock (callbacksLock)
         //{
+
+        if (this._errorCallbacks.length == 0)
+			    throw _exception;
+        else
           _errorCallbacks.forEach((x) {
               x(_exception);
           });

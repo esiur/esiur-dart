@@ -33,322 +33,271 @@ import '../../Data/Codec.dart';
 import './DistributedConnection.dart';
 import '../Packets/IIPPacketAction.dart';
 
-class DistributedResource extends IResource
-{
+class DistributedResource extends IResource {
+  int _instanceId;
+  DistributedConnection _connection;
 
-    int _instanceId;
-    DistributedConnection _connection;
+  bool _attached = false;
+  //bool _isReady = false;
 
-    bool _attached = false;
-    //bool _isReady = false;
+  String _link;
+  List _properties;
+  bool _destroyed = false;
 
-    String _link;
-    List _properties;
-    bool _destroyed = false;
+  List<KeyValuePair<int, dynamic>> _queued_updates =
+      List<KeyValuePair<int, dynamic>>();
 
+  /// <summary>
+  /// Connection responsible for the distributed resource.
+  /// </summary>
+  DistributedConnection get connection => _connection;
 
-    List<KeyValuePair<int, dynamic>> _queued_updates =List<KeyValuePair<int, dynamic>>();
+  /// <summary>
+  /// Resource link
+  /// </summary>
+  String get link => _link;
 
-    /// <summary>
-    /// Connection responsible for the distributed resource.
-    /// </summary>
-    DistributedConnection get connection => _connection;
+  /// <summary>
+  /// Instance Id given by the other end.
+  /// </summary>
+  int get id => _instanceId;
 
-    /// <summary>
-    /// Resource link
-    /// </summary>
-    String get link => _link;
+  //bool get destroyed => _destroyed;
 
-    /// <summary>
-    /// Instance Id given by the other end.
-    /// </summary>
-    int get id => _instanceId;
+  bool get suspended => _suspended;
+  bool _suspended = true;
 
-    //bool get destroyed => _destroyed;
+  AsyncReply<bool> trigger(ResourceTrigger trigger) => AsyncReply.ready(true);
 
-    bool get suspended => _suspended;
-    bool _suspended = true;
+  /// <summary>
+  /// IDestructible interface.
+  /// </summary>
+  void destroy() {
+    _destroyed = true;
+    _attached = false;
+    _connection.sendDetachRequest(_instanceId);
+    emitArgs("destroy", [this]);
+  }
 
-    /// <summary>
-    /// IDestructible interface.
-    /// </summary>
-    void destroy()
-    {
-        _destroyed = true;
-        _attached = false;
-        _connection.sendDetachRequest(_instanceId);
-        emitArgs("destroy", [this]);
+  void suspend() {
+    _suspended = true;
+    _attached = false;
+  }
+
+  /// <summary>
+  /// Resource is ready when all its properties are attached.
+  /// </summary>
+  // bool get isReady => _isReady;
+
+  /// <summary>
+  /// Resource is attached when all its properties are received.
+  /// </summary>
+  bool get attached => _attached;
+
+  // public DistributedResourceStack Stack
+  //{
+  //     get { return stack; }
+  //}
+
+  /// <summary>
+  /// Create a new distributed resource.
+  /// </summary>
+  /// <param name="connection">Connection responsible for the distributed resource.</param>
+  /// <param name="template">Resource template.</param>
+  /// <param name="instanceId">Instance Id given by the other end.</param>
+  /// <param name="age">Resource age.</param>
+  DistributedResource(
+      DistributedConnection connection, int instanceId, int age, String link) {
+    this._link = link;
+    this._connection = connection;
+    this._instanceId = instanceId;
+  }
+
+  //void _ready()
+  //{
+  //  _isReady = true;
+  // }
+
+  /// <summary>
+  /// Export all properties with ResourceProperty attributed as bytes array.
+  /// </summary>
+  /// <returns></returns>
+  List<PropertyValue> serialize() {
+    var props = new List<PropertyValue>(_properties.length);
+
+    for (var i = 0; i < _properties.length; i++)
+      props[i] = new PropertyValue(
+          _properties[i], instance.getAge(i), instance.getModificationDate(i));
+
+    return props;
+  }
+
+  bool attach(List<PropertyValue> properties) {
+    if (_attached)
+      return false;
+    else {
+      _suspended = false;
+
+      _properties = new List(properties.length); // object[properties.Length];
+
+      //_events = new DistributedResourceEvent[Instance.Template.Events.Length];
+
+      for (var i = 0; i < properties.length; i++) {
+        instance.setAge(i, properties[i].age);
+        instance.setModificationDate(i, properties[i].date);
+        _properties[i] = properties[i].value;
+      }
+
+      // trigger holded events/property updates.
+      //foreach (var r in afterAttachmentTriggers)
+      //    r.Key.Trigger(r.Value);
+
+      //afterAttachmentTriggers.Clear();
+
+      _attached = true;
+
+      if (_queued_updates.length > 0) {
+        _queued_updates
+            .forEach((kv) => updatePropertyByIndex(kv.key, kv.value));
+        _queued_updates.clear();
+      }
     }
-    
-    void suspend()
-    {
-      _suspended = true;
-      _attached = false;
-    }
-    
-    /// <summary>
-    /// Resource is ready when all its properties are attached.
-    /// </summary>
-   // bool get isReady => _isReady;
-    
-    /// <summary>
-    /// Resource is attached when all its properties are received.
-    /// </summary>
-    bool get attached => _attached;
-   
+    return true;
+  }
 
-    // public DistributedResourceStack Stack
-    //{
-    //     get { return stack; }
-    //}
+  void emitEventByIndex(int index, List<dynamic> args) {
+    // neglect events when the object is not yet attached
+    if (!_attached) return;
 
-        /// <summary>
-        /// Create a new distributed resource.
-        /// </summary>
-        /// <param name="connection">Connection responsible for the distributed resource.</param>
-        /// <param name="template">Resource template.</param>
-        /// <param name="instanceId">Instance Id given by the other end.</param>
-        /// <param name="age">Resource age.</param>
-    DistributedResource(DistributedConnection connection, int instanceId, int age, String link)
-    {
-        this._link = link;
-        this._connection = connection;
-        this._instanceId = instanceId;
-    }
+    var et = instance.template.getEventTemplateByIndex(index);
+    //events[index]?.Invoke(this, args);
+    emitArgs(et.name, args);
 
-    //void _ready()
-    //{
-      //  _isReady = true;
-   // }
+    instance.emitResourceEvent(null, null, et.name, args);
+  }
 
-    /// <summary>
-    /// Export all properties with ResourceProperty attributed as bytes array.
-    /// </summary>
-    /// <returns></returns>
-    List<PropertyValue> serialize()
-    {
+  AsyncReply<dynamic> invokeByNamedArguments(int index, Structure namedArgs) {
+    if (_destroyed) throw new Exception("Trying to access destroyed object");
 
-        var props = new List<PropertyValue>(_properties.length);
+    if (_suspended) throw new Exception("Trying to access suspended object");
 
+    if (index >= instance.template.functions.length)
+      throw new Exception("Function index is incorrect");
 
-        for (var i = 0; i < _properties.length; i++)
-            props[i] = new PropertyValue(_properties[i], instance.getAge(i), instance.getModificationDate(i));
+    return connection.sendInvokeByNamedArguments(_instanceId, index, namedArgs);
+  }
 
-        return props;
-    }
+  AsyncReply<dynamic> invokeByArrayArguments(int index, List<dynamic> args) {
+    if (_destroyed) throw new Exception("Trying to access destroyed object");
 
-    bool attach(List<PropertyValue> properties)
-    {
-        if (_attached)
-            return false;
-        else
-        {
-            _suspended = false;
+    if (_suspended) throw new Exception("Trying to access suspended object");
 
-            _properties = new List(properties.length);// object[properties.Length];
+    if (index >= instance.template.functions.length)
+      throw new Exception("Function index is incorrect");
 
-            //_events = new DistributedResourceEvent[Instance.Template.Events.Length];
+    return connection.sendInvokeByArrayArguments(_instanceId, index, args);
+  }
 
-            for (var i = 0; i < properties.length; i++)
-            {
-                instance.setAge(i, properties[i].age);
-                instance.setModificationDate(i, properties[i].date);
-                _properties[i] = properties[i].value;
-            }
+  operator [](String index) {
+    var pt = instance.template.getPropertyTemplateByName(index);
+    if (pt != null) return get(pt.index);
+  }
 
-            // trigger holded events/property updates.
-            //foreach (var r in afterAttachmentTriggers)
-            //    r.Key.Trigger(r.Value);
+  operator []=(String index, value) {
+    var pt = instance.template.getPropertyTemplateByName(index);
+    if (pt != null) set(pt.index, value);
+  }
 
-            //afterAttachmentTriggers.Clear();
+  String _getMemberName(Symbol symbol) {
+    var memberName = symbol.toString();
+    if (memberName.endsWith("=\")"))
+      return memberName.substring(8, memberName.length - 3);
+    else
+      return memberName.substring(8, memberName.length - 2);
+  }
 
-            _attached = true;
+  @override //overring noSuchMethod
+  noSuchMethod(Invocation invocation) {
+    var memberName = _getMemberName(invocation.memberName);
 
-            if (_queued_updates.length > 0)
-            {
-              _queued_updates.forEach((kv)=>updatePropertyByIndex(kv.key, kv.value));
-              _queued_updates.clear();
-            }
+    if (invocation.isMethod) {
+      var ft = instance.template.getFunctionTemplateByName(memberName);
 
+      if (_attached && ft != null) {
+        if (invocation.namedArguments.length > 0) {
+          var namedArgs = new Structure();
+          for (var p in invocation.namedArguments.keys)
+            namedArgs[_getMemberName(p)] = invocation.namedArguments[p];
+
+          return invokeByNamedArguments(ft.index, namedArgs);
+        } else {
+          return invokeByArrayArguments(
+              ft.index, invocation.positionalArguments);
         }
+      }
+    } else if (invocation.isSetter) {
+      var pt = instance.template.getPropertyTemplateByName(memberName);
+
+      if (pt != null) {
+        set(pt.index, invocation.positionalArguments[0]);
         return true;
-    }
-
-    void emitEventByIndex(int index, List<dynamic> args)
-    {
-        // neglect events when the object is not yet attached
-        if (!_attached)
-          return;
-
-        var et = instance.template.getEventTemplateByIndex(index);
-        //events[index]?.Invoke(this, args);
-        emitArgs(et.name, args);
-
-        instance.emitResourceEvent(null, null, et.name, args);
-    }
-
-    AsyncReply<dynamic> invokeByNamedArguments(int index, Structure namedArgs)
-    {
-        if (_destroyed)
-            throw new Exception("Trying to access destroyed object");
-
-        if (_suspended)
-            throw new Exception("Trying to access suspended object");
-
-        if (index >= instance.template.functions.length)
-            throw new Exception("Function index is incorrect");
-
-
-        return connection.sendInvokeByNamedArguments(_instanceId, index, namedArgs);
-    }
-
-
-
-    AsyncReply<dynamic> invokeByArrayArguments(int index, List<dynamic> args)
-    {
-        if (_destroyed)
-            throw new Exception("Trying to access destroyed object");
-
-        if (_suspended)
-            throw new Exception("Trying to access suspended object");
-
-        if (index >= instance.template.functions.length)
-            throw new Exception("Function index is incorrect");
-
-
-        return connection.sendInvokeByArrayArguments(_instanceId, index, args);
-    }
-
-      operator [](String index) 
-      {
-          var pt = instance.template.getPropertyTemplateByName(index);
-          if (pt != null)
-            return get(pt.index);
       }
+    } else if (invocation.isGetter) {
+      var pt = instance.template.getPropertyTemplateByName(memberName);
 
-      operator []=(String index, value) 
-      {
-          var pt = instance.template.getPropertyTemplateByName(index);
-          if (pt != null)
-              set(pt.index, value);
+      if (pt != null) {
+        return get(pt.index);
       }
-
-    String _getMemberName(Symbol symbol)
-    {
-      var memberName = symbol.toString();
-      if (memberName.endsWith("=\")"))
-        return memberName.substring(8, memberName.length - 3);
-      else
-        return memberName.substring(8, memberName.length - 2);
     }
 
-    @override  //overring noSuchMethod
-    noSuchMethod(Invocation invocation)
-    {
-      var memberName = _getMemberName(invocation.memberName);
-      
-      if (invocation.isMethod)
-      {
-          var ft = instance.template.getFunctionTemplateByName(memberName);
-        
-          if (_attached && ft!=null)
-          {
-            if (invocation.namedArguments.length > 0)
-            {
-              var namedArgs = new Structure();
-              for(var p in invocation.namedArguments.keys)
-                namedArgs[_getMemberName(p)] = invocation.namedArguments[p];
-              
-              return invokeByNamedArguments(ft.index, namedArgs);
-            }
-            else
-            {
-              return invokeByArrayArguments(ft.index, invocation.positionalArguments);
-            }
-          }
-      }
-      else if (invocation.isSetter)
-      {
-          var pt = instance.template.getPropertyTemplateByName(memberName);
+    return null;
+  }
 
-          if (pt != null)
-          {
-              set(pt.index, invocation.positionalArguments[0]);
-              return true;
-          }
-      }
-      else if (invocation.isGetter)
-      {
-        
-          var pt = instance.template.getPropertyTemplateByName(memberName);
+  /// <summary>
+  /// Get a property value.
+  /// </summary>
+  /// <param name="index">Zero-based property index.</param>
+  /// <returns>Value</returns>
+  get(int index) {
+    if (index >= _properties.length) return null;
+    return _properties[index];
+  }
 
-          if (pt != null)
-          {
-              return get(pt.index);
-          }
-      }
-
-      return null;
+  void updatePropertyByIndex(int index, dynamic value) {
+    if (!_attached) {
+      _queued_updates.add(KeyValuePair(index, value));
+    } else {
+      var pt = instance.template.getPropertyTemplateByIndex(index);
+      _properties[index] = value;
+      instance.emitModification(pt, value);
     }
+  }
 
+  /// <summary>
+  /// Set property value.
+  /// </summary>
+  /// <param name="index">Zero-based property index.</param>
+  /// <param name="value">Value</param>
+  /// <returns>Indicator when the property is set.</returns>
+  AsyncReply<dynamic> set(int index, dynamic value) {
+    if (index >= _properties.length) return null;
 
+    var reply = new AsyncReply<dynamic>();
 
-    /// <summary>
-    /// Get a property value.
-    /// </summary>
-    /// <param name="index">Zero-based property index.</param>
-    /// <returns>Value</returns>
-    get(int index)
-    {
-        if (index >= _properties.length)
-            return null;
-        return _properties[index];
-    }
+    var parameters = Codec.compose(value, connection);
+    connection
+        .sendRequest(IIPPacketAction.SetProperty)
+        .addUint32(_instanceId)
+        .addUint8(index)
+        .addDC(parameters)
+        .done()
+        .then((res) {
+      // not really needed, server will always send property modified,
+      // this only happens if the programmer forgot to emit in property setter
+      _properties[index] = value;
+      reply.trigger(null);
+    });
 
-
-    void updatePropertyByIndex(int index, dynamic value)
-    {
-        if (!_attached)
-        {
-           _queued_updates.add(KeyValuePair(index, value));
-        }
-        else
-        {
-          var pt = instance.template.getPropertyTemplateByIndex(index);
-          _properties[index] = value;
-          instance.emitModification(pt, value);
-        }
-    }
-
-    /// <summary>
-    /// Set property value.
-    /// </summary>
-    /// <param name="index">Zero-based property index.</param>
-    /// <param name="value">Value</param>
-    /// <returns>Indicator when the property is set.</returns>
-    AsyncReply<dynamic> set(int index, dynamic value)
-    {
-        if (index >= _properties.length)
-            return null;
-
-        var reply = new AsyncReply<dynamic>();
-
-        var parameters = Codec.compose(value, connection);
-        connection.sendRequest(IIPPacketAction.SetProperty)
-                    .addUint32(_instanceId)
-                    .addUint8(index)
-                    .addDC(parameters)
-                    .done()
-                    .then((res) 
-                    {
-                        // not really needed, server will always send property modified, 
-                        // this only happens if the programmer forgot to emit in property setter
-                        _properties[index] = value;
-                        reply.trigger(null);
-                    });
-
-        return reply;
-    }
-
-  
+    return reply;
+  }
 }

@@ -3,13 +3,14 @@ import 'package:esiur/esiur.dart';
 import 'dart:io';
 
 main() async {
-  test("Connect to server", () async {
-    // //   // connect to the server
-    var x = await Warehouse.get("iip://localhost:5000/sys/su",
+  try {
+    var x = await Warehouse.get("iip://localhost:5070/sys/cp",
         {"username": "admin", "password": "1234", "domain": "example.com"});
-
     print(x);
-  });
+  } catch (ex) {
+    print("Error occured");
+    print(ex);
+  }
 }
 
 // describe object
