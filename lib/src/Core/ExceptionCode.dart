@@ -30,5 +30,6 @@ enum ExceptionCode
         PropertyNotFound,
         SetPropertyDenied,
         ReadOnlyProperty,
-        GeneralFailure
+        GeneralFailure,
+        AddToStoreFailed
 }

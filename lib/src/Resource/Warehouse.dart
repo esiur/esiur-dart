@@ -384,6 +384,8 @@ class Warehouse {
       }).error((ex) => rt.triggerError(ex));
     }
 
+    // return new name
+    
     return rt;
   }
 

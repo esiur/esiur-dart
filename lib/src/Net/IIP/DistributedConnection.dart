@@ -1521,11 +1521,14 @@ class DistributedConnection extends NetworkConnection with IStore
                               // create the resource
                               var resource = null; //Activator.CreateInstance(type, args) as IResource;
 
-                              Warehouse.put(resource, name, store as IStore, parent);
-
-                              sendReply(IIPPacketAction.CreateResource, callback)
+                              Warehouse.put(resource, name, store as IStore, parent).then<dynamic>((ok) {
+                                  sendReply(IIPPacketAction.CreateResource, callback)
                                           .addUint32(resource.instance.id)
                                           .done();
+                               }).error((ex){
+                                  // send some error
+                                  sendError(ErrorType.Management, callback, ExceptionCode.AddToStoreFailed.index);
+                              });
 
                           });
                       });
@@ -2303,19 +2306,32 @@ class DistributedConnection extends NetworkConnection with IStore
                           {
                               //print("New template ");
 
-                              // ClassId, ResourceAge, ResourceLink, Content
-                              if (resource == null)
-                                Warehouse.put(dr, id.toString(), this, null, tmp);
-
                               var d = rt[3] as DC;
 
-                              Codec.parsePropertyValueArray(d, 0, d.length, this).then((ar)
+                              // ClassId, ResourceAge, ResourceLink, Content
+                              if (resource == null)
                               {
-                                //print("attached");
-                                  dr.attach(ar);
-                                  _resourceRequests.remove(id);
-                                  reply.trigger(dr);
-                              });
+                                Warehouse.put(dr, id.toString(), this, null, tmp).then<dynamic>((ok){
+                                    Codec.parsePropertyValueArray(d, 0, d.length, this).then((ar)
+                                    {
+                                      //print("attached");
+                                        dr.attach(ar);
+                                        _resourceRequests.remove(id);
+                                        reply.trigger(dr);
+                                    });
+                                }).error((ex) => reply.triggerError(ex));
+                              }
+                              else
+                              {
+                                Codec.parsePropertyValueArray(d, 0, d.length, this).then((ar)
+                                {
+                                  //print("attached");
+                                    dr.attach(ar);
+                                    _resourceRequests.remove(id);
+                                    reply.trigger(dr);
+                                });
+                              }
+
                           }).error((ex)
                           {
                               reply.triggerError(ex);
