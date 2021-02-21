@@ -385,7 +385,7 @@ class Warehouse {
     }
 
     // return new name
-    
+
     return rt;
   }
 

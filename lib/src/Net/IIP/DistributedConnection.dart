@@ -1183,7 +1183,7 @@ class DistributedConnection extends NetworkConnection with IStore
               var item = new AsyncReply<DistributedResourceQueueItem>();
               _queue.add(item);
 
-              Codec.parseVarArray(content,  0, content.length, this).then((arguments)
+              Codec.parse(content,  0, this).then((arguments)
               {
                   var et = r.instance.template.getEventTemplateByIndex(index);
                   if (et != null)
@@ -1846,16 +1846,21 @@ class DistributedConnection extends NetworkConnection with IStore
       {
           Warehouse.query(resourceLink).then((r) 
           {
-              //if (r != null)
-              //{
-              var list = r.where((x) => x.instance.applicable(session, ActionType.Attach, null) != Ruling.Denied).toList();
-
-              if (list.length == 0)
+              if (r == null)
+              {
                   sendError(ErrorType.Management, callback, ExceptionCode.ResourceNotFound.index);
+              }
               else
-                  sendReply(IIPPacketAction.QueryLink, callback)
-                              .addDC(Codec.composeResourceArray(list, this, true))
-                              .done();
+              {
+                var list = r.where((x) => x.instance.applicable(session, ActionType.Attach, null) != Ruling.Denied).toList();
+
+                if (list.length == 0)
+                    sendError(ErrorType.Management, callback, ExceptionCode.ResourceNotFound.index);
+                else
+                    sendReply(IIPPacketAction.QueryLink, callback)
+                                .addDC(Codec.composeResourceArray(list, this, true))
+                                .done();
+              }
           });
       }
 
@@ -1895,8 +1900,6 @@ class DistributedConnection extends NetworkConnection with IStore
                           }
                           else
                           {
-
-                            
                               var fi = null ;//r.GetType().GetTypeInfo().GetMethod(ft.name);
 
 
@@ -2595,7 +2598,7 @@ class DistributedConnection extends NetworkConnection with IStore
 
       //        private void Instance_EventOccurred(IResource resource, string name, string[] users, DistributedConnection[] connections, object[] args)
 
-      void _instance_EventOccurred(IResource resource, issuer, List<Session> receivers, String name, List args)
+      void _instance_EventOccurred(IResource resource, issuer, List<Session> receivers, String name, dynamic args)
       {
           var et = resource.instance.template.getEventTemplateByName(name);
 
@@ -2614,7 +2617,7 @@ class DistributedConnection extends NetworkConnection with IStore
           sendEvent(IIPPacketEvent.EventOccurred)
                       .addUint32(resource.instance.id)
                       .addUint8(et.index)
-                      .addDC(Codec.composeVarArray(args, this, true))
+                      .addDC(Codec.compose(args, this, true))
                       .done();
       }
 }

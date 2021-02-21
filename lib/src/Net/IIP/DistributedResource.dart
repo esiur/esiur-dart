@@ -165,14 +165,13 @@ class DistributedResource extends IResource {
     return true;
   }
 
-  void emitEventByIndex(int index, List<dynamic> args) {
+  void emitEventByIndex(int index, dynamic args) {
     // neglect events when the object is not yet attached
     if (!_attached) return;
 
     var et = instance.template.getEventTemplateByIndex(index);
-    //events[index]?.Invoke(this, args);
-    emitArgs(et.name, args);
-
+    emitArgs(et.name, [args]);
+    //emitArgs(event, arguments)
     instance.emitResourceEvent(null, null, et.name, args);
   }
 

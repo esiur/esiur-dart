@@ -20,10 +20,10 @@ class EventTemplate extends MemberTemplate
           var exp = DC.stringToBytes(expansion);
           return new BinaryList()
                   .addUint8(0x50)
-                  .addInt32(exp.length)
-                  .addDC(exp)
                   .addUint8(name.length)
                   .addDC(name)
+                  .addInt32(exp.length)
+                  .addDC(exp)
                   .toDC();
       }
       else

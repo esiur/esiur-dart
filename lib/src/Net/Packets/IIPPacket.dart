@@ -177,7 +177,8 @@ class IIPPacket
 
                 offset += cl;
             }
-            else if (event == IIPPacketEvent.PropertyUpdated)
+            else if (event == IIPPacketEvent.PropertyUpdated
+                    || event == IIPPacketEvent.EventOccurred)
             {
                 if (_notEnough(offset, ends, 2))
                     return -_dataLengthNeeded;
@@ -210,23 +211,23 @@ class IIPPacket
                     offset += size;
                 }
             }
-            else if (event == IIPPacketEvent.EventOccurred)
-            {
-                if (_notEnough(offset, ends, 5)) 
-                    return -_dataLengthNeeded;
+            // else if (event == IIPPacketEvent.EventOccurred)
+            // {
+            //     if (_notEnough(offset, ends, 5)) 
+            //         return -_dataLengthNeeded;
 
-                methodIndex = data[offset++];
+            //     methodIndex = data[offset++];
 
-                var cl = data.getUint32( offset);
-                offset += 4;
+            //     var cl = data.getUint32( offset);
+            //     offset += 4;
 
-                if (_notEnough(offset, ends, cl))
-                    return -_dataLengthNeeded;
+            //     if (_notEnough(offset, ends, cl))
+            //         return -_dataLengthNeeded;
 
-                content = data.clip(offset, cl);
-                offset += cl;
+            //     content = data.clip(offset, cl);
+            //     offset += cl;
 
-            }
+            // }
             // Attribute
             else if (event == IIPPacketEvent.AttributesUpdated)
             {

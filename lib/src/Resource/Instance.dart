@@ -453,7 +453,7 @@ class Instance extends IEventHandler
         }
     }
 
-    emitResourceEvent(issuer, List<Session> receivers, String name, List<dynamic> args)
+    emitResourceEvent(issuer, List<Session> receivers, String name, dynamic args)
     {
         emitArgs("resourceEventOccurred", [_resource, issuer, receivers, name, args]);
     }
