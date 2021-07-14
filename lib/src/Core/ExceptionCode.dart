@@ -31,5 +31,9 @@ enum ExceptionCode
         SetPropertyDenied,
         ReadOnlyProperty,
         GeneralFailure,
-        AddToStoreFailed
+        AddToStoreFailed,
+        NotAttached,
+        AlreadyListened,
+        AlreadyUnlistened,
+        NotListenable
 }

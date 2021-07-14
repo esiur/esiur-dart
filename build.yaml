@@ -1,0 +1,7 @@
+builders:
+  services:
+    import: "package:esiur/builder.dart"
+    builder_factories: ["iipService"]
+    build_extensions: {".iip.yaml": [".iip.dart"]}
+    auto_apply: dependents
+    build_to: source

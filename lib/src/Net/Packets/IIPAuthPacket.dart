@@ -235,11 +235,14 @@ class IIPAuthPacket
             localMethod = AuthenticationMethod.values[ ((data[offset] >> 2) & 0x3)];
             var encrypt = ((data[offset++] & 0x2) == 0x2);
 
-            if (_notEnough(offset, ends, 1))
-                return -_dataLengthNeeded;
-
-
-            if (remoteMethod == AuthenticationMethod.Credentials
+            if (remoteMethod == AuthenticationMethod.None)
+            {
+                if (localMethod == AuthenticationMethod.None)
+                {
+                    // do nothing
+                }
+            }
+            else if (remoteMethod == AuthenticationMethod.Credentials
               || remoteMethod == AuthenticationMethod.Token)
             {
                 if (localMethod == AuthenticationMethod.None)

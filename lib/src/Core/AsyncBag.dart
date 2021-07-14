@@ -1,63 +1,50 @@
 import 'AsyncReply.dart';
 
-class AsyncBag<T> extends AsyncReply<List<T>>
-{
+class AsyncBag<T> extends AsyncReply<List<T>> {
+  List<AsyncReply<T>> _replies = new List<AsyncReply<T>>();
+  List<T> _results = <T>[];
 
-    List<AsyncReply<T>> _replies = new List<AsyncReply<T>>();
-    List<T> _results = new List<T>();
+  int _count = 0;
+  bool _sealedBag = false;
 
-    int _count = 0;
-    bool _sealedBag = false;
+  Type arrayType;
+  
+  seal() {
+    //print("SEALED");
 
-    seal()
-    {
-        //print("SEALED");
-      
-        if (_sealedBag)
-            return;
+    if (_sealedBag) return;
 
-        _sealedBag = true;
+    _sealedBag = true;
 
-        if (_results.length == 0)
-            trigger(new List<T>());
+    if (_results.length == 0) trigger(new List<T>());
 
-        for (var i = 0; i < _results.length; i++)
-        {
-            var k = _replies[i];
-            var index = i;
+    for (var i = 0; i < _results.length; i++) {
+      var k = _replies[i];
+      var index = i;
 
-            k.then<dynamic>((r)
-            {
-                _results[index] = r;
-                _count++;
-                //print("Seal ${_count}/${_results.length}");
-                if (_count == _results.length)
-                    trigger(_results);
-            }).error((ex){
-              triggerError(ex);
-            });
-        }
+      k.then<dynamic>((r) {
+        _results[index] = r;
+        _count++;
+        //print("Seal ${_count}/${_results.length}");
+        if (_count == _results.length) trigger(_results);
+      }).error((ex) {
+        triggerError(ex);
+      });
     }
+  }
 
-    add(AsyncReply<T> reply)
-    {
-        if (!_sealedBag)
-        {
-            _results.add(null);
-            _replies.add(reply);
-        }
+  add(AsyncReply<T> reply) {
+    if (!_sealedBag) {
+      _results.add(null);
+      _replies.add(reply);
     }
+  }
 
-    addBag(AsyncBag<T> bag)
-    {
-        bag._replies.forEach((r) {
-          add(r);
-        });
-    }
+  addBag(AsyncBag<T> bag) {
+    bag._replies.forEach((r) {
+      add(r);
+    });
+  }
 
-    AsyncBag()
-    {
-
-    }
-
+  AsyncBag() {}
 }

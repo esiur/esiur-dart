@@ -23,7 +23,8 @@ SOFTWARE.
 */
 
 import '../Data/AutoList.dart';
-import './Template/ResourceTemplate.dart';
+import 'Template/TemplateType.dart';
+import 'Template/TypeTemplate.dart';
 import '../Data/Guid.dart';
 import '../Data/KeyList.dart';
 import '../Data/Structure.dart';
@@ -44,19 +45,29 @@ class Warehouse {
   static Map<int, IResource> _resources = new Map<int, IResource>();
   static int resourceCounter = 0;
 
-  static KeyList<Guid, ResourceTemplate> _templates =
-      new KeyList<Guid, ResourceTemplate>();
+ 
+  static KeyList<TemplateType, KeyList<Guid, TypeTemplate>> _templates =
+      _initTemplates(); //
 
-  //public delegate void StoreConnectedEvent(IStore store, string name);
-  //public delegate void StoreDisconnectedEvent(IStore store);
+  static _initTemplates() {
+    var rt = new KeyList<TemplateType, KeyList<Guid, TypeTemplate>>();
 
-  //public static event StoreConnectedEvent StoreConnected;
-  ///public static event StoreDisconnectedEvent StoreDisconnected;
+    rt.add(TemplateType.Unspecified, new KeyList<Guid, TypeTemplate>());
+    rt.add(TemplateType.Resource, new KeyList<Guid, TypeTemplate>());
+    rt.add(TemplateType.Record, new KeyList<Guid, TypeTemplate>());
+    rt.add(TemplateType.Wrapper, new KeyList<Guid, TypeTemplate>());
 
-  static bool _warehouseIsOpen = false;
+    return rt;
+  }
+
+ 
+  static KeyList<Type, Function()> _factory = _getBuiltInTypes();
 
   static KeyList<String, AsyncReply<IStore> Function(String, dynamic)>
       protocols = _getSupportedProtocols();
+
+ 
+  static bool _warehouseIsOpen = false;
 
   static final _urlRegex = RegExp(r'^(?:([^\s|:]*):\/\/([^\/]*)\/?(.*))');
 
@@ -162,7 +173,7 @@ class Warehouse {
 
   static List<IResource> qureyIn(
       List<String> path, int index, AutoList<IResource, Instance> resources) {
-    var rt = new List<IResource>();
+    List<IResource> rt = [];
 
     if (index == path.length - 1) {
       if (path[index] == "")
@@ -206,11 +217,11 @@ class Warehouse {
   /// </summary>
   /// <param name="path"></param>
   /// <returns>Resource instance.</returns>
-  static AsyncReply<dynamic> get(String path,
+  static AsyncReply<T> get<T extends IResource>(String path,
       [attributes = null,
       IResource parent = null,
       IPermissionsManager manager = null]) {
-    var rt = AsyncReply<IResource>();
+    var rt = AsyncReply<T>();
 
     // Should we create a new store ?
     if (_urlRegex.hasMatch(path)) {
@@ -226,7 +237,7 @@ class Warehouse {
                 rt.trigger(r);
               }).error((e) => rt.triggerError(e));
             else
-              rt.trigger(store);
+              rt.trigger(store as T);
           }).error((e) {
             rt.triggerError(e);
             //Warehouse.remove(store);
@@ -333,14 +344,74 @@ class Warehouse {
   /// <param name="name">Resource name.</param>
   /// <param name="store">IStore that manages the resource. Can be null if the resource is a store.</param>
   /// <param name="parent">Parent resource. if not presented the store becomes the parent for the resource.</param>
-  static AsyncReply<bool> put(IResource resource, String name,
+  static AsyncReply<T> put<T extends IResource>(String name, T resource,
       [IStore store = null,
       IResource parent = null,
-      ResourceTemplate customTemplate = null,
+      TypeTemplate customTemplate = null,
       int age = 0,
       IPermissionsManager manager = null,
       attributes = null]) {
-    var rt = AsyncReply<bool>();
+    var rt = AsyncReply<T>();
+
+    if (resource.instance != null) {
+      rt.triggerError(Exception("Resource has a store."));
+      return rt;
+    }
+
+    // @TODO: Trim left '/' char
+    // var path = name.trimLeft().split("/");
+    // if (path.length > 1)
+    // {
+    //     if (parent != null)
+    //        rt.triggerError(Exception("Parent can't be set when using path in instance name"));
+
+    //     Warehouse.get<IResource>(path.take(path.length - 1).join("/")).then((value){
+    //         if (value == null)
+    //             rt.triggerError(Exception("Can't find parent"));
+
+    //         parent = value;
+
+    //         store = store ?? parent.instance.store;
+
+    //         var instanceName = path.last;
+
+    //         if (store == null)
+    //         {
+    //             // assign parent as a store
+    //             if (parent is IStore)
+    //             {
+    //                 store = (IStore)parent;
+    //                 stores
+    //                 List<WeakReference<IResource>> list;
+    //                 if (stores.TryGetValue(store, out list))
+    //                     lock (((ICollection)list).SyncRoot)
+    //                         list.Add(resourceReference);
+    //                 //stores[store].Add(resourceReference);
+    //             }
+    //             // assign parent's store as a store
+    //             else if (parent != null)
+    //             {
+    //                 store = parent.instance.store;
+
+    //                 List<WeakReference<IResource>> list;
+    //                 if (stores.TryGetValue(store, out list))
+    //                     lock (((ICollection)list).SyncRoot)
+    //                         list.Add(resourceReference);
+
+    //                 //stores[store].Add(resourceReference);
+    //             }
+    //             // assign self as a store (root store)
+    //             else if (resource is IStore)
+    //             {
+    //                 store = resource;
+    //             }
+    //             else
+    //                 throw new Exception("Can't find a store for the resource.");
+    //         }
+
+    //     });
+
+    // }
 
     resource.instance = new Instance(
         resourceCounter++, name, resource, store, customTemplate, age);
@@ -364,11 +435,17 @@ class Warehouse {
         resource.trigger(ResourceTrigger.Initialize).then<dynamic>((value) {
           if (resource is IStore)
             resource.trigger(ResourceTrigger.Open).then<dynamic>((value) {
-              rt.trigger(value);
-            }).error((ex) => rt.triggerError(ex));
+              rt.trigger(resource);
+            }).error((ex) {
+              Warehouse.remove(resource);
+              rt.triggerError(ex);
+            });
           else
-            rt.trigger(value);
-        }).error((ex) => rt.triggerError(ex));
+            rt.trigger(resource);
+        }).error((ex) {
+          Warehouse.remove(resource);
+          rt.triggerError(ex);
+        });
       }
     };
 
@@ -380,8 +457,11 @@ class Warehouse {
         if (value)
           initResource();
         else
-          rt.trigger(false);
-      }).error((ex) => rt.triggerError(ex));
+          rt.trigger(null);
+      }).error((ex) {
+        Warehouse.remove(resource);
+        rt.triggerError(ex);
+      });
     }
 
     // return new name
@@ -389,12 +469,18 @@ class Warehouse {
     return rt;
   }
 
-  static AsyncReply<T> New<T extends IResource>(T resource, String name,
+  static T createInstance<T>(Type T) {
+    return _factory[T].call();
+  }
+
+  static AsyncReply<T> newResource<T extends IResource>(String name,
       [IStore store = null,
       IResource parent = null,
       IPermissionsManager manager = null,
       attributes = null,
       properties = null]) {
+    var resource = _factory[T].call();
+
     if (properties != null) {
       dynamic d = resource;
 
@@ -405,9 +491,9 @@ class Warehouse {
 
     var rt = AsyncReply<T>();
 
-    put(resource, name, store, parent, null, 0, manager, attributes)
-        .then<bool>((value) {
-      if (value)
+    put<T>(name, resource, store, parent, null, 0, manager, attributes)
+        .then<IResource>((value) {
+      if (value != null)
         rt.trigger(resource);
       else
         rt.trigger(null);
@@ -427,49 +513,77 @@ class Warehouse {
   /// Put a resource template in the templates warehouse.
   /// </summary>
   /// <param name="template">Resource template.</param>
-  static void putTemplate(ResourceTemplate template) {
-    if (!_templates.containsKey(template.classId))
-      _templates.add(template.classId, template);
+  static void putTemplate(TypeTemplate template) {
+    _templates[template.type][template.classId] = template;
   }
 
   /// <summary>
-  /// Get a template by type from the templates warehouse. If not in the warehouse, a new ResourceTemplate is created and added to the warehouse.
+  /// Get a template by type from the templates warehouse. If not in the warehouse, a new TypeTemplate is created and added to the warehouse.
   /// </summary>
   /// <param name="type">.Net type.</param>
   /// <returns>Resource template.</returns>
-  static ResourceTemplate getTemplateByType(Type type) {
+  static TypeTemplate getTemplateByType(Type type) {
     // loaded ?
-    for (var t in _templates.values)
-      if (t.className == type.toString()) return t;
+    for (var tmps in _templates.values)
+      for (var tmp in tmps.values)
+        if (tmp.className == type.toString()) return tmp;
 
-    var template = new ResourceTemplate.fromType(type);
-    _templates.add(template.classId, template);
+    var template = new TypeTemplate.fromType(type, true);
 
     return template;
   }
 
   /// <summary>
-  /// Get a template by class Id from the templates warehouse. If not in the warehouse, a new ResourceTemplate is created and added to the warehouse.
+  /// Get a template by class Id from the templates warehouse. If not in the warehouse, a new TypeTemplate is created and added to the warehouse.
   /// </summary>
   /// <param name="classId">Class Id.</param>
   /// <returns>Resource template.</returns>
-  static AsyncReply<ResourceTemplate> getTemplateByClassId(Guid classId) {
-    if (_templates.containsKey(classId))
-      return new AsyncReply<ResourceTemplate>.ready(_templates[classId]);
-    return null;
+  static TypeTemplate getTemplateByClassId(Guid classId,
+      [TemplateType templateType = TemplateType.Unspecified]) {
+    if (templateType == TemplateType.Unspecified) {
+      // look in resources
+      var template = _templates[TemplateType.Resource][classId];
+      if (template != null) return template;
+
+      // look in records
+      template = _templates[TemplateType.Record][classId];
+      if (template != null) return template;
+
+      // look in wrappers
+      template = _templates[TemplateType.Wrapper][classId];
+      return template;
+    } else {
+      return _templates[templateType][classId];
+    }
   }
 
   /// <summary>
-  /// Get a template by class name from the templates warehouse. If not in the warehouse, a new ResourceTemplate is created and added to the warehouse.
+  /// Get a template by class name from the templates warehouse. If not in the warehouse, a new TypeTemplate is created and added to the warehouse.
   /// </summary>
   /// <param name="className">Class name.</param>
   /// <returns>Resource template.</returns>
-  static AsyncReply<ResourceTemplate> getTemplateByClassName(String className) {
-    for (var t in _templates.values)
-      if (t.className == className)
-        return new AsyncReply<ResourceTemplate>.ready(t);
+  static TypeTemplate getTemplateByClassName(String className, [TemplateType templateType = TemplateType.Unspecified]) {
 
-    return null;
+      if (templateType == TemplateType.Unspecified)
+      {
+          // look in resources
+          var template = _templates[TemplateType.Resource].values.firstWhere((x) => x.className == className);
+          if (template != null)
+              return template;
+
+          // look in records
+          template = _templates[TemplateType.Record].values.firstWhere((x) => x.className == className);
+          if (template != null)
+              return template;
+
+          // look in wrappers
+          template = _templates[TemplateType.Wrapper].values.firstWhere((x) => x.className == className);
+          return template;
+      }
+      else
+      {
+          return _templates[templateType].values.firstWhere((x) => x.className == className);
+      }
   }
 
   static bool remove(IResource resource) {
@@ -505,8 +619,15 @@ class Warehouse {
         new KeyList<String, AsyncReply<IStore> Function(String, dynamic)>();
     rt.add(
         "iip",
-        (String name, attributes) => Warehouse.New<DistributedConnection>(
-            DistributedConnection(), name, null, null, null, attributes));
+        (String name, attributes) =>
+            Warehouse.newResource<DistributedConnection>(
+                name, null, null, null, attributes));
+    return rt;
+  }
+
+  static KeyList<Type, Function()> _getBuiltInTypes() {
+    var rt = KeyList<Type, Function()>();
+    rt.add(DistributedConnection, () => DistributedConnection());
     return rt;
   }
 }

@@ -36,5 +36,6 @@ enum ActionType
     AddChild,
     RemoveChild,
     Rename,
-    ReceiveEvent
+    ReceiveEvent,
+    ViewTemplate
 }

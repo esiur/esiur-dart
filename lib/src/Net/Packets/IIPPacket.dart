@@ -361,7 +361,8 @@ class IIPPacket
                 resourceId = data.getUint32(offset);
                 offset += 4;
             }
-            else if (action == IIPPacketAction.QueryLink)
+            else if (action == IIPPacketAction.QueryLink
+                    || action == IIPPacketAction.LinkTemplates)
             {
                 if (_notEnough(offset, ends, 2))
                     return -_dataLengthNeeded;
@@ -420,7 +421,8 @@ class IIPPacket
                 offset += cl;
 
             }
-            else if (action == IIPPacketAction.GetProperty)
+            else if (action == IIPPacketAction.Listen 
+                  || action == IIPPacketAction.Unlisten)
             {
                 if (_notEnough(offset, ends, 5))
                     return -_dataLengthNeeded;
@@ -429,22 +431,32 @@ class IIPPacket
                 offset += 4;
 
                 methodIndex = data[offset++];
-
             }
-            else if (action == IIPPacketAction.GetPropertyIfModified)
-            {
-                if (_notEnough(offset, ends, 9))
-                    return -_dataLengthNeeded;
+            // else if (action == IIPPacketAction.GetProperty)
+            // {
+            //     if (_notEnough(offset, ends, 5))
+            //         return -_dataLengthNeeded;
 
-                resourceId = data.getUint32(offset);
-                offset += 4;
+            //     resourceId = data.getUint32(offset);
+            //     offset += 4;
 
-                methodIndex = data[offset++];
+            //     methodIndex = data[offset++];
 
-                resourceAge = data.getUint64(offset);
-                offset += 8;
+            // }
+            // else if (action == IIPPacketAction.GetPropertyIfModified)
+            // {
+            //     if (_notEnough(offset, ends, 9))
+            //         return -_dataLengthNeeded;
 
-            }
+            //     resourceId = data.getUint32(offset);
+            //     offset += 4;
+
+            //     methodIndex = data[offset++];
+
+            //     resourceAge = data.getUint64(offset);
+            //     offset += 8;
+
+            // }
             else if (action == IIPPacketAction.SetProperty)
             {
                 if (_notEnough(offset, ends, 6))
@@ -567,6 +579,7 @@ class IIPPacket
                     || action == IIPPacketAction.ResourceChildren
                     || action == IIPPacketAction.ResourceParents
                     || action == IIPPacketAction.ResourceHistory
+                    || action == IIPPacketAction.LinkTemplates
                     // Attribute
                     || action == IIPPacketAction.GetAllAttributes
                     || action == IIPPacketAction.GetAttributes)
@@ -584,9 +597,9 @@ class IIPPacket
                 offset += cl;
             }
             else if (action == IIPPacketAction.InvokeFunctionArrayArguments
-                || action == IIPPacketAction.InvokeFunctionNamedArguments
-                || action == IIPPacketAction.GetProperty
-                || action == IIPPacketAction.GetPropertyIfModified)
+                || action == IIPPacketAction.InvokeFunctionNamedArguments)
+                //|| action == IIPPacketAction.GetProperty
+                //|| action == IIPPacketAction.GetPropertyIfModified)
             {
                 if (_notEnough(offset, ends, 1))
                     return -_dataLengthNeeded;
@@ -617,7 +630,9 @@ class IIPPacket
                     offset += size;
                 }
             }
-            else if (action == IIPPacketAction.SetProperty)
+            else if (action == IIPPacketAction.SetProperty 
+                  || action == IIPPacketAction.Listen 
+                  || action == IIPPacketAction.Unlisten)
             {
                 // nothing to do
             }

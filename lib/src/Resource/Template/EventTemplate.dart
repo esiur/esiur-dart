@@ -1,45 +1,39 @@
-
 import 'MemberTemplate.dart';
 import '../../Data/DC.dart';
 import '../../Data/BinaryList.dart';
-import 'ResourceTemplate.dart';
+import 'TypeTemplate.dart';
 import 'MemberType.dart';
+import 'TemplateDataType.dart';
 
-class EventTemplate extends MemberTemplate
-{
-
+class EventTemplate extends MemberTemplate {
   String expansion;
+  bool listenable;
+  TemplateDataType argumentType;
 
+  DC compose() {
+    var name = super.compose();
 
-  DC compose()
-  {
-      var name = super.compose();
-
-      if (expansion != null)
-      {
-          var exp = DC.stringToBytes(expansion);
-          return new BinaryList()
-                  .addUint8(0x50)
-                  .addUint8(name.length)
-                  .addDC(name)
-                  .addInt32(exp.length)
-                  .addDC(exp)
-                  .toDC();
-      }
-      else
-      {
-          return new BinaryList()
-                  .addUint8(0x40)
-                  .addUint8(name.length)
-                  .addDC(name)
-                  .toDC();
-      }
+    if (expansion != null) {
+      var exp = DC.stringToBytes(expansion);
+      return new BinaryList()
+          .addUint8(listenable ? 0x58 : 0x50)
+          .addUint8(name.length)
+          .addDC(name)
+          .addDC(argumentType.compose())
+          .addInt32(exp.length)
+          .addDC(exp)
+          .toDC();
+    } else {
+      return new BinaryList()
+          .addUint8(listenable ? 0x48 : 0x40)
+          .addUint8(name.length)
+          .addDC(name)
+          .addDC(argumentType.compose())
+          .toDC();
+    }
   }
 
-
-  EventTemplate(ResourceTemplate template, int index, String name, String expansion)
-      : super(template, MemberType.Property, index, name)
-  {
-      this.expansion = expansion;
-  }
+  EventTemplate(TypeTemplate template, int index, String name,
+      this.argumentType, this.expansion, this.listenable)
+      : super(template, MemberType.Property, index, name) {}
 }

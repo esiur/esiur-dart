@@ -41,11 +41,12 @@ class DistributedResource extends IResource {
   //bool _isReady = false;
 
   String _link;
+  int _age;
+
   List _properties;
   bool _destroyed = false;
 
-  List<KeyValuePair<int, dynamic>> _queued_updates =
-      List<KeyValuePair<int, dynamic>>();
+  List<KeyValuePair<int, dynamic>> _queued_updates = [];
 
   /// <summary>
   /// Connection responsible for the distributed resource.
@@ -111,6 +112,15 @@ class DistributedResource extends IResource {
     this._link = link;
     this._connection = connection;
     this._instanceId = instanceId;
+    this._age = age;
+  }
+
+  void init(
+      DistributedConnection connection, int instanceId, int age, String link) {
+    this._link = link;
+    this._connection = connection;
+    this._instanceId = instanceId;
+    this._age = age;
   }
 
   //void _ready()
@@ -163,6 +173,38 @@ class DistributedResource extends IResource {
       }
     }
     return true;
+  }
+
+  AsyncReply<dynamic> listen(event) {
+    EventTemplate et = event is EventTemplate
+        ? event
+        : instance.template.getEventTemplateByName(event);
+
+    if (et == null)
+      return AsyncReply<dynamic>().triggerError(new AsyncException(
+          ErrorType.Management, ExceptionCode.MethodNotFound.index, ""));
+
+    if (!et.listenable)
+      return AsyncReply().triggerError(new AsyncException(
+          ErrorType.Management, ExceptionCode.NotListenable.index, ""));
+
+    return _connection.sendListenRequest(_instanceId, et.index);
+  }
+
+  AsyncReply<dynamic> unlisten(event) {
+    EventTemplate et = event is EventTemplate
+        ? event
+        : instance.template.getEventTemplateByName(event);
+
+    if (et == null)
+      return AsyncReply().triggerError(new AsyncException(
+          ErrorType.Management, ExceptionCode.MethodNotFound.index, ""));
+
+    if (!et.listenable)
+      return AsyncReply().triggerError(new AsyncException(
+          ErrorType.Management, ExceptionCode.NotListenable.index, ""));
+
+    return connection.sendUnlistenRequest(_instanceId, et.index);
   }
 
   void emitEventByIndex(int index, dynamic args) {

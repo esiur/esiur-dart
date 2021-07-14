@@ -32,24 +32,23 @@ import 'SocketState.dart';
 import 'IPEndPoint.dart';
 import '../../Core/AsyncReply.dart';
 
-class TCPSocket extends ISocket
-{
-    Socket sock;
-    NetworkBuffer receiveNetworkBuffer = new NetworkBuffer();
+class TCPSocket extends ISocket {
+  Socket sock;
+  NetworkBuffer receiveNetworkBuffer = new NetworkBuffer();
 
-    //bool asyncSending;
-    bool began = false;
+  //bool asyncSending;
+  bool began = false;
 
-    SocketState _state = SocketState.Initial;
+  SocketState _state = SocketState.Initial;
 
-    //public event ISocketReceiveEvent OnReceive;
-    //public event ISocketConnectEvent OnConnect;
-    //public event ISocketCloseEvent OnClose;
-    //public event DestroyedEvent OnDestroy;
+  //public event ISocketReceiveEvent OnReceive;
+  //public event ISocketConnectEvent OnConnect;
+  //public event ISocketCloseEvent OnClose;
+  //public event DestroyedEvent OnDestroy;
 
-    //SocketAsyncEventArgs socketArgs = new SocketAsyncEventArgs();
+  //SocketAsyncEventArgs socketArgs = new SocketAsyncEventArgs();
 
-    /*
+  /*
     void connected(Task t)
     {
         state = SocketState.Established;
@@ -58,143 +57,117 @@ class TCPSocket extends ISocket
     }
     */
 
-    IPEndPoint _localEP, _remoteEP;
+  IPEndPoint _localEP, _remoteEP;
 
-    bool begin()
-    {
-        if (began)
-            return false;
+  bool begin() {
+    if (began) return false;
 
-        began = true;
+    began = true;
 
-        _localEP = IPEndPoint(sock.address.rawAddress, sock.port);
-        _remoteEP = IPEndPoint(sock.remoteAddress.rawAddress, sock.remotePort);
-        return true;
-    }
+    _localEP = IPEndPoint(sock.address.rawAddress, sock.port);
+    _remoteEP = IPEndPoint(sock.remoteAddress.rawAddress, sock.remotePort);
+    return true;
+  }
 
-    void dataHandler(List<int> data){
-      //print(new String.fromCharCodes(data).trim());
+  void dataHandler(List<int> data) {
+    //print(new String.fromCharCodes(data).trim());
 
+    try {
+      if (_state == SocketState.Closed || _state == SocketState.Terminated)
+        return;
 
-        try
-        {
-            if (_state == SocketState.Closed || _state == SocketState.Terminated)
-                return;
+      var dc = new DC.fromList(data);
+      receiveNetworkBuffer.write(dc, 0, dc.length);
+      receiver.networkReceive(this, receiveNetworkBuffer);
 
+      //emitArgs("receive", [receiveNetworkBuffer]);
 
-            var dc = new DC.fromList(data);
-            receiveNetworkBuffer.write(dc, 0, dc.length);
-            emitArgs("receive", [receiveNetworkBuffer]);
-
-        }
-        catch (ex)
-        {
-            if (_state != SocketState.Closed)// && !sock.connected)
-            {
-                _state = SocketState.Terminated;
-                close();
-            }
-
-        }
-
-    }
-
-    void errorHandler(error, StackTrace trace){
-      print(error);
-    }
-
-    void doneHandler(){
-      close();
-      sock.destroy();
-    }
-
-    AsyncReply<bool> connect(String hostname, int port)
-    {
-      var rt = new AsyncReply<bool>();
-
-        try
-        {
-            _state = SocketState.Connecting;
-
-            Socket.connect(hostname, port).then((s){
-                sock = s;
-                s.listen(dataHandler, 
-                    onError: errorHandler, 
-                    onDone: doneHandler, 
-                    cancelOnError: false);
-                _state = SocketState.Established;
-                emitArgs("connect", []);
-                begin();
-                rt.trigger(true);
-
-            }).catchError((ex){
-              close();
-              rt.triggerError(AsyncException(ErrorType.Management, ExceptionCode.HostNotReachable.index, ex.toString()));
-            });
-
-            
-        }
-        catch(ex)
-        {
-            rt.triggerError(AsyncException(ErrorType.Management, ExceptionCode.HostNotReachable.index, ex.toString()));
-        }
-
-        return rt;
-    }
-
-
-
-
-    IPEndPoint get localEndPoint => _localEP;
-    IPEndPoint get remoteEndPoint => _remoteEP;
-
-   
-    SocketState get state => _state;
-    
-
-    TCPSocket.fromSocket(Socket socket)
-    {
-        sock = socket;
-        //if (socket.)
-          //  _state = SocketState.Established;
-    }
-
-    TCPSocket()
-    {
-      // default constructor
-    }
-
-    void close()
-    {
-        if (state != SocketState.Closed && state != SocketState.Terminated)
-            _state = SocketState.Closed;
-
-        sock?.close();
-
-        emitArgs("close", []);
-    }
-
-    
-    void send(DC message, [int offset, int size])
-    {
-        if (state == SocketState.Established)
-          sock.add(message.toList());
-    }
-
-
-
-    void destroy()
-    {
+    } catch (ex) {
+      if (_state != SocketState.Closed) // && !sock.connected)
+      {
+        _state = SocketState.Terminated;
         close();
-        emitArgs("destroy", [this]);
+      }
+    }
+  }
+
+  void errorHandler(error, StackTrace trace) {
+    print(error);
+  }
+
+  void doneHandler() {
+    close();
+    sock.destroy();
+  }
+
+  AsyncReply<bool> connect(String hostname, int port) {
+    var rt = new AsyncReply<bool>();
+
+    try {
+      _state = SocketState.Connecting;
+
+      Socket.connect(hostname, port).then((s) {
+        sock = s;
+        s.listen(dataHandler,
+            onError: errorHandler, onDone: doneHandler, cancelOnError: false);
+        _state = SocketState.Established;
+
+        //emitArgs("connect", []);
+        receiver?.networkConnect(this);
+
+        begin();
+        rt.trigger(true);
+      }).catchError((ex) {
+        close();
+        rt.triggerError(AsyncException(ErrorType.Management,
+            ExceptionCode.HostNotReachable.index, ex.toString()));
+      });
+    } catch (ex) {
+      rt.triggerError(AsyncException(ErrorType.Management,
+          ExceptionCode.HostNotReachable.index, ex.toString()));
     }
 
-    AsyncReply<ISocket> accept()
-    {
+    return rt;
+  }
 
+  IPEndPoint get localEndPoint => _localEP;
+  IPEndPoint get remoteEndPoint => _remoteEP;
 
-        var reply = new AsyncReply<ISocket>();
-        return reply;
+  SocketState get state => _state;
+
+  TCPSocket.fromSocket(Socket socket) {
+    sock = socket;
+    //if (socket.)
+    //  _state = SocketState.Established;
+  }
+
+  TCPSocket() {
+    // default constructor
+  }
+
+  void close() {
+    if (state != SocketState.Closed && state != SocketState.Terminated)
+      _state = SocketState.Closed;
+
+    sock?.close();
+
+    receiver?.networkClose(this);
+
+    //emitArgs("close", []);
+  }
+
+  void send(DC message, [int offset, int size]) {
+    if (state == SocketState.Established) sock.add(message.toList());
+  }
+
+  void destroy() {
+    close();
+    emitArgs("destroy", [this]);
+  }
+
+  AsyncReply<ISocket> accept() {
+    var reply = new AsyncReply<ISocket>();
+    return reply;
 
 /*
   ServerSocket.bind(InternetAddress.ANY_IP_V4, 4567).then(
@@ -212,5 +185,5 @@ class TCPSocket extends ISocket
 }
 
 */
-    }
+  }
 }

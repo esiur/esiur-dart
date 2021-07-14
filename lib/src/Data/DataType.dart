@@ -44,6 +44,7 @@ class DataType
     ResourceLink = 0x11,
     String = 0x12,
     Structure = 0x13,
+    Record = 0x14,
     //Stream,
     //Array = 0x80,
     VarArray = 0x80,
@@ -66,6 +67,7 @@ class DataType
     ResourceLinkArray = 0x91,
     StringArray = 0x92,
     StructureArray = 0x93,
+    RecordArray = 0x94,
     NotModified = 0x7F,
     Unspecified = 0xFF;
 

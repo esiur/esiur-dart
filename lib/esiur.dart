@@ -13,7 +13,7 @@ export 'src/Resource/Template/MemberTemplate.dart';
 export 'src/Resource/Template/MemberType.dart';
 export 'src/Resource/Template/PropertyPermission.dart';
 export 'src/Resource/Template/PropertyTemplate.dart';
-export 'src/Resource/Template/ResourceTemplate.dart';
+export 'src/Resource/Template/TypeTemplate.dart';
 
 // -----------------------------------------------------------------
 // Core
@@ -44,7 +44,8 @@ export 'src/Data/Structure.dart';
 export 'src/Data/StructureComparisonResult.dart';
 export 'src/Data/StructureMetadata.dart';
 export 'src/Data/ValueObject.dart';
-
+export 'src/Data/IRecord.dart';
+export 'src/Data/Record.dart';
 // -----------------------------------------------------------------
 // Net
 export 'src/Net/NetworkBuffer.dart';

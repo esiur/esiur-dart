@@ -1,7 +1,7 @@
 
 import 'MemberType.dart';
 import '../../Data/DC.dart';
-import './ResourceTemplate.dart';
+import 'TypeTemplate.dart';
 
 class MemberTemplate
 {
@@ -10,14 +10,14 @@ class MemberTemplate
     String get name => _name;
     MemberType get type => _type;
 
-    ResourceTemplate _template;
+    TypeTemplate _template;
     String _name;
     MemberType _type;
     int _index;
 
-    ResourceTemplate get template => _template;
+    TypeTemplate get template => _template;
 
-    MemberTemplate(ResourceTemplate template, MemberType type, int index, String name)
+    MemberTemplate(TypeTemplate template, MemberType type, int index, String name)
     {
         this._template = template;
         this._type = type;

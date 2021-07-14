@@ -22,6 +22,8 @@ SOFTWARE.
 
 */
 
+import 'INetworkReceiver.dart';
+
 import '../Core/IDestructible.dart';
 import 'Sockets/ISocket.dart';
 import 'Sockets/SocketState.dart';
@@ -29,178 +31,145 @@ import 'NetworkBuffer.dart';
 import '../Data/DC.dart';
 import 'Sockets/IPEndPoint.dart';
 
-class NetworkConnection extends IDestructible
-{
-    ISocket _sock;
+class NetworkConnection extends IDestructible with INetworkReceiver<ISocket> {
+  ISocket _sock;
 
-    DateTime _lastAction;
+  DateTime _lastAction;
 
-    //public delegate void DataReceivedEvent(NetworkConnection sender, NetworkBuffer data);
-    //public delegate void ConnectionClosedEvent(NetworkConnection sender);
-    //public delegate void ConnectionEstablishedEvent(NetworkConnection sender);
+  //public delegate void DataReceivedEvent(NetworkConnection sender, NetworkBuffer data);
+  //public delegate void ConnectionClosedEvent(NetworkConnection sender);
+  //public delegate void ConnectionEstablishedEvent(NetworkConnection sender);
 
-    //public event ConnectionEstablishedEvent OnConnect;
-    //public event DataReceivedEvent OnDataReceived;
-    //public event ConnectionClosedEvent OnClose;
-    //public event DestroyedEvent OnDestroy;
-    //object receivingLock = new object();
+  //public event ConnectionEstablishedEvent OnConnect;
+  //public event DataReceivedEvent OnDataReceived;
+  //public event ConnectionClosedEvent OnClose;
+  //public event DestroyedEvent OnDestroy;
+  //object receivingLock = new object();
 
-    bool _processing = false;
-
-
-    // to be overridden
-    void connectionClosed()
-    {
-
-    }
-
-    void destroy()
-    {
-        // if (connected)
-        close();
-        //emitArgs("close", [this]);
-        //OnDestroy?.Invoke(this);
-    }
-
-    NetworkConnection()
-    {
-
-    }
+  bool _processing = false;
 
 
+  void destroy() {
+    // if (connected)
+    close();
+    //emitArgs("close", [this]);
+    //OnDestroy?.Invoke(this);
+  }
 
-    ISocket get socket => _sock;
-    
-    void assign(ISocket socket)
-    {
-        _lastAction =  DateTime.now();
-        _sock = socket;
-        
-        socket.on("receive", socket_OnReceive);
-        socket.on("close", socket_OnClose);
-        socket.on("connect", socket_OnConnect);
-    }
+  NetworkConnection() {}
 
-    
-    void socket_OnConnect()
-    {
-        emitArgs("connect", [this]);
-    }
+  ISocket get socket => _sock;
 
-    void socket_OnClose()
-    {
-        connectionClosed();
-        emitArgs("close", [this]);
-    }
+  void assign(ISocket socket) {
+    _lastAction = DateTime.now();
+    _sock = socket;
 
-    void socket_OnReceive(NetworkBuffer buffer)
-    {
-        try
-        {
+    socket.receiver = this;
 
-            // Unassigned ?
-            if (_sock == null)
-                return;
+    //socket.on("receive", socket_OnReceive);
+    //socket.on("close", socket_OnClose);
+    //socket.on("connect", socket_OnConnect);
+  }
 
-            // Closed ?
-            if (_sock.state == SocketState.Closed || _sock.state == SocketState.Terminated) // || !connected)
-                return;
+  ISocket unassign() {
+    if (_sock != null) {
+      // connected = false;
+      // _sock.off("close", socket_OnClose);
+      // _sock.off("connect", socket_OnConnect);
+      // _sock.off("receive", socket_OnReceive);
 
-            _lastAction = DateTime.now();
+      _sock.receiver = null;
+      var rt = _sock;
+      _sock = null;
 
-            if (!_processing)
-            {
-                _processing = true;
+      return rt;
+    } else
+      return null;
+  }
 
-                try
-                {
-                    while (buffer.available > 0 && !buffer.protected)
-                        dataReceived(buffer);
-                }
-                catch(ex)
-                {
+  // to be overridden
+  void dataReceived(NetworkBuffer data) {
+    emitArgs("dataReceived", [data]);
+  }
 
-                }
+  void connected(){
 
-                _processing = false;
-            }
-            
-        }
-        catch (ex)
-        {
-          print(ex);
-            //Global.Log("NetworkConnection", LogType.Warning, ex.ToString());
-        }
+  }
+
+  void disconnected(){
+
+  }
+
+  void close() {
+    try {
+      if (_sock != null) _sock.close();
+    } catch (ex) {
+      //Global.Log("NetworkConenction:Close", LogType.Error, ex.ToString());
 
     }
+  }
 
-    ISocket unassign()
-    {
-        if (_sock != null)
-        {
-            // connected = false;
-            _sock.off("close", socket_OnClose);
-            _sock.off("connect", socket_OnConnect);
-            _sock.off("receive", socket_OnReceive);
+  DateTime get lastAction => _lastAction;
 
-            var rt = _sock;
-            _sock = null;
+  IPEndPoint get remoteEndPoint => _sock?.remoteEndPoint;
 
-            return rt;
-        }
-        else
-            return null;
+  IPEndPoint get localEndPoint => _sock?.localEndPoint;
+
+  bool get isConnected => _sock.state == SocketState.Established;
+
+  void send(DC msg) {
+    try {
+      if (_sock != null) {
+        _lastAction = DateTime.now();
+        _sock.send(msg);
+      }
+    } catch (ex) {
+      //Console.WriteLine(ex.ToString());
     }
+  }
 
-    void dataReceived(NetworkBuffer data)
-    {
-        emitArgs("dataReceived", [data]);
+  void sendString(String data) {
+    send(DC.stringToBytes(data));
+  }
+
+  @override
+  void networkClose(sender) {
+    disconnected();
+    emitArgs("close", [this]);
+  }
+
+  @override
+  void networkConnect(sender) {
+    connected();
+    emitArgs("connect", [this]);
+  }
+
+  @override
+  void networkReceive(sender, NetworkBuffer buffer) {
+    try {
+      // Unassigned ?
+      if (_sock == null) return;
+
+      // Closed ?
+      if (_sock.state == SocketState.Closed ||
+          _sock.state == SocketState.Terminated) // || !connected)
+        return;
+
+      _lastAction = DateTime.now();
+
+      if (!_processing) {
+        _processing = true;
+
+        try {
+          while (buffer.available > 0 && !buffer.protected)
+            dataReceived(buffer);
+        } catch (ex) {}
+
+        _processing = false;
+      }
+    } catch (ex) {
+      print(ex);
+      //Global.Log("NetworkConnection", LogType.Warning, ex.ToString());
     }
-    
-    void close()
-    {
-        try
-        {
-            if (_sock != null)
-                _sock.close();
-        }
-        catch(ex)
-        {
-            //Global.Log("NetworkConenction:Close", LogType.Error, ex.ToString());
-
-        }
-    }
-
-    DateTime get lastAction => _lastAction;
-    
-
-    IPEndPoint get remoteEndPoint => _sock?.remoteEndPoint;
-    
-    IPEndPoint get localEndPoint => _sock?.localEndPoint;
-    
-    bool get connected => _sock.state == SocketState.Established;
-
-    
-    void send(DC msg)
-    {
-      
-        try
-        {
-      
-            if (_sock != null)
-            {
-                _lastAction = DateTime.now();
-                _sock.send(msg);
-            }
-        }
-        catch (ex)
-        {
-            //Console.WriteLine(ex.ToString());
-        }
-    }
-
-    void sendString(String data)
-    {
-        send(DC.stringToBytes(data));
-    }
+  }
 }

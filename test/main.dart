@@ -1,12 +1,22 @@
+import 'package:esiur/src/Proxy/TemplateGenerator.dart';
 import "package:test/test.dart";
 import 'package:esiur/esiur.dart';
 import 'dart:io';
+import '../lib/localhost/Esiur.Generated.dart';
+import 'TestResource.dart';
 
 main() async {
   try {
-    var x = await Warehouse.get("iip://localhost:5070/sys/cp",
-        {"username": "admin", "password": "1234", "domain": "example.com"});
-    print(x);
+    testMe();
+
+    var c = EsiurGenerated;
+    print(c);
+    print(Warehouse.protocols.length);
+
+    await TemplateGenerator.getTemplate("iip://localhost/sys/cp");
+    //   var x = await Warehouse.get("iip://localhost/sys/cp",
+    //       {"username": "guest", "password": "123456", "domain": "example.com"});
+    //   print(x);
   } catch (ex) {
     print("Error occured");
     print(ex);

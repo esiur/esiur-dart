@@ -22,25 +22,22 @@ SOFTWARE.
 
 */
 
+import 'package:esiur/src/Resource/Template/TemplateDescriber.dart';
+
+import '../Resource/Template/TemplateDescriber.dart';
 import '../Core/IDestructible.dart';
 import 'ResourceTrigger.dart';
 import '../Core/AsyncReply.dart';
 import 'Instance.dart';
 
-abstract class IResource extends IDestructible
-{
+abstract class IResource extends IDestructible {
+  AsyncReply<bool> trigger(ResourceTrigger trigger);
 
-    AsyncReply<bool> trigger(ResourceTrigger trigger);
-    /*
-    {
-      // do nothing
-      return new AsyncReply.ready(true);
-    }
-    
-    destroy()
-    {
-      // Destroyed
-    }
-    */
-    Instance instance;
+  Instance instance;
+
+  invoke(String name, List arguments);
+  setProperty(String name, value);
+  getProperty(String name);
+
+  TemplateDescriber get template;
 }

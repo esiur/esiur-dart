@@ -1,42 +1,49 @@
 import 'MemberTemplate.dart';
 import '../../Data/DC.dart';
 import '../../Data/BinaryList.dart';
-import 'ResourceTemplate.dart';
+import 'TypeTemplate.dart';
 import 'MemberType.dart';
+import 'ArgumentTemplate.dart';
+import 'TemplateDataType.dart';
 
-class FunctionTemplate extends MemberTemplate
-{
+class FunctionTemplate extends MemberTemplate {
+  String expansion;
+  bool isVoid;
 
-    String expansion;
-    bool isVoid;
-    
+  TemplateDataType returnType;
+  List<ArgumentTemplate> arguments;
 
-    DC compose()
-    {
-        var name = super.compose();
+  DC compose() {
 
-        if (expansion != null)
-        {
-            var exp = DC.stringToBytes(expansion);
-            return new BinaryList().addUint8((0x10 | (isVoid ? 0x8 : 0x0)))
-                .addUint8(name.length)
-                .addDC(name)
-                .addInt32(exp.length)
-                .addDC(exp)
-                .toDC();
-        }
-        else
-            return new BinaryList().addUint8((isVoid ? 0x8 : 0x0))
-                .addUint8(name.length)
-                .addDC(name)
-                .toDC();
-    }
+      var name = super.compose();
+            
+      var bl = new BinaryList()
+              .addUint8(name.length)
+              .addDC(name)
+              .addDC(returnType.compose())
+              .addUint8(arguments.length);
+
+      for (var i = 0; i < arguments.length; i++)
+          bl.addDC(arguments[i].compose());
 
 
-    FunctionTemplate(ResourceTemplate template, int index, String name, bool isVoid, String expansion)
-        :super(template, MemberType.Property, index, name)
-    {
-        this.isVoid = isVoid;
-        this.expansion = expansion;
-    }
+      if (expansion != null)
+      {
+          var exp = DC.stringToBytes(expansion);
+          bl.addInt32(exp.length)
+          .addDC(exp);
+          bl.insertUint8(0, 0x10);
+      }
+      else
+          bl.insertUint8(0, 0x0);
+
+      return bl.toDC();
+  }
+
+  FunctionTemplate(TypeTemplate template, int index, String name,
+      this.arguments, this.returnType, String expansion)
+      : super(template, MemberType.Property, index, name) {
+    this.isVoid = isVoid;
+    this.expansion = expansion;
+  }
 }

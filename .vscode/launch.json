@@ -9,6 +9,14 @@
             "program": "test/main.dart",
             "request": "launch",
             "type": "dart"
+        },
+        {
+            "program": "test/template_test/.dart_tool/build/entrypoint/build.dart",
+            "name": "template_test",
+            "cwd": "template_test",
+            "request": "launch",
+            "type": "dart",
+            "args": ["serve"],
         }
     ]
 }

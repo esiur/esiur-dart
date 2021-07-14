@@ -26,196 +26,155 @@ import 'dart:core';
 import 'AsyncException.dart';
 import 'ProgressType.dart';
 
-class AsyncReply<T> implements Future<T>
-{
+class AsyncReply<T> implements Future<T> {
+  List<Function(T)> _callbacks = new List<Function(T)>();
 
-    List<Function(T)> _callbacks = new List<Function(T)>();
+  T _result;
 
-    T _result;
+  List<Function(AsyncException)> _errorCallbacks =
+      new List<Function(AsyncException)>();
 
-    List<Function(AsyncException)> _errorCallbacks = new List<Function(AsyncException)>();
-    
-    List<Function(ProgressType, int, int)> _progressCallbacks = new List<Function(ProgressType, int, int)>();
+  List<Function(ProgressType, int, int)> _progressCallbacks =
+      new List<Function(ProgressType, int, int)>();
 
-    List<Function(T)> _chunkCallbacks = new List<Function(T)>();
+  List<Function(T)> _chunkCallbacks = new List<Function(T)>();
 
+  bool _resultReady = false;
+  AsyncException _exception;
 
+  bool get ready {
+    return _resultReady;
+  }
 
-    bool _resultReady = false;
-    AsyncException _exception;
+  set ready(value) {
+    _resultReady = value;
+  }
 
+  T get result {
+    return _result;
+  }
 
-    bool get ready
-    {
-        return _resultReady;
-    }
+  setResultReady(bool val) {
+    _resultReady = val;
+  }
 
-    set ready(value)
-    {
-        _resultReady = value; 
-    }
-    
-    T get result
-    {
-        return _result;
-    }
-
-    setResultReady(bool val)
-    {
-      _resultReady = val;
-    }
- 
-
-  AsyncReply<T> next(Function(T) callback)
-  {
+  AsyncReply<T> next(Function(T) callback) {
     then(callback);
     return this;
   }
 
-  AsyncReply<R> then<R>(FutureOr<R> onValue(T value), {Function onError}) 
-  {
-      _callbacks.add(onValue);
-      if (onError != null)
-      {
-        if (onError is Function(dynamic, dynamic))
-        {
-          _errorCallbacks.add((ex)=>onError(ex, null));
-        }
-        else if (onError is Function(dynamic))
-        {
-          _errorCallbacks.add(onError);
-        }
-        else if (onError is Function())
-        {
-          _errorCallbacks.add((ex)=>onError());
-        }
-        else if (onError is Function(Object, StackTrace))
-        {
-          _errorCallbacks.add((ex)=>onError(ex, null));
-        }
+  AsyncReply<R> then<R>(FutureOr<R> onValue(T value), {Function onError}) {
+    _callbacks.add(onValue);
+    if (onError != null) {
+      if (onError is Function(dynamic, dynamic)) {
+        _errorCallbacks.add((ex) => onError(ex, null));
+      } else if (onError is Function(dynamic)) {
+        _errorCallbacks.add(onError);
+      } else if (onError is Function()) {
+        _errorCallbacks.add((ex) => onError());
+      } else if (onError is Function(Object, StackTrace)) {
+        _errorCallbacks.add((ex) => onError(ex, null));
       }
+    }
 
+    if (_resultReady) onValue(result);
 
-      if (_resultReady)
-          onValue(result);
-
-      if (R == Null)
-        return null;
-      else
-        return this as AsyncReply<R>;
+    if (R == Null)
+      return null;
+    else
+      return this as AsyncReply<R>;
   }
 
-  AsyncReply<T> whenComplete(FutureOr action())
-  {
+  AsyncReply<T> whenComplete(FutureOr action()) {
     return this;
     //_callbacks.add(action);
   }
 
-  Stream<T> asStream()
-  {
+  Stream<T> asStream() {
     return null;
   }
 
-  AsyncReply<T> catchError(Function onError, {bool test(Object error)})
-  {
-      return this.error(onError);
+  AsyncReply<T> catchError(Function onError, {bool test(Object error)}) {
+    return this.error(onError);
   }
 
-  AsyncReply<T> timeout(Duration timeLimit, {FutureOr<T> onTimeout()})
-  {
+  AsyncReply<T> timeout(Duration timeLimit, {FutureOr<T> onTimeout()}) {
     return this;
   }
- 
-    AsyncReply<T> error(Function(dynamic) callback)
-    {
-        _errorCallbacks.add(callback);
 
-        if (_exception != null)
-            callback(_exception);
-        
-        return this;
-    }
+  AsyncReply<T> error(Function(dynamic) callback) {
+    _errorCallbacks.add(callback);
 
-    AsyncReply<T> progress(Function(ProgressType, int, int) callback)
-    {
-        _progressCallbacks.add(callback);
-        return this;
-    }
+    if (_exception != null) callback(_exception);
 
-    
-    AsyncReply<T> chunk(Function(T) callback)
-    {
-        _chunkCallbacks.add(callback);
-        return this;
-    }
+    return this;
+  }
 
-    void trigger(T result)
-    {
+  AsyncReply<T> progress(Function(ProgressType, int, int) callback) {
+    _progressCallbacks.add(callback);
+    return this;
+  }
 
-//            lock (callbacksLock)
-//           {
-            if (_resultReady)
-                return;
+  AsyncReply<T> chunk(Function(T) callback) {
+    _chunkCallbacks.add(callback);
+    return this;
+  }
 
-            _result = result;
-            _resultReady = true;
+  AsyncReply<T> trigger(T result) {
+    if (_resultReady) return this;
 
-            _callbacks.forEach((x) {
-                x(result);
-            });
+    _result = result;
+    _resultReady = true;
 
-//         }
+    _callbacks.forEach((x) {
+      x(result);
+    });
 
-    }
+    return this;
+  }
 
-    triggerError(Exception exception)
-    {
-        if (_resultReady)
-            return;
+  AsyncReply<T> triggerError(Exception exception) {
+    if (_resultReady) return this;
 
-        if (exception is AsyncException)
-            _exception = exception;
-        else
-            _exception = AsyncException.toAsyncException(exception);
+    if (exception is AsyncException)
+      _exception = exception;
+    else
+      _exception = AsyncException.toAsyncException(exception);
 
-        ///lock (callbacksLock)
-        //{
+    ///lock (callbacksLock)
+    //{
 
-        if (this._errorCallbacks.length == 0)
-			    throw _exception;
-        else
-          _errorCallbacks.forEach((x) {
-              x(_exception);
-          });
-        //}
+    if (this._errorCallbacks.length == 0)
+      throw _exception;
+    else
+      _errorCallbacks.forEach((x) {
+        x(_exception);
+      });
+    //}
 
-    }
+    return this;
+  }
 
-    triggerProgress(ProgressType type, int value, int max)
-    {
-        _progressCallbacks.forEach((x) {
-          x(type, value, max);
-        });
-    }
+  AsyncReply<T> triggerProgress(ProgressType type, int value, int max) {
+    _progressCallbacks.forEach((x) {
+      x(type, value, max);
+    });
 
-    
-    triggerChunk(T value)
-    {
-        _chunkCallbacks.forEach((x) {
-            x(value);
-        });
-    }
+    return this;
+  }
 
+  AsyncReply<T> triggerChunk(T value) {
+    _chunkCallbacks.forEach((x) {
+      x(value);
+    });
 
-    AsyncReply.ready(T result)
-    {
-        _resultReady = true;
-        _result = result;
-    }
+    return this;
+  }
 
-    AsyncReply()
-    {
+  AsyncReply.ready(T result) {
+    _resultReady = true;
+    _result = result;
+  }
 
-    }
-
+  AsyncReply() {}
 }

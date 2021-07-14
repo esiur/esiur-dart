@@ -32,7 +32,7 @@ import 'Guid.dart';
 
 class BinaryList
 {
-    var _list = new List<int>();
+    var _list = <int>[];
 
     int get length => _list.length;
 

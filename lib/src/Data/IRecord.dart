@@ -21,30 +21,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
-import '../../Core/IDestructible.dart';
-import '../../Data/DC.dart';
-import '../INetworkReceiver.dart';
-import 'IPEndPoint.dart';
-import '../../Core/AsyncReply.dart';
-import 'SocketState.dart';
 
-abstract class ISocket extends IDestructible {
-  SocketState get state; //{ get; }
+import '../Resource/Template/TemplateDescriber.dart';
 
-  //event ISocketReceiveEvent OnReceive;
-  //event ISocketConnectEvent OnConnect;
-  //event ISocketCloseEvent OnClose;
 
-  //void send(DC message);
-
-  INetworkReceiver<ISocket> receiver;
-
-  void send(DC message, [int offset, int size]);
-  void close();
-  AsyncReply<bool> connect(String hostname, int port);
-  bool begin();
-
-  AsyncReply<ISocket> accept();
-  IPEndPoint remoteEndPoint;
-  IPEndPoint localEndPoint;
+abstract class IRecord {
+  Map<String, dynamic> serialize();
+  void deserialize(Map<String, dynamic> value);
+  TemplateDescriber get template;
 }

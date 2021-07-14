@@ -11,7 +11,7 @@ import '../Core/IEventHandler.dart';
 import '../Security/Permissions/Ruling.dart';
 import '../Security/Permissions/IPermissionsManager.dart';
 import '../Security/Permissions/ActionType.dart';
-import './Template/ResourceTemplate.dart';
+import 'Template/TypeTemplate.dart';
 import './Template/PropertyTemplate.dart';
 import './Template/FunctionTemplate.dart';
 import './Template/EventTemplate.dart';
@@ -30,7 +30,7 @@ class Instance extends IEventHandler
     IStore _store;
     AutoList<IResource, Instance> _parents;
     //bool inherit;
-    ResourceTemplate _template;
+    TypeTemplate _template;
 
     AutoList<IPermissionsManager, Instance> _managers;
 
@@ -547,7 +547,7 @@ class Instance extends IEventHandler
     /// <summary>
     /// Resource template describes the properties, functions and events of the resource.
     /// </summary>
-    ResourceTemplate get template => _template;
+    TypeTemplate get template => _template;
 
     /// <summary>
     /// Check for permission.
@@ -583,7 +583,7 @@ class Instance extends IEventHandler
     /// <param name="name">Name of the instance.</param>
     /// <param name="resource">Resource to manage.</param>
     /// <param name="store">Store responsible for the resource.</param>
-    Instance(int id, String name, IResource resource, IStore store, [ResourceTemplate customTemplate = null, int age = 0])
+    Instance(int id, String name, IResource resource, IStore store, [TypeTemplate customTemplate = null, int age = 0])
     {
         _store = store;
         _resource = resource;

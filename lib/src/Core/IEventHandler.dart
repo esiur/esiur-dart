@@ -22,7 +22,7 @@ class IEventHandler
 
         return false;
     }
-
+    
     on(String event, Function callback)
     {
         event = event.toLowerCase();
