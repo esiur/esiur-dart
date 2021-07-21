@@ -1,4 +1,4 @@
-import 'package:esiur/src/Resource/Template/TemplateDescriber.dart';
+import '../Resource/Template/TemplateDescriber.dart';
 
 import 'IRecord.dart';
 import 'KeyList.dart';

@@ -1,14 +1,16 @@
 import 'AsyncReply.dart';
+import '../Resource/Warehouse.dart';
+
 
 class AsyncBag<T> extends AsyncReply<List<T>> {
-  List<AsyncReply<T>> _replies = new List<AsyncReply<T>>();
+  List<AsyncReply<T>> _replies = <AsyncReply<T>>[];
   List<T> _results = <T>[];
 
   int _count = 0;
   bool _sealedBag = false;
 
   Type arrayType;
-  
+
   seal() {
     //print("SEALED");
 
@@ -16,7 +18,7 @@ class AsyncBag<T> extends AsyncReply<List<T>> {
 
     _sealedBag = true;
 
-    if (_results.length == 0) trigger(new List<T>());
+    if (_results.length == 0) trigger(<T>[]);
 
     for (var i = 0; i < _results.length; i++) {
       var k = _replies[i];
@@ -25,8 +27,15 @@ class AsyncBag<T> extends AsyncReply<List<T>> {
       k.then<dynamic>((r) {
         _results[index] = r;
         _count++;
-        //print("Seal ${_count}/${_results.length}");
-        if (_count == _results.length) trigger(_results);
+        if (_count == _results.length) {
+          if (arrayType != null) {
+            var ar = Warehouse.createArray(arrayType);
+            _results.forEach(ar.add);
+            trigger(ar);
+          } else {
+            trigger(_results);
+          }
+        }
       }).error((ex) {
         triggerError(ex);
       });

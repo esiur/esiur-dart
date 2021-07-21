@@ -9,7 +9,7 @@ class Guid {
 
   DC get value => _data;
 
-  bool operator ==(Object other) {
+  bool operator ==(other) {
     if (other is Guid)
       return _data.sequenceEqual(other._data);
     else
@@ -20,4 +20,7 @@ class Guid {
   String toString() {
     return _data.getString(0, _data.length);
   }
+
+  @override
+  int get hashCode => _data.toString().hashCode;
 }

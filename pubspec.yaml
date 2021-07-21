@@ -1,7 +1,7 @@
 name: esiur
 description: Distributed Object Framework.
-version: 1.3.0
-# author: Ahmed Zamil <ahmed@esiur.com>
+version: 1.4.0
+#author: Ahmed Zamil <ahmed@esiur.com>
 homepage: https://github.com/esiur/esiur-dart
 
 
@@ -11,6 +11,7 @@ environment:
 dependencies:
   source_gen: ^1.0.2 
   args: #
+  pubspec_parse:
 
 dev_dependencies:
   test: ^1.14.2

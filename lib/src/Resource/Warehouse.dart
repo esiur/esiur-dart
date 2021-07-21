@@ -23,6 +23,7 @@ SOFTWARE.
 */
 
 import '../Data/AutoList.dart';
+import 'FactoryEntry.dart';
 import 'Template/TemplateType.dart';
 import 'Template/TypeTemplate.dart';
 import '../Data/Guid.dart';
@@ -45,7 +46,6 @@ class Warehouse {
   static Map<int, IResource> _resources = new Map<int, IResource>();
   static int resourceCounter = 0;
 
- 
   static KeyList<TemplateType, KeyList<Guid, TypeTemplate>> _templates =
       _initTemplates(); //
 
@@ -60,13 +60,11 @@ class Warehouse {
     return rt;
   }
 
- 
-  static KeyList<Type, Function()> _factory = _getBuiltInTypes();
+  static KeyList<Type, FactoryEntry> _factory = _getBuiltInTypes();
 
   static KeyList<String, AsyncReply<IStore> Function(String, dynamic)>
       protocols = _getSupportedProtocols();
 
- 
   static bool _warehouseIsOpen = false;
 
   static final _urlRegex = RegExp(r'^(?:([^\s|:]*):\/\/([^\/]*)\/?(.*))');
@@ -470,7 +468,11 @@ class Warehouse {
   }
 
   static T createInstance<T>(Type T) {
-    return _factory[T].call();
+    return _factory[T].instanceCreator.call();
+  }
+
+  static List<T> createArray<T>(Type T) {
+    return _factory[T].arrayCreator.call();
   }
 
   static AsyncReply<T> newResource<T extends IResource>(String name,
@@ -479,7 +481,7 @@ class Warehouse {
       IPermissionsManager manager = null,
       attributes = null,
       properties = null]) {
-    var resource = _factory[T].call();
+    var resource = _factory[T].instanceCreator.call();
 
     if (properties != null) {
       dynamic d = resource;
@@ -525,8 +527,9 @@ class Warehouse {
   static TypeTemplate getTemplateByType(Type type) {
     // loaded ?
     for (var tmps in _templates.values)
-      for (var tmp in tmps.values)
-        if (tmp.className == type.toString()) return tmp;
+      for (var tmp in tmps.values) if (tmp.definedType == type) return tmp;
+
+    //if (tmp.className == type.toString()) return tmp;
 
     var template = new TypeTemplate.fromType(type, true);
 
@@ -562,28 +565,31 @@ class Warehouse {
   /// </summary>
   /// <param name="className">Class name.</param>
   /// <returns>Resource template.</returns>
-  static TypeTemplate getTemplateByClassName(String className, [TemplateType templateType = TemplateType.Unspecified]) {
+  static TypeTemplate getTemplateByClassName(String className,
+      [TemplateType templateType = TemplateType.Unspecified]) {
+    if (templateType == TemplateType.Unspecified) {
+      // look in resources
+      var template = _templates[TemplateType.Resource]
+          .values
+          .firstWhere((x) => x.className == className);
+      if (template != null) return template;
 
-      if (templateType == TemplateType.Unspecified)
-      {
-          // look in resources
-          var template = _templates[TemplateType.Resource].values.firstWhere((x) => x.className == className);
-          if (template != null)
-              return template;
+      // look in records
+      template = _templates[TemplateType.Record]
+          .values
+          .firstWhere((x) => x.className == className);
+      if (template != null) return template;
 
-          // look in records
-          template = _templates[TemplateType.Record].values.firstWhere((x) => x.className == className);
-          if (template != null)
-              return template;
-
-          // look in wrappers
-          template = _templates[TemplateType.Wrapper].values.firstWhere((x) => x.className == className);
-          return template;
-      }
-      else
-      {
-          return _templates[templateType].values.firstWhere((x) => x.className == className);
-      }
+      // look in wrappers
+      template = _templates[TemplateType.Wrapper]
+          .values
+          .firstWhere((x) => x.className == className);
+      return template;
+    } else {
+      return _templates[templateType]
+          .values
+          .firstWhere((x) => x.className == className);
+    }
   }
 
   static bool remove(IResource resource) {
@@ -625,9 +631,17 @@ class Warehouse {
     return rt;
   }
 
-  static KeyList<Type, Function()> _getBuiltInTypes() {
-    var rt = KeyList<Type, Function()>();
-    rt.add(DistributedConnection, () => DistributedConnection());
+  static defineCreator(
+      Type type, Function instanceCreator, Function arrayCreator) {
+    _factory.add(type, FactoryEntry(type, instanceCreator, arrayCreator));
+  }
+
+  static KeyList<Type, FactoryEntry> _getBuiltInTypes() {
+    var rt = KeyList<Type, FactoryEntry>();
+    rt.add(
+        DistributedConnection,
+        FactoryEntry(DistributedConnection, () => DistributedConnection(),
+            () => DistributedConnection()));
     return rt;
   }
 }

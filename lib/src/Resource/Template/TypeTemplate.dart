@@ -1,5 +1,7 @@
 import 'dart:ffi';
 
+import '../../Net/IIP/DistributedResource.dart';
+
 import '../../Data/BinaryList.dart';
 import '../../Security/Integrity/SHA256.dart';
 
@@ -55,8 +57,7 @@ class TypeTemplate {
     */
 
 //@TODO: implement
-  static List<TypeTemplate> getDependencies(TypeTemplate template) =>
-      [];
+  static List<TypeTemplate> getDependencies(TypeTemplate template) => [];
 
   EventTemplate getEventTemplateByName(String eventName) {
     for (var i in _events) if (i.name == eventName) return i;
@@ -106,15 +107,27 @@ class TypeTemplate {
 
   List<PropertyTemplate> get properties => _properties;
 
-  TypeTemplate.fromType(Type type, [bool addToWarehouse, bool isWrapper]) {
+  TypeTemplate.fromType(Type type, [bool addToWarehouse = false]) {
+    // debugging print("FromType ${type.toString()}");
+
     var instance = Warehouse.createInstance(type);
 
-    if (instance is IRecord)
-      _templateType = TemplateType.Record;
+    if (instance is DistributedResource)
+      _templateType = TemplateType.Wrapper;
     else if (instance is IResource)
       _templateType = TemplateType.Resource;
+    else if (instance is IRecord)
+      _templateType = TemplateType.Record;
     else
-      throw new Exception("Type is neither a resource nor a record.");
+      throw new Exception(
+          "Type must implement IResource, IRecord or inherit from DistributedResource.");
+
+    // if (instance is IRecord)
+    //   _templateType = TemplateType.Record;
+    // else if (instance is IResource)
+    //   _templateType = TemplateType.Resource;
+    // else
+    //   throw new Exception("Type is neither a resource nor a record.");
 
     TemplateDescriber describer = instance.template;
 
@@ -125,47 +138,59 @@ class TypeTemplate {
     // set guid
     _classId = getTypeGuid(_className);
 
+    _version = describer.version;
+
     if (addToWarehouse) Warehouse.putTemplate(this);
     // _templates.add(template.classId, template);
 
-    for (var i = 0; i < describer.properties.length; i++) {
-      var pi = describer.properties[i];
-      var pt = PropertyTemplate(
-          this,
-          i,
-          pi.name,
-          TemplateDataType.fromType(pi.type, pi.isArray),
-          pi.readAnnotation,
-          pi.writeAnnotation,
-          0);
-      properties.add(pt);
-    }
+    if (describer.properties != null)
+      for (var i = 0; i < describer.properties.length; i++) {
+        var pi = describer.properties[i];
+        var pt = PropertyTemplate(
+            this,
+            i,
+            pi.name,
+            TemplateDataType.fromType(pi.type, pi.isArray),
+            pi.readAnnotation,
+            pi.writeAnnotation,
+            0);
+        properties.add(pt);
+      }
 
-    for (var i = 0; i < describer.functions.length; i++) {
-      var fi = describer.functions[i];
+    if (describer.functions != null)
+      for (var i = 0; i < describer.functions.length; i++) {
+        var fi = describer.functions[i];
 
-      List<ArgumentTemplate> args = fi.argsType.map((arg) => ArgumentTemplate(
-          arg.name, TemplateDataType.fromType(arg.type, arg.isArray)));
+        List<ArgumentTemplate> args = fi.argsType
+            .map((arg) => ArgumentTemplate(
+                arg.name, TemplateDataType.fromType(arg.type, arg.isArray)))
+            .toList();
 
-      var ft = FunctionTemplate(this, i, fi.name, args,
-          TemplateDataType.fromType(fi.returnType, fi.isArray), fi.annotation);
+        var ft = FunctionTemplate(
+            this,
+            i,
+            fi.name,
+            args,
+            TemplateDataType.fromType(fi.returnType, fi.isArray),
+            fi.annotation);
 
-      functions.add(ft);
-    }
+        functions.add(ft);
+      }
 
-    for (var i = 0; i < describer.events.length; i++) {
-      var ei = describer.events[i];
+    if (describer.events != null)
+      for (var i = 0; i < describer.events.length; i++) {
+        var ei = describer.events[i];
 
-      var et = new EventTemplate(
-          this,
-          i,
-          ei.name,
-          TemplateDataType.fromType(ei.type, ei.isArray),
-          ei.annotation,
-          ei.listenable);
+        var et = new EventTemplate(
+            this,
+            i,
+            ei.name,
+            TemplateDataType.fromType(ei.type, ei.isArray),
+            ei.annotation,
+            ei.listenable);
 
-      events.add(et);
-    }
+        events.add(et);
+      }
 
     // append signals
     events.forEach(_members.add);

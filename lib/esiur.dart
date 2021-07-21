@@ -14,6 +14,7 @@ export 'src/Resource/Template/MemberType.dart';
 export 'src/Resource/Template/PropertyPermission.dart';
 export 'src/Resource/Template/PropertyTemplate.dart';
 export 'src/Resource/Template/TypeTemplate.dart';
+export 'src/Resource/Template/TemplateDescriber.dart';
 
 // -----------------------------------------------------------------
 // Core

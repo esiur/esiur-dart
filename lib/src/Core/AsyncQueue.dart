@@ -3,7 +3,7 @@ library esiur;
 import 'AsyncReply.dart';
 
 class AsyncQueue<T> extends AsyncReply<T> {
-  List<AsyncReply<T>> _list = new List<AsyncReply<T>>();
+  List<AsyncReply<T>> _list = <AsyncReply<T>>[];
 
 //      object queueLock = new object();
 

@@ -29,6 +29,6 @@ class MemberTemplate
 
     DC compose()
     {
-       // return DC.ToBytes(Name);
+        return DC.stringToBytes(_name);
     }
 }

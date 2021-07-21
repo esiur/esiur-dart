@@ -23,7 +23,11 @@ SOFTWARE.
 */
 
 import 'dart:io';
-import 'package:esiur/esiur.dart';
+
+import '../../Core/ErrorType.dart';
+import '../../Core/ExceptionCode.dart';
+
+import '../../Core/AsyncException.dart';
 
 import 'ISocket.dart';
 import '../../Data/DC.dart';

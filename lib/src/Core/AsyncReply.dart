@@ -27,17 +27,16 @@ import 'AsyncException.dart';
 import 'ProgressType.dart';
 
 class AsyncReply<T> implements Future<T> {
-  List<Function(T)> _callbacks = new List<Function(T)>();
+  List<Function(T)> _callbacks = <Function(T)>[];
 
   T _result;
 
-  List<Function(AsyncException)> _errorCallbacks =
-      new List<Function(AsyncException)>();
+  List<Function(AsyncException)> _errorCallbacks = <Function(AsyncException)>[];
 
   List<Function(ProgressType, int, int)> _progressCallbacks =
-      new List<Function(ProgressType, int, int)>();
+      <Function(ProgressType, int, int)>[];
 
-  List<Function(T)> _chunkCallbacks = new List<Function(T)>();
+  List<Function(T)> _chunkCallbacks = <Function(T)>[];
 
   bool _resultReady = false;
   AsyncException _exception;

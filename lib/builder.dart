@@ -2,9 +2,9 @@ import 'package:source_gen/source_gen.dart';
 import 'package:build/build.dart';
 import 'package:yaml/yaml.dart';
 
-Builder iipService(BuilderOptions options) {
-  return LibraryBuilder(TemplateGenerator(), generatedExtension: '.info.dart');
-}
+//Builder iipService(BuilderOptions options) {
+  //return LibraryBuilder(TemplateBuilder(), generatedExtension: '.info.dart');
+//}
 
 class TemplateBuilder implements Builder {
   //BuilderOptions options;
@@ -36,12 +36,12 @@ class TemplateBuilder implements Builder {
   }
 }
 
-class TemplateGenerator extends Generator {
-  @override
-  String generate(LibraryReader library, BuildStep buildStep) {
-    return '''
-// Source library: ${library.element.source.uri}
-const Testinggggg = 3;
-''';
-  }
-}
+// class TemplateBuilder extends Generator {
+//   @override
+//   String generate(LibraryReader library, BuildStep buildStep) {
+//     return '''
+// // Source library: ${library.element.source.uri}
+// const Testinggggg = 3;
+// ''';
+//   }
+// }

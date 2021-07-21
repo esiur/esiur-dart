@@ -26,7 +26,7 @@ class TemplateDataType {
   TemplateDataType.fromType(type, bool isArray) {
     int dt;
 
-    if (type == null)
+    if (type == null || type == dynamic)
       dt = DataType.Void;
     else if (type is int) {
       dt = type;
@@ -50,7 +50,7 @@ class TemplateDataType {
       dt = DataType.Int64;
     else if (type == Float)
       dt = DataType.Float32;
-    else if (type == Double)
+    else if (type == Double || type == double)
       dt = DataType.Float64;
     else if (type == String)
       dt = DataType.String;

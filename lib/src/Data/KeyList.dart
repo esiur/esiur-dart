@@ -27,130 +27,96 @@ import '../Core/IDestructible.dart';
 import 'dart:collection';
 import 'Codec.dart';
 
-class KeyList<KT, T> extends IEventHandler with MapMixin<KT, T>
-{
+class KeyList<KT, T> extends IEventHandler with MapMixin<KT, T> {
+  dynamic owner;
 
-    dynamic owner;
-    
-    Map<KT, T> _map = new Map<KT, T>();
-    
-    Iterator<KT>  get iterator => _map.keys.iterator;
+  Map<KT, T> _map = new Map<KT, T>();
 
-    Iterable<KT> get keys => _map.keys;
-    Iterable<T> get values => _map.values;
-    
+  Iterator<KT> get iterator => _map.keys.iterator;
 
-    operator[](index) => _map[index];
+  Iterable<KT> get keys => _map.keys;
+  Iterable<T> get values => _map.values;
 
-    operator []= (index, value) => add(index, value);
-            
+  operator [](index) => _map[index];
 
-    at(int index) => _map.values.elementAt(index);
+  operator []=(index, value) => add(index, value);
 
-    
-    bool _removableList;
+  at(int index) => _map.values.elementAt(index);
 
+  bool _removableList;
 
-    T take(KT key)
-    {
-        if (_map.containsKey(key))
-        {
-            var v = _map[key];
-            remove(key);
-            return v;
-        }
-        else
-            return null;
+  T take(KT key) {
+    if (_map.containsKey(key)) {
+      var v = _map[key];
+      remove(key);
+      return v;
+    } else
+      return null;
+  }
+
+  List<T> toArray() => _map.values.toList();
+
+  void add(KT key, T value) {
+    if (_removableList) if (value != null)
+      (value as IDestructible).on("destroy", _itemDestroyed);
+
+    if (_map.containsKey(key)) {
+      var oldValue = _map[key];
+      if (_removableList) if (oldValue != null)
+        (oldValue as IDestructible).off("destroy", _itemDestroyed);
+
+      _map[key] = value;
+
+      emitArgs("modified", [key, oldValue, value, this]);
+    } else {
+      _map[key] = value;
+
+      emitArgs("add", [value, this]);
     }
+  }
 
-    
-    List<T> toArray() => _map.values.toList();
+  _itemDestroyed(T sender) {
+    removeValue(sender);
+  }
 
-    void add(KT key, T value)
-    {
-        if (_removableList)
-            if (value != null)
-                (value as IDestructible).on("destroy", _itemDestroyed);
+  removeValue(T value) {
+    var toRemove = <KT>[];
+    for (var k in _map.keys) if (_map[k] == value) toRemove.add(k);
 
-        if (_map.containsKey(key))
-        {
-            var oldValue = _map[key];
-            if (_removableList)
-                if (oldValue != null)
-                    (oldValue as IDestructible).off("destroy", _itemDestroyed);
+    for (var k in toRemove) remove(k);
+  }
 
-            _map[key] = value;
+  clear() {
+    if (_removableList)
+      for (var v in _map.values)
+        (v as IDestructible)?.off("destroy", _itemDestroyed);
 
-            emitArgs("modified", [key, oldValue, value, this]);
-        }
-        else
-        {
-            _map[key] = value;
+    _map.clear();
 
-            emitArgs("add", [value, this]);
+    emitArgs("cleared", [this]);
+  }
 
-        }
-    
-    }
+  T remove(key) {
+    if (!_map.containsKey(key)) return null;
 
-    _itemDestroyed(T sender)
-    {
-        removeValue(sender);
-    }
+    var value = _map[key];
 
-    removeValue(T value)
-    {
-        var toRemove = new List<KT>();
-        for (var k in _map.keys)
-            if (_map[k] == value)
-                toRemove.add(k);
+    if (_removableList)
+      (value as IDestructible)?.off("destroy", _itemDestroyed);
 
-        for (var k in toRemove)
-            remove(k);
-    }
+    _map.remove(key);
 
-    clear()
-    {
-        if (_removableList)
-            for (var v in _map.values)
-                (v as IDestructible)?.off("destroy", _itemDestroyed);
-                
-        _map.clear();
+    emitArgs("removed", [key, value, this]);
 
-        emitArgs("cleared", [this]);
-        
-    }
+    return value;
+  }
 
+  int get count => _map.length;
 
+  bool contains(KT key) => _map.containsKey(key);
 
-    T remove(key)
-    {
-        if (!_map.containsKey(key))
-            return null;
-
-        var value = _map[key];
-
-        if (_removableList)
-           (value as IDestructible)?.off("destroy", _itemDestroyed);
-
-        
-        _map.remove(key);
-
-        emitArgs("removed", [key, value, this]);
-
-        return value;
-    }
-
-    
-
-    int get count => _map.length;
-    
-    bool contains(KT key) => _map.containsKey(key);
-
-    
-    KeyList([owner = null])
-    {
-        _removableList = Codec.implementsInterface<T, IDestructible>();
-        this.owner = owner;
-    }
+  KeyList([owner = null]) {
+    _removableList = Codec.implementsInterface<T, IDestructible>();
+    this.owner = owner;
+  }
 }

@@ -22,13 +22,10 @@ SOFTWARE.
 
 */
 
-import 'dart:ffi';
-import 'dart:typed_data';
 
-import 'package:esiur/esiur.dart';
-import 'package:esiur/src/Resource/Template/TemplateDescriber.dart';
-import 'package:esiur/src/Resource/Template/TemplateType.dart';
-import 'package:esiur/src/Security/Authority/AuthenticationMethod.dart';
+import '../../Resource/Template/TemplateDescriber.dart';
+import '../../Resource/Template/TemplateType.dart';
+import '../../Security/Authority/AuthenticationMethod.dart';
 
 import '../../Core/AsyncBag.dart';
 
@@ -44,7 +41,7 @@ import '../../Core/ExceptionCode.dart';
 import '../../Core/ErrorType.dart';
 
 import '../../Resource/Warehouse.dart';
-import '../Sockets/SocketState.dart';
+
 import 'dart:math';
 import '../../Resource/IStore.dart';
 import '../../Resource/IResource.dart';
@@ -434,9 +431,8 @@ class DistributedConnection extends NetworkConnection with IStore {
 
   String link(IResource resource) {
     if (resource is DistributedResource) {
-      var r = resource as DistributedResource;
-      if (r.instance.store == this)
-        return this.instance.name + "/" + r.id.toString();
+      if (resource.instance.store == this)
+        return this.instance.name + "/" + resource.id.toString();
     }
 
     return null;
@@ -445,9 +441,9 @@ class DistributedConnection extends NetworkConnection with IStore {
   void init() {
     _queue.then((x) {
       if (x.type == DistributedResourceQueueItemType.Event)
-        x.resource.emitEventByIndex(x.index, x.value);
+        x.resource.internal_emitEventByIndex(x.index, x.value);
       else
-        x.resource.updatePropertyByIndex(x.index, x.value);
+        x.resource.internal_updatePropertyByIndex(x.index, x.value);
     });
 
     var r = new Random();
@@ -663,8 +659,7 @@ class DistributedConnection extends NetworkConnection with IStore {
             case IIPPacketAction.TemplateFromClassName:
             case IIPPacketAction.TemplateFromClassId:
             case IIPPacketAction.TemplateFromResourceId:
-              iipReply(
-                  packet.callbackId, [TypeTemplate.parse(packet.content)]);
+              iipReply(packet.callbackId, [TypeTemplate.parse(packet.content)]);
               break;
 
             case IIPPacketAction.QueryLink:
@@ -1285,7 +1280,7 @@ class DistributedConnection extends NetworkConnection with IStore {
               .addUint16(link.length)
               .addDC(link)
               .addDC(Codec.composePropertyValueArray(
-                  (r as DistributedResource).serialize(), this, true))
+                  (r as DistributedResource).internal_serialize(), this, true))
               .done();
         } else {
           // reply ok
@@ -1883,7 +1878,7 @@ class DistributedConnection extends NetworkConnection with IStore {
           if (ft != null) {
             if (r is DistributedResource) {
               var rt = (r as DistributedResource)
-                  .invokeByArrayArguments(index, arguments);
+                  .internal_invokeByArrayArguments(index, arguments);
               if (rt != null) {
                 rt.then((res) {
                   sendReply(IIPPacketAction.InvokeFunctionArrayArguments,
@@ -1922,7 +1917,7 @@ class DistributedConnection extends NetworkConnection with IStore {
           if (ft != null) {
             if (r is DistributedResource) {
               var rt = (r as DistributedResource)
-                  .invokeByNamedArguments(index, namedArgs);
+                  .internal_invokeByNamedArguments(index, namedArgs);
               if (rt != null) {
                 rt.then((res) {
                   sendReply(IIPPacketAction.InvokeFunctionNamedArguments,
@@ -2215,8 +2210,7 @@ class DistributedConnection extends NetworkConnection with IStore {
         .done()
         .then<dynamic>((rt) {
       _templateRequests.remove(classId);
-      _templates[(rt[0] as TypeTemplate).classId] =
-          rt[0] as TypeTemplate;
+      _templates[(rt[0] as TypeTemplate).classId] = rt[0] as TypeTemplate;
       Warehouse.putTemplate(rt[0] as TypeTemplate);
       reply.trigger(rt[0]);
     }).error((ex) {
@@ -2316,12 +2310,14 @@ class DistributedConnection extends NetworkConnection with IStore {
       DistributedResource dr;
 
       if (resource == null) {
-        var template = Warehouse.getTemplateByClassId(rt[0], TemplateType.Wrapper);
+        var template =
+            Warehouse.getTemplateByClassId(rt[0], TemplateType.Wrapper);
         if (template?.definedType != null) {
           dr = Warehouse.createInstance(template?.definedType);
-          dr.init(this, id, rt[1], rt[2]);
+          dr.internal_init(this, id, rt[1], rt[2]);
         } else {
-          dr = new DistributedResource(this, id, rt[1], rt[2]);
+          dr = new DistributedResource();
+          dr.internal_init(this, id, rt[1], rt[2]);
         }
       } else
         dr = resource;
@@ -2338,7 +2334,7 @@ class DistributedConnection extends NetworkConnection with IStore {
           Warehouse.put(id.toString(), dr, this, null, tmp).then<dynamic>((ok) {
             Codec.parsePropertyValueArray(d, 0, d.length, this).then((ar) {
               //print("attached");
-              dr.attach(ar);
+              dr.internal_attach(ar);
               _resourceRequests.remove(id);
               reply.trigger(dr);
             });
@@ -2346,7 +2342,7 @@ class DistributedConnection extends NetworkConnection with IStore {
         } else {
           Codec.parsePropertyValueArray(d, 0, d.length, this).then((ar) {
             //print("attached");
-            dr.attach(ar);
+            dr.internal_attach(ar);
             _resourceRequests.remove(id);
             reply.trigger(dr);
           });

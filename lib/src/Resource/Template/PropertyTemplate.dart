@@ -10,7 +10,7 @@ import '../StorageMode.dart';
 class PropertyTemplate extends MemberTemplate {
   TemplateDataType valueType;
 
-  int permission;
+  int permission = 0;
 
   int storage;
 

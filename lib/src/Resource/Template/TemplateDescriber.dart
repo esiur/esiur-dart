@@ -5,9 +5,10 @@ class TemplateDescriber {
   final List<Evt> events;
   final List<Func> functions;
   final String nameSpace;
+  final int version;
 
   TemplateDescriber(this.nameSpace,
-      {this.properties, this.functions, this.events});
+      {this.properties, this.functions, this.events, this.version = 0});
 }
 
 // class Property<T> {
@@ -48,7 +49,8 @@ class Prop {
   final bool isArray;
   final String readAnnotation;
   final String writeAnnotation;
-  Prop(this.name, this.type, this.isArray, [this.readAnnotation = null, this.writeAnnotation = null]);
+  Prop(this.name, this.type, this.isArray,
+      [this.readAnnotation = null, this.writeAnnotation = null]);
 }
 
 class Evt {
@@ -58,7 +60,8 @@ class Evt {
   final bool isArray;
   final String annotation;
 
-  Evt(this.name, this.type, this.isArray, [this.listenable = false, this.annotation]);
+  Evt(this.name, this.type, this.isArray,
+      [this.listenable = false, this.annotation]);
 }
 
 class Func {
@@ -68,7 +71,7 @@ class Func {
   final bool isArray;
   final String annotation;
 
-  Func(this.name, this.returnType, this.argsType, this.isArray,
+  Func(this.name, this.returnType, this.isArray, this.argsType,
       [this.annotation = null]);
 }
 

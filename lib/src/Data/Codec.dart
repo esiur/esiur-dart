@@ -21,7 +21,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
-import 'package:esiur/src/Resource/Template/TemplateType.dart';
+import '../Resource/Template/TemplateType.dart';
 
 import 'DataType.dart';
 import 'Guid.dart';
@@ -78,10 +78,11 @@ class Codec {
   static List<int> getStructureDateTypes(
       Structure structure, DistributedConnection connection) {
     var keys = structure.getKeys();
-    var types = new List<int>(keys.length);
+    var types = new List<int>.generate(
+        keys.length, (i) => Codec.getDataType(structure[keys[i]], connection));
 
-    for (var i = 0; i < keys.length; i++)
-      types[i] = Codec.getDataType(structure[keys[i]], connection);
+    // for (var i = 0; i < keys.length; i++)
+    //   types[i] = Codec.getDataType(structure[keys[i]], connection);
     return types;
   }
 
@@ -325,7 +326,7 @@ class Codec {
 
           record.deserialize(value);
 
-          reply.trigger(null);
+          reply.trigger(record);
         } else {
           var record = new Record();
 
@@ -336,8 +337,8 @@ class Codec {
         }
       });
     } else {
-      connection.getTemplate(classId).then((tmp) {
-        parseVarArray(data, offset, length, connection).then((ar) {
+      connection.getTemplate(classId).then<dynamic>((tmp) {
+        parseVarArray(data, offset, length, connection).then<dynamic>((ar) {
           var record = new Record();
 
           for (var i = 0; i < tmp.properties.length; i++)
@@ -619,8 +620,8 @@ class Codec {
   {
     var reply = new AsyncReply<Structure>();
     var bag = new AsyncBag<dynamic>();
-    var keylist = new List<String>();
-    var typelist = new List<int>();
+    var keylist = <String>[];
+    var typelist = <int>[];
     var sizeObject = new SizeObject();
 
     if (keys == null) {
@@ -888,10 +889,9 @@ class Codec {
   /// <returns>True, if the resource owner is the given connection, otherwise False.</returns>
   static bool isLocalResource(
       IResource resource, DistributedConnection connection) {
-    if (resource is DistributedResource) if ((resource as DistributedResource)
-            .connection ==
-        connection) return true;
-
+    if (resource is DistributedResource) {
+      if (resource.connection == connection) return true;
+    }
     return false;
   }
 
@@ -1010,7 +1010,26 @@ class Codec {
     var end = offset + length;
 
     //
-    var result = data[offset++];
+
+    // Is typed array ?
+    var type = (data[offset] & 0xF0);
+
+    var result = data[offset++] & 0xF;
+
+    if (type == ResourceArrayType.Wrapper) {
+      var classId = data.getGuid(offset);
+      offset += 16;
+      var tmp = Warehouse.getTemplateByClassId(classId, TemplateType.Resource);
+      // not mine, look if the type is elsewhere
+      if (tmp == null)
+        Warehouse.getTemplateByClassId(classId, TemplateType.Wrapper);
+      reply.arrayType = tmp?.definedType;
+    } else if (type == ResourceArrayType.Static) {
+      var classId = data.getGuid(offset);
+      offset += 16;
+      var tmp = Warehouse.getTemplateByClassId(classId, TemplateType.Wrapper);
+      reply.arrayType = tmp?.definedType;
+    }
 
     AsyncReply<IResource> previous = null;
 
@@ -1036,7 +1055,7 @@ class Codec {
       } else if (result == ResourceComparisonResult.Same) {
         current = previous;
       } else if (result == ResourceComparisonResult.Local) {
-        current = Warehouse.get(data.getUint32(offset));
+        current = Warehouse.getById(data.getUint32(offset));
         offset += 4;
       } else if (result == ResourceComparisonResult.Distributed) {
         current = connection.fetch(data.getUint32(offset));

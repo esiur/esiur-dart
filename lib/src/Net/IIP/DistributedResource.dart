@@ -22,8 +22,13 @@ SOFTWARE.
 
 */
 
-import 'package:esiur/esiur.dart';
-import 'package:esiur/src/Data/KeyValuePair.dart';
+import '../../Core/AsyncException.dart';
+import '../../Core/ErrorType.dart';
+import '../../Core/ExceptionCode.dart';
+
+import '../../Resource/ResourceTrigger.dart';
+
+import '../../Data/KeyValuePair.dart';
 
 import '../../Resource/IResource.dart';
 import '../../Core/AsyncReply.dart';
@@ -32,6 +37,9 @@ import '../../Data/Structure.dart';
 import '../../Data/Codec.dart';
 import './DistributedConnection.dart';
 import '../Packets/IIPPacketAction.dart';
+
+import '../../Resource/Template/EventTemplate.dart';
+
 
 class DistributedResource extends IResource {
   int _instanceId;
@@ -107,32 +115,28 @@ class DistributedResource extends IResource {
   /// <param name="template">Resource template.</param>
   /// <param name="instanceId">Instance Id given by the other end.</param>
   /// <param name="age">Resource age.</param>
-  DistributedResource(
-      DistributedConnection connection, int instanceId, int age, String link) {
-    this._link = link;
-    this._connection = connection;
-    this._instanceId = instanceId;
-    this._age = age;
-  }
 
-  void init(
-      DistributedConnection connection, int instanceId, int age, String link) {
-    this._link = link;
-    this._connection = connection;
-    this._instanceId = instanceId;
-    this._age = age;
-  }
-
-  //void _ready()
-  //{
-  //  _isReady = true;
+  // DistributedResource(
+  //     DistributedConnection connection, int instanceId, int age, String link) {
+  //   this._link = link;
+  //   this._connection = connection;
+  //   this._instanceId = instanceId;
+  //   this._age = age;
   // }
+
+  void internal_init(
+      DistributedConnection connection, int instanceId, int age, String link) {
+    this._link = link;
+    this._connection = connection;
+    this._instanceId = instanceId;
+    this._age = age;
+  }
 
   /// <summary>
   /// Export all properties with ResourceProperty attributed as bytes array.
   /// </summary>
   /// <returns></returns>
-  List<PropertyValue> serialize() {
+  List<PropertyValue> internal_serialize() {
     var props = new List<PropertyValue>(_properties.length);
 
     for (var i = 0; i < _properties.length; i++)
@@ -142,7 +146,7 @@ class DistributedResource extends IResource {
     return props;
   }
 
-  bool attach(List<PropertyValue> properties) {
+  bool internal_attach(List<PropertyValue> properties) {
     if (_attached)
       return false;
     else {
@@ -168,7 +172,7 @@ class DistributedResource extends IResource {
 
       if (_queued_updates.length > 0) {
         _queued_updates
-            .forEach((kv) => updatePropertyByIndex(kv.key, kv.value));
+            .forEach((kv) => internal_updatePropertyByIndex(kv.key, kv.value));
         _queued_updates.clear();
       }
     }
@@ -207,7 +211,7 @@ class DistributedResource extends IResource {
     return connection.sendUnlistenRequest(_instanceId, et.index);
   }
 
-  void emitEventByIndex(int index, dynamic args) {
+  void internal_emitEventByIndex(int index, dynamic args) {
     // neglect events when the object is not yet attached
     if (!_attached) return;
 
@@ -217,7 +221,7 @@ class DistributedResource extends IResource {
     instance.emitResourceEvent(null, null, et.name, args);
   }
 
-  AsyncReply<dynamic> invokeByNamedArguments(int index, Structure namedArgs) {
+  AsyncReply<dynamic> internal_invokeByNamedArguments(int index, Structure namedArgs) {
     if (_destroyed) throw new Exception("Trying to access destroyed object");
 
     if (_suspended) throw new Exception("Trying to access suspended object");
@@ -228,7 +232,7 @@ class DistributedResource extends IResource {
     return connection.sendInvokeByNamedArguments(_instanceId, index, namedArgs);
   }
 
-  AsyncReply<dynamic> invokeByArrayArguments(int index, List<dynamic> args) {
+  AsyncReply<dynamic> internal_invokeByArrayArguments(int index, List<dynamic> args) {
     if (_destroyed) throw new Exception("Trying to access destroyed object");
 
     if (_suspended) throw new Exception("Trying to access suspended object");
@@ -270,9 +274,9 @@ class DistributedResource extends IResource {
           for (var p in invocation.namedArguments.keys)
             namedArgs[_getMemberName(p)] = invocation.namedArguments[p];
 
-          return invokeByNamedArguments(ft.index, namedArgs);
+          return internal_invokeByNamedArguments(ft.index, namedArgs);
         } else {
-          return invokeByArrayArguments(
+          return internal_invokeByArrayArguments(
               ft.index, invocation.positionalArguments);
         }
       }
@@ -304,7 +308,7 @@ class DistributedResource extends IResource {
     return _properties[index];
   }
 
-  void updatePropertyByIndex(int index, dynamic value) {
+  void internal_updatePropertyByIndex(int index, dynamic value) {
     if (!_attached) {
       _queued_updates.add(KeyValuePair(index, value));
     } else {
