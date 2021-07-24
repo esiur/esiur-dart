@@ -17,7 +17,7 @@ class DistributedServer extends IResource {
     return AsyncReply.ready(true);
   }
 
-  EntryPoint entryPoint;
+  EntryPoint? entryPoint;
 
   @override
   getProperty(String name) => null;

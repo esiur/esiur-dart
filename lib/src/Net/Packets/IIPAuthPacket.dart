@@ -26,276 +26,215 @@ import 'IIPAuthPacketAction.dart';
 import 'IIPAuthPacketCommand.dart';
 import '../../Security/Authority/AuthenticationMethod.dart';
 
-class IIPAuthPacket
-{
+class IIPAuthPacket {
+  int command = 0;
+  int action = 0;
 
-    int command;
-    int action;
+  int errorCode = 0;
+  String errorMessage = "";
 
-    int errorCode;
-    String errorMessage;
+  AuthenticationMethod localMethod = AuthenticationMethod.None;
 
-    AuthenticationMethod localMethod;
+  DC? sourceInfo;
 
-    DC sourceInfo;
+  DC? hash;
 
-    DC hash;
+  DC? sessionId;
 
-    DC sessionId;
+  AuthenticationMethod remoteMethod = AuthenticationMethod.None;
 
-    AuthenticationMethod remoteMethod;
+  String? domain;
 
-    String domain;
+  int certificateId = 0;
 
-    int certificateId;
+  String? localUsername;
 
-    String localUsername;
+  String? remoteUsername;
 
-    String remoteUsername;
+  DC? localPassword;
 
-    DC localPassword;
+  DC? remotePassword;
 
-    DC remotePassword;
+  DC? localToken;
 
-    DC localToken;
+  DC? remoteToken;
 
-    DC remoteToken;
+  DC? asymetricEncryptionKey;
 
-    DC asymetricEncryptionKey;
+  DC? localNonce;
 
-    DC localNonce;
+  DC? remoteNonce;
 
-    DC remoteNonce;
+  int remoteTokenIndex = 0;
 
-    int remoteTokenIndex;
+  int _dataLengthNeeded = 0;
 
-    int _dataLengthNeeded;
+  bool _notEnough(int offset, int ends, int needed) {
+    if (offset + needed > ends) {
+      _dataLengthNeeded = needed - (ends - offset);
+      return true;
+    } else
+      return false;
+  }
 
-    bool _notEnough(int offset, int ends, int needed)
-    {
-        if (offset + needed > ends)
-        {
-            _dataLengthNeeded = needed - (ends - offset);
-            return true;
+  toString() {
+    return command.toString() + " " + action.toString();
+  }
+
+  int parse(DC data, int offset, int ends) {
+    var oOffset = offset;
+
+    if (_notEnough(offset, ends, 1)) return -_dataLengthNeeded;
+
+    command = (data[offset] >> 6);
+
+    if (command == IIPAuthPacketCommand.Action) {
+      action = (data[offset++] & 0x3f);
+
+      if (action == IIPAuthPacketAction.AuthenticateHash) {
+        if (_notEnough(offset, ends, 32)) return -_dataLengthNeeded;
+
+        hash = data.clip(offset, 32);
+
+        //var hash = new byte[32];
+        //Buffer.BlockCopy(data, (int)offset, hash, 0, 32);
+        //Hash = hash;
+
+        offset += 32;
+      } else if (action == IIPAuthPacketAction.NewConnection) {
+        if (_notEnough(offset, ends, 2)) return -_dataLengthNeeded;
+
+        var length = data.getUint16(offset);
+
+        offset += 2;
+
+        if (_notEnough(offset, ends, length)) return -_dataLengthNeeded;
+
+        sourceInfo = data.clip(offset, length);
+
+        //var sourceInfo = new byte[length];
+        //Buffer.BlockCopy(data, (int)offset, sourceInfo, 0, length);
+        //SourceInfo = sourceInfo;
+
+        offset += 32;
+      } else if (action == IIPAuthPacketAction.ResumeConnection ||
+          action == IIPAuthPacketAction.ConnectionEstablished) {
+        //var sessionId = new byte[32];
+
+        if (_notEnough(offset, ends, 32)) return -_dataLengthNeeded;
+
+        sessionId = data.clip(offset, 32);
+
+        //Buffer.BlockCopy(data, (int)offset, sessionId, 0, 32);
+        //SessionId = sessionId;
+
+        offset += 32;
+      }
+    } else if (command == IIPAuthPacketCommand.Declare) {
+      remoteMethod = AuthenticationMethod.values[((data[offset] >> 4) & 0x3)];
+      localMethod = AuthenticationMethod.values[((data[offset] >> 2) & 0x3)];
+      var encrypt = ((data[offset++] & 0x2) == 0x2);
+
+      if (_notEnough(offset, ends, 1)) return -_dataLengthNeeded;
+
+      var domainLength = data[offset++];
+      if (_notEnough(offset, ends, domainLength)) return -_dataLengthNeeded;
+
+      var domain = data.getString(offset, domainLength);
+
+      this.domain = domain;
+
+      offset += domainLength;
+
+      if (remoteMethod == AuthenticationMethod.Credentials) {
+        if (localMethod == AuthenticationMethod.None) {
+          if (_notEnough(offset, ends, 33)) return -_dataLengthNeeded;
+
+          remoteNonce = data.clip(offset, 32);
+
+          offset += 32;
+
+          var length = data[offset++];
+
+          if (_notEnough(offset, ends, length)) return -_dataLengthNeeded;
+
+          remoteUsername = data.getString(offset, length);
+
+          offset += length;
         }
-        else
-            return false;
+      } else if (remoteMethod == AuthenticationMethod.Token) {
+        if (localMethod == AuthenticationMethod.None) {
+          if (_notEnough(offset, ends, 40)) return -_dataLengthNeeded;
+
+          remoteNonce = data.clip(offset, 32);
+
+          offset += 32;
+
+          remoteTokenIndex = data.getUint64(offset);
+          offset += 8;
+        }
+      }
+
+      if (encrypt) {
+        if (_notEnough(offset, ends, 2)) return -_dataLengthNeeded;
+
+        var keyLength = data.getUint16(offset);
+
+        offset += 2;
+
+        if (_notEnough(offset, ends, keyLength)) return -_dataLengthNeeded;
+
+        asymetricEncryptionKey = data.clip(offset, keyLength);
+
+        offset += keyLength;
+      }
+    } else if (command == IIPAuthPacketCommand.Acknowledge) {
+      remoteMethod = AuthenticationMethod.values[((data[offset] >> 4) & 0x3)];
+      localMethod = AuthenticationMethod.values[((data[offset] >> 2) & 0x3)];
+      var encrypt = ((data[offset++] & 0x2) == 0x2);
+
+      if (remoteMethod == AuthenticationMethod.None) {
+        if (localMethod == AuthenticationMethod.None) {
+          // do nothing
+        }
+      } else if (remoteMethod == AuthenticationMethod.Credentials ||
+          remoteMethod == AuthenticationMethod.Token) {
+        if (localMethod == AuthenticationMethod.None) {
+          if (_notEnough(offset, ends, 32)) return -_dataLengthNeeded;
+
+          remoteNonce = data.clip(offset, 32);
+          offset += 32;
+        }
+      }
+
+      if (encrypt) {
+        if (_notEnough(offset, ends, 2)) return -_dataLengthNeeded;
+
+        var keyLength = data.getUint16(offset);
+
+        offset += 2;
+
+        if (_notEnough(offset, ends, keyLength)) return -_dataLengthNeeded;
+
+        asymetricEncryptionKey = data.clip(offset, keyLength);
+
+        offset += keyLength;
+      }
+    } else if (command == IIPAuthPacketCommand.Error) {
+      if (_notEnough(offset, ends, 4)) return -_dataLengthNeeded;
+
+      offset++;
+      errorCode = data[offset++];
+
+      var cl = data.getUint16(offset);
+      offset += 2;
+
+      if (_notEnough(offset, ends, cl)) return -_dataLengthNeeded;
+
+      errorMessage = data.getString(offset, cl);
+      offset += cl;
     }
 
-    toString()
-    {
-        return command.toString() + " " + action.toString(); 
-    }
-
-    int parse(DC data, int offset, int ends)
-    {
-        var oOffset = offset;
-
-        if (_notEnough(offset, ends, 1))
-            return -_dataLengthNeeded;
-
-        command = (data[offset] >> 6);
-
-        if (command == IIPAuthPacketCommand.Action)
-        {
-            action = (data[offset++] & 0x3f);
-
-            if (action == IIPAuthPacketAction.AuthenticateHash)
-            {
-                if (_notEnough(offset, ends, 32))
-                    return -_dataLengthNeeded;
-
-                hash = data.clip(offset, 32);
-
-                //var hash = new byte[32];
-                //Buffer.BlockCopy(data, (int)offset, hash, 0, 32);
-                //Hash = hash;
-
-                offset += 32;
-            }
-            else if (action == IIPAuthPacketAction.NewConnection)
-            {
-                if (_notEnough(offset, ends, 2))
-                    return -_dataLengthNeeded;
-
-                var length = data.getUint16(offset);
-
-                offset += 2;
-
-                if (_notEnough(offset, ends, length))
-                    return -_dataLengthNeeded;
-
-                sourceInfo = data.clip(offset, length);
-
-                //var sourceInfo = new byte[length];
-                //Buffer.BlockCopy(data, (int)offset, sourceInfo, 0, length);
-                //SourceInfo = sourceInfo;
-
-                offset += 32;
-            }
-            else if (action == IIPAuthPacketAction.ResumeConnection
-                  || action == IIPAuthPacketAction.ConnectionEstablished)
-            {
-                //var sessionId = new byte[32];
-
-                if (_notEnough(offset, ends, 32))
-                    return -_dataLengthNeeded;
-
-                sessionId = data.clip(offset, 32);
-
-                //Buffer.BlockCopy(data, (int)offset, sessionId, 0, 32);
-                //SessionId = sessionId;
-
-                offset += 32;
-            }
-        }
-        else if (command == IIPAuthPacketCommand.Declare)
-        {
-            remoteMethod = AuthenticationMethod.values[((data[offset] >> 4) & 0x3)];
-            localMethod = AuthenticationMethod.values[((data[offset] >> 2) & 0x3)];
-            var encrypt = ((data[offset++] & 0x2) == 0x2);
-
-
-            if (_notEnough(offset, ends, 1))
-                return -_dataLengthNeeded;
-
-            var domainLength = data[offset++];
-            if (_notEnough(offset, ends, domainLength))
-                return -_dataLengthNeeded;
-
-            var domain = data.getString(offset, domainLength);
-
-            this.domain = domain;
-
-            offset += domainLength;
-        
-
-            if (remoteMethod == AuthenticationMethod.Credentials)
-            {
-                if (localMethod == AuthenticationMethod.None)
-                {
-                    if (_notEnough(offset, ends, 33))
-                        return -_dataLengthNeeded;
-
-
-                    remoteNonce = data.clip(offset, 32);
-
-                    offset += 32;
-                    
-                    var length = data[offset++];
-
-                    if (_notEnough(offset, ends, length))
-                        return -_dataLengthNeeded;
-
-                      remoteUsername = data.getString(offset, length);
-
-                      
-                    offset += length;
-                }
-            }
-            else if (remoteMethod == AuthenticationMethod.Token)
-            {
-                if (localMethod == AuthenticationMethod.None)
-                {
-                    if (_notEnough(offset, ends, 40))
-                            return -_dataLengthNeeded;
-                    
-                    remoteNonce = data.clip(offset, 32);
-
-                    offset += 32;
-
-                    remoteTokenIndex = data.getUint64(offset);
-                    offset += 8;
-                 }
-            }
-
-
-        
-            if (encrypt)
-            {
-                if (_notEnough(offset, ends, 2))
-                    return -_dataLengthNeeded;
-
-                var keyLength = data.getUint16(offset);
-
-                offset += 2;
-
-                if (_notEnough(offset, ends, keyLength))
-                    return -_dataLengthNeeded;
-
-    
-                asymetricEncryptionKey = data.clip(offset, keyLength);
-
-                offset += keyLength;
-            }
-        }
-        else if (command == IIPAuthPacketCommand.Acknowledge)
-        {
-            remoteMethod  = AuthenticationMethod.values[ ((data[offset] >> 4) & 0x3)];
-            localMethod = AuthenticationMethod.values[ ((data[offset] >> 2) & 0x3)];
-            var encrypt = ((data[offset++] & 0x2) == 0x2);
-
-            if (remoteMethod == AuthenticationMethod.None)
-            {
-                if (localMethod == AuthenticationMethod.None)
-                {
-                    // do nothing
-                }
-            }
-            else if (remoteMethod == AuthenticationMethod.Credentials
-              || remoteMethod == AuthenticationMethod.Token)
-            {
-                if (localMethod == AuthenticationMethod.None)
-                {
-                    if (_notEnough(offset, ends, 32))
-                        return -_dataLengthNeeded;
-
-                    remoteNonce = data.clip(offset, 32);
-                    offset += 32;
-
-                  }
-            }
-
-            if (encrypt)
-            {
-                if (_notEnough(offset, ends, 2))
-                    return -_dataLengthNeeded;
-
-                var keyLength = data.getUint16(offset);
-
-                offset += 2;
-
-                if (_notEnough(offset, ends, keyLength))
-                    return -_dataLengthNeeded;
-
-                asymetricEncryptionKey = data.clip(offset, keyLength);
-
-                offset += keyLength;
-            }
-        }
-        else if (command == IIPAuthPacketCommand.Error)
-        {
-            if (_notEnough(offset, ends, 4))
-                return -_dataLengthNeeded;
-
-            offset++;
-            errorCode = data[offset++];
-
-
-            var cl = data.getUint16(offset);
-            offset += 2;
-
-            if (_notEnough(offset, ends, cl))
-                return -_dataLengthNeeded;
-
-            errorMessage = data.getString(offset, cl);
-            offset += cl;
-
-        }
-
-
-        return offset - oOffset;
-
-    }
-
+    return offset - oOffset;
+  }
 }

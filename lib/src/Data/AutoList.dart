@@ -2,14 +2,14 @@ import '../Core/IDestructible.dart';
 import 'Codec.dart';
 import 'dart:collection';
 
-class AutoList<T, ST> extends IDestructible with IterableMixin {
+class AutoList<T, ST> extends IDestructible with IterableMixin<T> {
   List<T> _list = <T>[];
 
-  ST _state;
-  bool _removableList;
+  ST? _state;
+  late bool _removableList;
 
-  sort(Function comparer) {
-    _list.sort(comparer);
+  sort(int Function(T, T)? compare) {
+    _list.sort(compare);
   }
 
   Iterator<T> get iterator => _list.iterator;
@@ -26,7 +26,7 @@ class AutoList<T, ST> extends IDestructible with IterableMixin {
 
   /// Create a new instance of AutoList
   /// <param name="state">State object to be included when an event is raised.</param>
-  AutoList([ST state, List<T> values]) {
+  AutoList([ST? state, List<T>? values]) {
     this._state = state;
     this._removableList = Codec.implementsInterface<T, IDestructible>();
 
@@ -105,8 +105,7 @@ class AutoList<T, ST> extends IDestructible with IterableMixin {
   /// </summary>
   clear() {
     if (_removableList)
-      _list
-          .forEach((x) => (x as IDestructible)?.off("destroy", _itemDestroyed));
+      _list.forEach((x) => (x as IDestructible).off("destroy", _itemDestroyed));
 
 //          lock (syncRoot)
     _list.clear();

@@ -16,11 +16,12 @@ import '../../Resource/Warehouse.dart';
 import 'TemplateType.dart';
 
 class TemplateDataType {
-  int type;
-  TypeTemplate get typeTemplate =>
-      typeGuid == null ? null : Warehouse.getTemplateByClassId(typeGuid);
+  late int type;
+  TypeTemplate? get typeTemplate => typeGuid == null
+      ? null
+      : Warehouse.getTemplateByClassId(typeGuid as Guid);
 
-  Guid typeGuid;
+  Guid? typeGuid;
 
 //  @TODO: implement fromType
   TemplateDataType.fromType(type, bool isArray) {
@@ -98,7 +99,10 @@ class TemplateDataType {
         type == DataType.ResourceArray ||
         type == DataType.Record ||
         type == DataType.RecordArray) {
-      return BinaryList().addUint8(type).addDC(typeGuid.value).toDC();
+      return (BinaryList()
+            ..addUint8(type)
+            ..addDC((typeGuid as Guid).value))
+          .toDC();
     } else
       return DC.fromList([type]);
   }

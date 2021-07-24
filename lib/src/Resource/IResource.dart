@@ -33,7 +33,7 @@ import 'Instance.dart';
 abstract class IResource extends IDestructible {
   AsyncReply<bool> trigger(ResourceTrigger trigger);
 
-  Instance instance;
+  Instance? instance;
 
   invoke(String name, List arguments);
   setProperty(String name, value);

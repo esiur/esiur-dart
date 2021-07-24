@@ -29,9 +29,9 @@ import 'ProgressType.dart';
 class AsyncReply<T> implements Future<T> {
   List<Function(T)> _callbacks = <Function(T)>[];
 
-  T _result;
+  late T _result;
 
-  List<Function(AsyncException)> _errorCallbacks = <Function(AsyncException)>[];
+  List<Function> _errorCallbacks = <Function>[];
 
   List<Function(ProgressType, int, int)> _progressCallbacks =
       <Function(ProgressType, int, int)>[];
@@ -39,7 +39,7 @@ class AsyncReply<T> implements Future<T> {
   List<Function(T)> _chunkCallbacks = <Function(T)>[];
 
   bool _resultReady = false;
-  AsyncException _exception;
+  AsyncException? _exception;
 
   bool get ready {
     return _resultReady;
@@ -49,7 +49,7 @@ class AsyncReply<T> implements Future<T> {
     _resultReady = value;
   }
 
-  T get result {
+  T? get result {
     return _result;
   }
 
@@ -62,26 +62,20 @@ class AsyncReply<T> implements Future<T> {
     return this;
   }
 
-  AsyncReply<R> then<R>(FutureOr<R> onValue(T value), {Function onError}) {
+  AsyncReply<R> then<R>(FutureOr<R> onValue(T value), {Function? onError}) {
     _callbacks.add(onValue);
+
     if (onError != null) {
-      if (onError is Function(dynamic, dynamic)) {
-        _errorCallbacks.add((ex) => onError(ex, null));
-      } else if (onError is Function(dynamic)) {
-        _errorCallbacks.add(onError);
-      } else if (onError is Function()) {
-        _errorCallbacks.add((ex) => onError());
-      } else if (onError is Function(Object, StackTrace)) {
-        _errorCallbacks.add((ex) => onError(ex, null));
-      }
+      _errorCallbacks.add(onError);
     }
 
-    if (_resultReady) onValue(result);
+    if (_resultReady) onValue(result as T);
 
-    if (R == Null)
-      return null;
-    else
-      return this as AsyncReply<R>;
+//    if (R == Null)
+    //    return null;
+    //else
+    //if (R == T)
+     return AsyncReply<R>();
   }
 
   AsyncReply<T> whenComplete(FutureOr action()) {
@@ -90,21 +84,39 @@ class AsyncReply<T> implements Future<T> {
   }
 
   Stream<T> asStream() {
-    return null;
+    return Stream.empty();
+    //return null;
   }
 
-  AsyncReply<T> catchError(Function onError, {bool test(Object error)}) {
-    return this.error(onError);
-  }
+//  Future<T> catchError(Function onError, {bool test(Object error)?});
 
-  AsyncReply<T> timeout(Duration timeLimit, {FutureOr<T> onTimeout()}) {
+  AsyncReply<T> catchError(Function onError, {bool test(Object error)?}) {
+    ///return this.error(onError);
+
+    _errorCallbacks.add(onError);
+
+    if (_exception != null) {
+      if (onError is Function(dynamic, dynamic)) {
+        onError(_exception, null);
+      } else if (onError is Function(dynamic)) {
+        onError(_exception);
+      } else if (onError is Function()) {
+        onError();
+      } else if (onError is Function(Object, StackTrace)) {
+        onError(_exception as Object, StackTrace.current);
+      }
+    }
+
     return this;
   }
 
-  AsyncReply<T> error(Function(dynamic) callback) {
-    _errorCallbacks.add(callback);
+  AsyncReply<T> timeout(Duration timeLimit, {FutureOr<T?> onTimeout()?}) {
+    return this;
+  }
 
-    if (_exception != null) callback(_exception);
+  AsyncReply<T> error(callback(AsyncException ex)) {
+    _errorCallbacks.add(callback);
+    if (_exception != null) callback(_exception as AsyncException);
 
     return this;
   }
@@ -144,10 +156,19 @@ class AsyncReply<T> implements Future<T> {
     //{
 
     if (this._errorCallbacks.length == 0)
-      throw _exception;
+      throw _exception as AsyncException;
     else
       _errorCallbacks.forEach((x) {
-        x(_exception);
+        if (x is Function(dynamic, dynamic)) {
+          x(_exception, null);
+        } else if (x is Function(dynamic)) {
+          x(_exception);
+        } else if (x is Function()) {
+          x();
+        } else if (x is Function(Object, StackTrace)) {
+          x(_exception as Object, StackTrace.current);
+        }
+        //x(_exception as AsyncException);
       });
     //}
 

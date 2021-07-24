@@ -4,7 +4,7 @@ import 'IRecord.dart';
 import 'KeyList.dart';
 
 class Record extends KeyList with IRecord {
-  Map<String, dynamic> _props;
+  Map<String, dynamic> _props = Map<String, dynamic>();
 
   @override
   Map<String, dynamic> serialize() {

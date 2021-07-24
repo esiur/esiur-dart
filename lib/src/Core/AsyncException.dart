@@ -4,7 +4,7 @@ import 'ErrorType.dart';
 class AsyncException implements Exception {
   final ErrorType type;
   final int code;
-  final String message;
+  final String? message;
 
   AsyncException(this.type, this.code, this.message) {}
 
@@ -20,7 +20,7 @@ class AsyncException implements Exception {
           ": " +
           (message ?? "");
     else
-      return code.toString() + ": " + message;
+      return code.toString() + ": " + (message ?? '');
   }
 
   @override

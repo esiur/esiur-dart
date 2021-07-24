@@ -27,27 +27,20 @@ import 'AuthenticationMethod.dart';
 import 'AuthenticationType.dart';
 import 'Source.dart';
 
-class Authentication
-{
-      
-    int tokenIndex;
-    AuthenticationMethod method;
+class Authentication {
+  int? tokenIndex;
+  AuthenticationMethod method = AuthenticationMethod.None;
 
-    String username;
-    //Certificate certificate;
-    String domain;
+  String? username;
+  //Certificate certificate;
+  String? domain;
 
-    String get fullName => username + "@" + domain;
-    int state;
+  String get fullName => (username ?? '') + '@' + (domain ?? '');
+  int state = 0;
 
-    Source source = new Source();
+  Source? source;
 
-    
-    final AuthenticationType type;
+  final AuthenticationType type;
 
-    Authentication(this.type)
-    {
-
-    }
+  Authentication(this.type) {}
 }
-

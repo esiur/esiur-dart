@@ -37,7 +37,7 @@ import 'IPEndPoint.dart';
 import '../../Core/AsyncReply.dart';
 
 class TCPSocket extends ISocket {
-  Socket sock;
+  Socket? sock;
   NetworkBuffer receiveNetworkBuffer = new NetworkBuffer();
 
   //bool asyncSending;
@@ -61,15 +61,18 @@ class TCPSocket extends ISocket {
     }
     */
 
-  IPEndPoint _localEP, _remoteEP;
+  IPEndPoint? _localEP, _remoteEP;
 
   bool begin() {
     if (began) return false;
 
     began = true;
 
-    _localEP = IPEndPoint(sock.address.rawAddress, sock.port);
-    _remoteEP = IPEndPoint(sock.remoteAddress.rawAddress, sock.remotePort);
+    if (sock != null) {
+      var s = sock as Socket;
+      _localEP = IPEndPoint(s.address.rawAddress, s.port);
+      _remoteEP = IPEndPoint(s.remoteAddress.rawAddress, s.remotePort);
+    }
     return true;
   }
 
@@ -82,7 +85,7 @@ class TCPSocket extends ISocket {
 
       var dc = new DC.fromList(data);
       receiveNetworkBuffer.write(dc, 0, dc.length);
-      receiver.networkReceive(this, receiveNetworkBuffer);
+      receiver?.networkReceive(this, receiveNetworkBuffer);
 
       //emitArgs("receive", [receiveNetworkBuffer]);
 
@@ -101,7 +104,7 @@ class TCPSocket extends ISocket {
 
   void doneHandler() {
     close();
-    sock.destroy();
+    sock?.destroy();
   }
 
   AsyncReply<bool> connect(String hostname, int port) {
@@ -134,13 +137,13 @@ class TCPSocket extends ISocket {
     return rt;
   }
 
-  IPEndPoint get localEndPoint => _localEP;
-  IPEndPoint get remoteEndPoint => _remoteEP;
+  IPEndPoint? get localEndPoint => _localEP;
+  IPEndPoint? get remoteEndPoint => _remoteEP;
 
   SocketState get state => _state;
 
-  TCPSocket.fromSocket(Socket socket) {
-    sock = socket;
+  TCPSocket.fromSocket(this.sock) {
+    //sock = socket;
     //if (socket.)
     //  _state = SocketState.Established;
   }
@@ -160,8 +163,16 @@ class TCPSocket extends ISocket {
     //emitArgs("close", []);
   }
 
-  void send(DC message, [int offset, int size]) {
-    if (state == SocketState.Established) sock.add(message.toList());
+  void send(DC message, [int? offset, int? size]) {
+    if (state == SocketState.Established) {
+      if (offset != null && size == null) {
+        sock?.add(message.clip(offset, message.length - offset).toList());
+      } else if (offset != null && size != null) {
+        sock?.add(message.clip(offset, size).toList());
+      } else {
+        sock?.add(message.toList());
+      }
+    }
   }
 
   void destroy() {

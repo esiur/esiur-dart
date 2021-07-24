@@ -3,8 +3,8 @@ import 'DC.dart';
 class Guid {
   DC _data;
 
-  Guid(DC data) {
-    _data = data;
+  Guid(this._data) {
+    
   }
 
   DC get value => _data;

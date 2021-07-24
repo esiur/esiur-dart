@@ -32,9 +32,9 @@ import '../Data/DC.dart';
 import 'Sockets/IPEndPoint.dart';
 
 class NetworkConnection extends IDestructible with INetworkReceiver<ISocket> {
-  ISocket _sock;
+  ISocket? _sock;
 
-  DateTime _lastAction;
+  DateTime _lastAction = DateTime.now();
 
   //public delegate void DataReceivedEvent(NetworkConnection sender, NetworkBuffer data);
   //public delegate void ConnectionClosedEvent(NetworkConnection sender);
@@ -48,7 +48,6 @@ class NetworkConnection extends IDestructible with INetworkReceiver<ISocket> {
 
   bool _processing = false;
 
-
   void destroy() {
     // if (connected)
     close();
@@ -58,7 +57,7 @@ class NetworkConnection extends IDestructible with INetworkReceiver<ISocket> {
 
   NetworkConnection() {}
 
-  ISocket get socket => _sock;
+  ISocket? get socket => _sock;
 
   void assign(ISocket socket) {
     _lastAction = DateTime.now();
@@ -71,14 +70,14 @@ class NetworkConnection extends IDestructible with INetworkReceiver<ISocket> {
     //socket.on("connect", socket_OnConnect);
   }
 
-  ISocket unassign() {
+  ISocket? unassign() {
     if (_sock != null) {
       // connected = false;
       // _sock.off("close", socket_OnClose);
       // _sock.off("connect", socket_OnConnect);
       // _sock.off("receive", socket_OnReceive);
 
-      _sock.receiver = null;
+      _sock?.receiver = null;
       var rt = _sock;
       _sock = null;
 
@@ -92,17 +91,13 @@ class NetworkConnection extends IDestructible with INetworkReceiver<ISocket> {
     emitArgs("dataReceived", [data]);
   }
 
-  void connected(){
+  void connected() {}
 
-  }
-
-  void disconnected(){
-
-  }
+  void disconnected() {}
 
   void close() {
     try {
-      if (_sock != null) _sock.close();
+      if (_sock != null) _sock?.close();
     } catch (ex) {
       //Global.Log("NetworkConenction:Close", LogType.Error, ex.ToString());
 
@@ -111,17 +106,17 @@ class NetworkConnection extends IDestructible with INetworkReceiver<ISocket> {
 
   DateTime get lastAction => _lastAction;
 
-  IPEndPoint get remoteEndPoint => _sock?.remoteEndPoint;
+  IPEndPoint? get remoteEndPoint => _sock?.remoteEndPoint;
 
-  IPEndPoint get localEndPoint => _sock?.localEndPoint;
+  IPEndPoint? get localEndPoint => _sock?.localEndPoint;
 
-  bool get isConnected => _sock.state == SocketState.Established;
+  bool get isConnected => _sock?.state == SocketState.Established;
 
   void send(DC msg) {
     try {
       if (_sock != null) {
         _lastAction = DateTime.now();
-        _sock.send(msg);
+        _sock?.send(msg);
       }
     } catch (ex) {
       //Console.WriteLine(ex.ToString());
@@ -151,8 +146,8 @@ class NetworkConnection extends IDestructible with INetworkReceiver<ISocket> {
       if (_sock == null) return;
 
       // Closed ?
-      if (_sock.state == SocketState.Closed ||
-          _sock.state == SocketState.Terminated) // || !connected)
+      if (_sock?.state == SocketState.Closed ||
+          _sock?.state == SocketState.Terminated) // || !connected)
         return;
 
       _lastAction = DateTime.now();

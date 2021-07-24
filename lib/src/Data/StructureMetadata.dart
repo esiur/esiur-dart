@@ -1,8 +1,6 @@
-class StructureMetadata
-{
+class StructureMetadata {
+  List<String>? keys; // = <String>[];
+  List<int>? types;//
 
-  List<String> keys;
-  List<int> types;
-  
   //const StructureMetadata(this.keys, this.types);
 }

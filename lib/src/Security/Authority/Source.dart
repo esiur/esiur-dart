@@ -25,22 +25,12 @@ SOFTWARE.
 import '../../Data/KeyList.dart';
 import 'SourceAttributeType.dart';
 
-class Source
-{
+class Source {
+  //string id;
+  String id;
 
-    //string id;
-    String id;
+  KeyList<SourceAttributeType, dynamic> attributes =
+      new KeyList<SourceAttributeType, dynamic>();
 
-    KeyList<SourceAttributeType, dynamic> attributes;
-
-    Source.from(this.id, this.attributes)
-    {
-
-    }
-
-    Source()
-    {
-        attributes = new KeyList<SourceAttributeType, dynamic>();
-    }
-
+  Source.from(this.id, this.attributes) {}
 }

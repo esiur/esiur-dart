@@ -31,7 +31,7 @@ class Session
     Authentication get remoteAuthentication => _remoteAuth;
 
     // public Source Source { get; }
-    DC id;
+    DC? id;
 
     //DateTime get creation => _creation;
 
@@ -45,10 +45,8 @@ class Session
     Authentication _localAuth, _remoteAuth;
     
 
-    Session(Authentication localAuthentication, Authentication remoteAuthentication)
+    Session(this._localAuth, this._remoteAuth)
     {
           
-        this._localAuth = localAuthentication;
-        this._remoteAuth = remoteAuthentication;
     }
 }

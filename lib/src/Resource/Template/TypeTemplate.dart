@@ -22,26 +22,26 @@ import 'TemplateDataType.dart';
 import 'TemplateType.dart';
 
 class TypeTemplate {
-  Guid _classId;
-  String _className;
+  late Guid _classId;
+  late String _className;
   List<MemberTemplate> _members = [];
   List<FunctionTemplate> _functions = [];
   List<EventTemplate> _events = [];
   List<PropertyTemplate> _properties = [];
-  int _version;
+  late int _version;
   //bool isReady;
 
-  TemplateType _templateType;
+  late TemplateType _templateType;
 
-  DC _content;
+  late DC _content;
 
   DC get content => _content;
 
   TemplateType get type => _templateType;
 
-  Type _definedType;
+  Type? _definedType;
 
-  Type get definedType => _definedType;
+  Type? get definedType => _definedType;
 /*
     MemberTemplate getMemberTemplate(MemberInfo member)
     {
@@ -59,32 +59,32 @@ class TypeTemplate {
 //@TODO: implement
   static List<TypeTemplate> getDependencies(TypeTemplate template) => [];
 
-  EventTemplate getEventTemplateByName(String eventName) {
+  EventTemplate? getEventTemplateByName(String eventName) {
     for (var i in _events) if (i.name == eventName) return i;
     return null;
   }
 
-  EventTemplate getEventTemplateByIndex(int index) {
+  EventTemplate? getEventTemplateByIndex(int index) {
     for (var i in _events) if (i.index == index) return i;
     return null;
   }
 
-  FunctionTemplate getFunctionTemplateByName(String functionName) {
+  FunctionTemplate? getFunctionTemplateByName(String functionName) {
     for (var i in _functions) if (i.name == functionName) return i;
     return null;
   }
 
-  FunctionTemplate getFunctionTemplateByIndex(int index) {
+  FunctionTemplate? getFunctionTemplateByIndex(int index) {
     for (var i in _functions) if (i.index == index) return i;
     return null;
   }
 
-  PropertyTemplate getPropertyTemplateByIndex(int index) {
+  PropertyTemplate? getPropertyTemplateByIndex(int index) {
     for (var i in _properties) if (i.index == index) return i;
     return null;
   }
 
-  PropertyTemplate getPropertyTemplateByName(String propertyName) {
+  PropertyTemplate? getPropertyTemplateByName(String propertyName) {
     for (var i in _properties) if (i.name == propertyName) return i;
     return null;
   }
@@ -143,9 +143,11 @@ class TypeTemplate {
     if (addToWarehouse) Warehouse.putTemplate(this);
     // _templates.add(template.classId, template);
 
-    if (describer.properties != null)
-      for (var i = 0; i < describer.properties.length; i++) {
-        var pi = describer.properties[i];
+    if (describer.properties != null) {
+      var props = describer.properties as List<Prop>;
+
+      for (var i = 0; i < props.length; i++) {
+        var pi = props[i];
         var pt = PropertyTemplate(
             this,
             i,
@@ -156,10 +158,13 @@ class TypeTemplate {
             0);
         properties.add(pt);
       }
+    }
 
-    if (describer.functions != null)
-      for (var i = 0; i < describer.functions.length; i++) {
-        var fi = describer.functions[i];
+    if (describer.functions != null) {
+      var funcs = describer.functions as List<Func>;
+
+      for (var i = 0; i < funcs.length; i++) {
+        var fi = funcs[i];
 
         List<ArgumentTemplate> args = fi.argsType
             .map((arg) => ArgumentTemplate(
@@ -176,10 +181,12 @@ class TypeTemplate {
 
         functions.add(ft);
       }
+    }
 
-    if (describer.events != null)
-      for (var i = 0; i < describer.events.length; i++) {
-        var ei = describer.events[i];
+    if (describer.events != null) {
+      var evts = describer.events as List<Evt>;
+      for (var i = 0; i < evts.length; i++) {
+        var ei = evts[i];
 
         var et = new EventTemplate(
             this,
@@ -191,6 +198,7 @@ class TypeTemplate {
 
         events.add(et);
       }
+    }
 
     // append signals
     events.forEach(_members.add);
@@ -200,14 +208,13 @@ class TypeTemplate {
     properties.forEach(_members.add);
 
     // bake it binarily
-    var b = new BinaryList();
-    b
-        .addUint8(_templateType.index)
-        .addGuid(classId)
-        .addUint8(className.length)
-        .addString(className)
-        .addInt32(_version)
-        .addUint16(_members.length);
+    var b = BinaryList()
+      ..addUint8(_templateType.index)
+      ..addGuid(classId)
+      ..addUint8(className.length)
+      ..addString(className)
+      ..addInt32(_version)
+      ..addUint16(_members.length);
 
     functions.forEach((ft) => b.addDC(ft.compose()));
     properties.forEach((pt) => b.addDC(pt.compose()));
@@ -429,7 +436,7 @@ class TypeTemplate {
 
 */
 
-  TypeTemplate.parse(DC data, [int offset = 0, int contentLength]) {
+  TypeTemplate.parse(DC data, [int offset = 0, int? contentLength]) {
     // cool Dart feature
     contentLength ??= data.length;
 
@@ -464,7 +471,7 @@ class TypeTemplate {
 
       if (type == 0) // function
       {
-        String expansion = null;
+        String? expansion = null;
         var hasExpansion = ((data[offset++] & 0x10) == 0x10);
 
         var name = data.getString(offset + 1, data[offset]);
@@ -497,7 +504,7 @@ class TypeTemplate {
         _functions.add(ft);
       } else if (type == 1) // property
       {
-        String readExpansion = null, writeExpansion = null;
+        String? readExpansion = null, writeExpansion = null;
 
         var hasReadExpansion = ((data[offset] & 0x8) == 0x8);
         var hasWriteExpansion = ((data[offset] & 0x10) == 0x10);
@@ -539,7 +546,7 @@ class TypeTemplate {
         _properties.add(pt);
       } else if (type == 2) // Event
       {
-        String expansion = null;
+        String? expansion = null;
         var hasExpansion = ((data[offset] & 0x10) == 0x10);
         var listenable = ((data[offset++] & 0x8) == 0x8);
 

@@ -1,4 +1,3 @@
-class SizeObject
-{
-  int size;
+class SizeObject {
+  int size = 0;
 }

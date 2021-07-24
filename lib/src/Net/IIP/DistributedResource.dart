@@ -22,6 +22,9 @@ SOFTWARE.
 
 */
 
+
+import '../../Resource/Instance.dart';
+
 import '../../Core/AsyncException.dart';
 import '../../Core/ErrorType.dart';
 import '../../Core/ExceptionCode.dart';
@@ -40,18 +43,17 @@ import '../Packets/IIPPacketAction.dart';
 
 import '../../Resource/Template/EventTemplate.dart';
 
-
 class DistributedResource extends IResource {
-  int _instanceId;
-  DistributedConnection _connection;
+  int? _instanceId;
+  DistributedConnection? _connection;
 
   bool _attached = false;
   //bool _isReady = false;
 
-  String _link;
-  int _age;
+  String? _link;
+  int? _age;
 
-  List _properties;
+  List _properties = [];
   bool _destroyed = false;
 
   List<KeyValuePair<int, dynamic>> _queued_updates = [];
@@ -59,17 +61,17 @@ class DistributedResource extends IResource {
   /// <summary>
   /// Connection responsible for the distributed resource.
   /// </summary>
-  DistributedConnection get connection => _connection;
+  DistributedConnection? get connection => _connection;
 
   /// <summary>
   /// Resource link
   /// </summary>
-  String get link => _link;
+  String? get link => _link;
 
   /// <summary>
   /// Instance Id given by the other end.
   /// </summary>
-  int get id => _instanceId;
+  int? get id => _instanceId;
 
   //bool get destroyed => _destroyed;
 
@@ -84,7 +86,7 @@ class DistributedResource extends IResource {
   void destroy() {
     _destroyed = true;
     _attached = false;
-    _connection.sendDetachRequest(_instanceId);
+    _connection?.sendDetachRequest(_instanceId as int);
     emitArgs("destroy", [this]);
   }
 
@@ -137,13 +139,19 @@ class DistributedResource extends IResource {
   /// </summary>
   /// <returns></returns>
   List<PropertyValue> internal_serialize() {
-    var props = new List<PropertyValue>(_properties.length);
+    // var props = _properties as List;
+    // var rt = List<PropertyValue>(_properties.length);
 
-    for (var i = 0; i < _properties.length; i++)
-      props[i] = new PropertyValue(
-          _properties[i], instance.getAge(i), instance.getModificationDate(i));
+    // for (var i = 0; i < _properties.length; i++)
+    //   rt[i] = new PropertyValue(_properties[i], instance?.getAge(i) as int,
+    //       instance?.getModificationDate(i) as DateTime);
 
-    return props;
+    return List<PropertyValue>.generate(
+        _properties.length,
+        (i) => PropertyValue(_properties[i], instance?.getAge(i) as int,
+            instance?.getModificationDate(i) as DateTime));
+
+    //return rt;
   }
 
   bool internal_attach(List<PropertyValue> properties) {
@@ -152,14 +160,16 @@ class DistributedResource extends IResource {
     else {
       _suspended = false;
 
-      _properties = new List(properties.length); // object[properties.Length];
+      //_properties = new List(properties.length); // object[properties.Length];
 
       //_events = new DistributedResourceEvent[Instance.Template.Events.Length];
 
       for (var i = 0; i < properties.length; i++) {
-        instance.setAge(i, properties[i].age);
-        instance.setModificationDate(i, properties[i].date);
-        _properties[i] = properties[i].value;
+        instance?.setAge(i, properties[i].age);
+        instance?.setModificationDate(i, properties[i].date);
+
+        _properties.add(properties[i].value);
+        //_properties[i] = properties[i].value;
       }
 
       // trigger holded events/property updates.
@@ -180,9 +190,12 @@ class DistributedResource extends IResource {
   }
 
   AsyncReply<dynamic> listen(event) {
-    EventTemplate et = event is EventTemplate
+    if (_destroyed) throw new Exception("Trying to access destroyed object");
+    if (_suspended) throw new Exception("Trying to access suspended object");
+
+    EventTemplate? et = event is EventTemplate
         ? event
-        : instance.template.getEventTemplateByName(event);
+        : instance?.template.getEventTemplateByName(event);
 
     if (et == null)
       return AsyncReply<dynamic>().triggerError(new AsyncException(
@@ -192,13 +205,17 @@ class DistributedResource extends IResource {
       return AsyncReply().triggerError(new AsyncException(
           ErrorType.Management, ExceptionCode.NotListenable.index, ""));
 
-    return _connection.sendListenRequest(_instanceId, et.index);
+    return _connection?.sendListenRequest(_instanceId as int, et.index)
+        as AsyncReply;
   }
 
   AsyncReply<dynamic> unlisten(event) {
-    EventTemplate et = event is EventTemplate
+    if (_destroyed) throw new Exception("Trying to access destroyed object");
+    if (_suspended) throw new Exception("Trying to access suspended object");
+
+    EventTemplate? et = event is EventTemplate
         ? event
-        : instance.template.getEventTemplateByName(event);
+        : instance?.template.getEventTemplateByName(event);
 
     if (et == null)
       return AsyncReply().triggerError(new AsyncException(
@@ -208,48 +225,60 @@ class DistributedResource extends IResource {
       return AsyncReply().triggerError(new AsyncException(
           ErrorType.Management, ExceptionCode.NotListenable.index, ""));
 
-    return connection.sendUnlistenRequest(_instanceId, et.index);
+    return connection?.sendUnlistenRequest(_instanceId as int, et.index)
+        as AsyncReply;
   }
 
   void internal_emitEventByIndex(int index, dynamic args) {
     // neglect events when the object is not yet attached
     if (!_attached) return;
 
-    var et = instance.template.getEventTemplateByIndex(index);
-    emitArgs(et.name, [args]);
-    //emitArgs(event, arguments)
-    instance.emitResourceEvent(null, null, et.name, args);
+    var et = instance?.template.getEventTemplateByIndex(index);
+    if (et != null) {
+      emitArgs(et.name, [args]);
+      instance?.emitResourceEvent(null, null, et.name, args);
+    }
   }
 
-  AsyncReply<dynamic> internal_invokeByNamedArguments(int index, Structure namedArgs) {
+  AsyncReply<dynamic> internal_invokeByNamedArguments(
+      int index, Structure namedArgs) {
+    if (_destroyed) throw new Exception("Trying to access destroyed object");
+    if (_suspended) throw new Exception("Trying to access suspended object");
+
+    if (instance == null) throw Exception("Object not initialized.");
+
+    var ins = instance as Instance;
+
+    if (index >= ins.template.functions.length)
+      throw new Exception("Function index is incorrect");
+
+    return connection?.sendInvokeByNamedArguments(
+        _instanceId as int, index, namedArgs) as AsyncReply<dynamic>;
+  }
+
+  AsyncReply<dynamic> internal_invokeByArrayArguments(
+      int index, List<dynamic> args) {
     if (_destroyed) throw new Exception("Trying to access destroyed object");
 
     if (_suspended) throw new Exception("Trying to access suspended object");
+    if (instance == null) throw Exception("Object not initialized.");
 
-    if (index >= instance.template.functions.length)
+    var ins = instance as Instance;
+
+    if (index >= ins.template.functions.length)
       throw new Exception("Function index is incorrect");
 
-    return connection.sendInvokeByNamedArguments(_instanceId, index, namedArgs);
-  }
-
-  AsyncReply<dynamic> internal_invokeByArrayArguments(int index, List<dynamic> args) {
-    if (_destroyed) throw new Exception("Trying to access destroyed object");
-
-    if (_suspended) throw new Exception("Trying to access suspended object");
-
-    if (index >= instance.template.functions.length)
-      throw new Exception("Function index is incorrect");
-
-    return connection.sendInvokeByArrayArguments(_instanceId, index, args);
+    return _connection?.sendInvokeByArrayArguments(
+        _instanceId as int, index, args) as AsyncReply;
   }
 
   operator [](String index) {
-    var pt = instance.template.getPropertyTemplateByName(index);
+    var pt = instance?.template.getPropertyTemplateByName(index);
     if (pt != null) return get(pt.index);
   }
 
   operator []=(String index, value) {
-    var pt = instance.template.getPropertyTemplateByName(index);
+    var pt = instance?.template.getPropertyTemplateByName(index);
     if (pt != null) set(pt.index, value);
   }
 
@@ -266,7 +295,7 @@ class DistributedResource extends IResource {
     var memberName = _getMemberName(invocation.memberName);
 
     if (invocation.isMethod) {
-      var ft = instance.template.getFunctionTemplateByName(memberName);
+      var ft = instance?.template.getFunctionTemplateByName(memberName);
 
       if (_attached && ft != null) {
         if (invocation.namedArguments.length > 0) {
@@ -281,14 +310,14 @@ class DistributedResource extends IResource {
         }
       }
     } else if (invocation.isSetter) {
-      var pt = instance.template.getPropertyTemplateByName(memberName);
+      var pt = instance?.template.getPropertyTemplateByName(memberName);
 
       if (pt != null) {
         set(pt.index, invocation.positionalArguments[0]);
         return true;
       }
     } else if (invocation.isGetter) {
-      var pt = instance.template.getPropertyTemplateByName(memberName);
+      var pt = instance?.template.getPropertyTemplateByName(memberName);
 
       if (pt != null) {
         return get(pt.index);
@@ -304,7 +333,9 @@ class DistributedResource extends IResource {
   /// <param name="index">Zero-based property index.</param>
   /// <returns>Value</returns>
   get(int index) {
-    if (index >= _properties.length) return null;
+    //if (_properties == null) return null;
+    //var props = _properties as List;
+    //if (index >= props.length) return null;
     return _properties[index];
   }
 
@@ -312,9 +343,12 @@ class DistributedResource extends IResource {
     if (!_attached) {
       _queued_updates.add(KeyValuePair(index, value));
     } else {
-      var pt = instance.template.getPropertyTemplateByIndex(index);
-      _properties[index] = value;
-      instance.emitModification(pt, value);
+      var pt = instance?.template.getPropertyTemplateByIndex(index);
+
+      if (pt != null) {
+        _properties[index] = value;
+        instance?.emitModification(pt, value);
+      }
     }
   }
 
@@ -325,23 +359,24 @@ class DistributedResource extends IResource {
   /// <param name="value">Value</param>
   /// <returns>Indicator when the property is set.</returns>
   AsyncReply<dynamic> set(int index, dynamic value) {
-    if (index >= _properties.length) return null;
+    if (index >= _properties.length)
+      throw Exception("Property with index `${index}` not found.");
 
     var reply = new AsyncReply<dynamic>();
+    var con = _connection as DistributedConnection;
 
-    var parameters = Codec.compose(value, connection);
-    connection
-        .sendRequest(IIPPacketAction.SetProperty)
-        .addUint32(_instanceId)
-        .addUint8(index)
-        .addDC(parameters)
+    var parameters = Codec.compose(value, con);
+    (con.sendRequest(IIPPacketAction.SetProperty)
+          ..addUint32(_instanceId as int)
+          ..addUint8(index)
+          ..addDC(parameters))
         .done()
-        .then((res) {
-      // not really needed, server will always send property modified,
-      // this only happens if the programmer forgot to emit in property setter
-      _properties[index] = value;
-      reply.trigger(null);
-    });
+          ..then((res) {
+            // not really needed, server will always send property modified,
+            // this only happens if the programmer forgot to emit in property setter
+            _properties[index] = value;
+            reply.trigger(null);
+          });
 
     return reply;
   }

@@ -22,6 +22,10 @@ SOFTWARE.
 
 */
 
+import '../Core/AsyncException.dart';
+import '../Core/ErrorType.dart';
+import '../Core/ExceptionCode.dart';
+
 import '../Data/AutoList.dart';
 import 'FactoryEntry.dart';
 import 'Template/TemplateType.dart';
@@ -41,8 +45,7 @@ import '../Net/IIP/DistributedConnection.dart';
 
 // Centeral Resource Issuer
 class Warehouse {
-  static AutoList<IResource, Instance> _stores =
-      new AutoList<IResource, Instance>(null);
+  static AutoList<IStore, Instance> _stores = AutoList<IStore, Instance>();
   static Map<int, IResource> _resources = new Map<int, IResource>();
   static int resourceCounter = 0;
 
@@ -74,8 +77,8 @@ class Warehouse {
   /// </summary>
   /// <param name="name">Store instance name</param>
   /// <returns></returns>
-  static IStore getStore(String name) {
-    for (var s in _stores) if (s.instance.name == name) return s;
+  static IStore? getStore(String name) {
+    for (var s in _stores) if (s.instance?.name == name) return s;
     return null;
   }
 
@@ -84,11 +87,11 @@ class Warehouse {
   /// </summary>
   /// <param name="id">Instance Id</param>
   /// <returns></returns>
-  static AsyncReply<IResource> getById(int id) {
+  static AsyncReply<IResource?> getById(int id) {
     if (_resources.containsKey(id))
-      return new AsyncReply<IResource>.ready(_resources[id]);
+      return new AsyncReply<IResource?>.ready(_resources[id]);
     else
-      return new AsyncReply<IResource>.ready(null);
+      return new AsyncReply<IResource?>.ready(null);
   }
 
   /// <summary>
@@ -106,20 +109,21 @@ class Warehouse {
     var rt = new AsyncReply<bool>();
     bag.then((x) {
       for (var b in x)
-        if (!b) {
+        if (b == null || b == false) {
           rt.trigger(false);
           return;
         }
 
       var rBag = new AsyncBag<bool>();
       for (var rk in _resources.keys)
-        rBag.add(_resources[rk].trigger(ResourceTrigger.SystemInitialized));
+        rBag.add((_resources[rk] as IResource)
+            .trigger(ResourceTrigger.SystemInitialized));
 
       rBag.seal();
 
       rBag.then((y) {
         for (var b in y)
-          if (!b) {
+          if (b == null || b == false) {
             rt.trigger(false);
             return;
           }
@@ -158,7 +162,7 @@ class Warehouse {
     var rt = new AsyncReply<bool>();
     bag.then((x) {
       for (var b in x)
-        if (!b) {
+        if (b == null || b == false) {
           rt.trigger(false);
           return;
         }
@@ -178,19 +182,21 @@ class Warehouse {
         for (var child in resources) rt.add(child);
       else
         for (var child in resources)
-          if (child.instance.name == path[index]) rt.add(child);
+          if (child.instance?.name == path[index]) rt.add(child);
     } else
       for (var child in resources)
-        if (child.instance.name == path[index])
-          rt.addAll(qureyIn(path, index + 1, child.instance.children));
+        if (child.instance?.name == path[index])
+          rt.addAll(qureyIn(path, index + 1,
+              child.instance?.children as AutoList<IResource, Instance>));
 
     return rt;
   }
 
-  static AsyncReply<List<IResource>> query(String path) {
+  static AsyncReply<List<IResource>?> query(String? path) {
     if (path == null || path == "") {
-      var roots = _stores.where((s) => s.instance.parents.length == 0).toList();
-      return new AsyncReply<List<IResource>>.ready(roots);
+      var roots =
+          _stores.where((s) => s.instance?.parents.length == 0).toList();
+      return new AsyncReply<List<IResource>?>.ready(roots);
     } else {
       var rt = new AsyncReply<List<IResource>>();
       get(path).then((x) {
@@ -215,40 +221,46 @@ class Warehouse {
   /// </summary>
   /// <param name="path"></param>
   /// <returns>Resource instance.</returns>
-  static AsyncReply<T> get<T extends IResource>(String path,
+  static AsyncReply<T?> get<T extends IResource>(String path,
       [attributes = null,
-      IResource parent = null,
-      IPermissionsManager manager = null]) {
-    var rt = AsyncReply<T>();
+      IResource? parent = null,
+      IPermissionsManager? manager = null]) {
+    var rt = AsyncReply<T?>();
 
     // Should we create a new store ?
     if (_urlRegex.hasMatch(path)) {
       var url = _urlRegex.allMatches(path).first;
 
       if (protocols.containsKey(url[1])) {
-        var handler = protocols[url[1]];
+        var handler =
+            protocols[url[1]] as AsyncReply<IStore> Function(String, dynamic);
 
         var getFromStore = () {
-          handler(url[2], attributes).then<IStore>((store) {
-            if (url[3].length > 0 && url[3] != "")
-              store.get(url[3]).then<dynamic>((r) {
-                rt.trigger(r);
-              }).error((e) => rt.triggerError(e));
-            else
-              rt.trigger(store as T);
-          }).error((e) {
-            rt.triggerError(e);
-            //Warehouse.remove(store);
-          });
+          handler(url[2] as String, attributes)
+            ..then((store) {
+              if ((url[3] as String).length > 0 && url[3] != "")
+                store.get(url[3] as String)
+                  ..then((r) {
+                    rt.trigger(r as T);
+                  })
+                  ..error((e) => rt.triggerError(e));
+              else
+                rt.trigger(store as T);
+            })
+            ..error((e) {
+              rt.triggerError(e);
+              //Warehouse.remove(store);
+            });
         };
 
         if (!_warehouseIsOpen)
-          open().then((v) {
-            if (v)
-              getFromStore();
-            else
-              rt.trigger(null);
-          });
+          open()
+            ..then((v) {
+              if (v)
+                getFromStore();
+              else
+                rt.trigger(null);
+            });
         else
           getFromStore();
 
@@ -258,7 +270,7 @@ class Warehouse {
 
     query(path).then((rs) {
       if (rs != null && rs.length > 0)
-        rt.trigger(rs[0]);
+        rt.trigger(rs[0] as T);
       else
         rt.trigger(null);
     });
@@ -342,14 +354,14 @@ class Warehouse {
   /// <param name="name">Resource name.</param>
   /// <param name="store">IStore that manages the resource. Can be null if the resource is a store.</param>
   /// <param name="parent">Parent resource. if not presented the store becomes the parent for the resource.</param>
-  static AsyncReply<T> put<T extends IResource>(String name, T resource,
-      [IStore store = null,
-      IResource parent = null,
-      TypeTemplate customTemplate = null,
+  static AsyncReply<T?> put<T extends IResource>(String name, T resource,
+      [IStore? store = null,
+      IResource? parent = null,
+      TypeTemplate? customTemplate = null,
       int age = 0,
-      IPermissionsManager manager = null,
+      IPermissionsManager? manager = null,
       attributes = null]) {
-    var rt = AsyncReply<T>();
+    var rt = AsyncReply<T?>();
 
     if (resource.instance != null) {
       rt.triggerError(Exception("Resource has a store."));
@@ -415,19 +427,21 @@ class Warehouse {
         resourceCounter++, name, resource, store, customTemplate, age);
 
     if (attributes != null)
-      resource.instance.setAttributes(Structure.fromMap(attributes));
+      resource.instance?.setAttributes(Structure.fromMap(attributes));
 
-    if (manager != null) resource.instance.managers.add(manager);
+    if (manager != null) resource.instance?.managers.add(manager);
 
     if (store == parent) parent = null;
 
     if (parent == null) {
-      if (!(resource is IStore)) store.instance.children.add(resource);
+      if (!(resource is IStore)) store?.instance?.children.add(resource);
     } else
-      parent.instance.children.add(resource);
+      parent.instance?.children.add(resource);
 
     var initResource = () {
-      _resources[resource.instance.id] = resource;
+      if (resource.instance == null) return;
+
+      _resources[(resource.instance as Instance).id] = resource;
 
       if (_warehouseIsOpen) {
         resource.trigger(ResourceTrigger.Initialize).then<dynamic>((value) {
@@ -451,7 +465,7 @@ class Warehouse {
       _stores.add(resource);
       initResource();
     } else {
-      store.put(resource).then<dynamic>((value) {
+      store?.put(resource).then<dynamic>((value) {
         if (value)
           initResource();
         else
@@ -468,20 +482,23 @@ class Warehouse {
   }
 
   static T createInstance<T>(Type T) {
-    return _factory[T].instanceCreator.call();
+    return _factory[T]?.instanceCreator.call();
   }
 
   static List<T> createArray<T>(Type T) {
-    return _factory[T].arrayCreator.call();
+    return _factory[T]?.arrayCreator.call();
   }
 
   static AsyncReply<T> newResource<T extends IResource>(String name,
-      [IStore store = null,
-      IResource parent = null,
-      IPermissionsManager manager = null,
+      [IStore? store = null,
+      IResource? parent = null,
+      IPermissionsManager? manager = null,
       attributes = null,
       properties = null]) {
-    var resource = _factory[T].instanceCreator.call();
+    if (_factory[T] == null)
+      throw Exception("No Instance Creator was found for type ${T}");
+
+    var resource = _factory[T]?.instanceCreator.call();
 
     if (properties != null) {
       dynamic d = resource;
@@ -494,12 +511,16 @@ class Warehouse {
     var rt = AsyncReply<T>();
 
     put<T>(name, resource, store, parent, null, 0, manager, attributes)
-        .then<IResource>((value) {
-      if (value != null)
-        rt.trigger(resource);
-      else
-        rt.trigger(null);
-    }).error((ex) => rt.triggerError(ex));
+      ..then((value) {
+        if (value != null)
+          rt.trigger(resource);
+        else
+          rt.triggerError(AsyncException(
+              ErrorType.Management,
+              ExceptionCode.GeneralFailure.index,
+              "Can't put the resource")); // .trigger(null);
+      })
+      ..error((ex) => rt.triggerError(ex));
 
     return rt;
 
@@ -516,7 +537,7 @@ class Warehouse {
   /// </summary>
   /// <param name="template">Resource template.</param>
   static void putTemplate(TypeTemplate template) {
-    _templates[template.type][template.classId] = template;
+    _templates[template.type]?[template.classId] = template;
   }
 
   /// <summary>
@@ -541,22 +562,22 @@ class Warehouse {
   /// </summary>
   /// <param name="classId">Class Id.</param>
   /// <returns>Resource template.</returns>
-  static TypeTemplate getTemplateByClassId(Guid classId,
+  static TypeTemplate? getTemplateByClassId(Guid classId,
       [TemplateType templateType = TemplateType.Unspecified]) {
     if (templateType == TemplateType.Unspecified) {
       // look in resources
-      var template = _templates[TemplateType.Resource][classId];
+      var template = _templates[TemplateType.Resource]?[classId];
       if (template != null) return template;
 
       // look in records
-      template = _templates[TemplateType.Record][classId];
+      template = _templates[TemplateType.Record]?[classId];
       if (template != null) return template;
 
       // look in wrappers
-      template = _templates[TemplateType.Wrapper][classId];
+      template = _templates[TemplateType.Wrapper]?[classId];
       return template;
     } else {
-      return _templates[templateType][classId];
+      return _templates[templateType]?[classId];
     }
   }
 
@@ -565,29 +586,29 @@ class Warehouse {
   /// </summary>
   /// <param name="className">Class name.</param>
   /// <returns>Resource template.</returns>
-  static TypeTemplate getTemplateByClassName(String className,
+  static TypeTemplate? getTemplateByClassName(String className,
       [TemplateType templateType = TemplateType.Unspecified]) {
     if (templateType == TemplateType.Unspecified) {
       // look in resources
       var template = _templates[TemplateType.Resource]
-          .values
+          ?.values
           .firstWhere((x) => x.className == className);
       if (template != null) return template;
 
       // look in records
       template = _templates[TemplateType.Record]
-          .values
+          ?.values
           .firstWhere((x) => x.className == className);
       if (template != null) return template;
 
       // look in wrappers
       template = _templates[TemplateType.Wrapper]
-          .values
+          ?.values
           .firstWhere((x) => x.className == className);
       return template;
     } else {
       return _templates[templateType]
-          .values
+          ?.values
           .firstWhere((x) => x.className == className);
     }
   }
@@ -595,8 +616,8 @@ class Warehouse {
   static bool remove(IResource resource) {
     if (resource.instance == null) return false;
 
-    if (_resources.containsKey(resource.instance.id))
-      _resources.remove(resource.instance.id);
+    if (_resources.containsKey(resource.instance?.id))
+      _resources.remove(resource.instance?.id);
     else
       return false;
 
@@ -605,14 +626,14 @@ class Warehouse {
 
       // remove all objects associated with the store
       var toBeRemoved =
-          _resources.values.where((x) => x.instance.store == resource);
+          _resources.values.where((x) => x.instance?.store == resource);
       for (var o in toBeRemoved) remove(o);
 
       // StoreDisconnected?.Invoke(resource as IStore);
     }
 
-    if (resource.instance.store != null)
-      resource.instance.store.remove(resource);
+    if (resource.instance?.store != null)
+      resource.instance?.store?.remove(resource);
 
     resource.destroy();
 

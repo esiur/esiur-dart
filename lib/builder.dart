@@ -9,7 +9,7 @@ import 'package:yaml/yaml.dart';
 class TemplateBuilder implements Builder {
   //BuilderOptions options;
   String _fileName;
-  TemplateBuilder([BuilderOptions options]) : _fileName = _get_dest(options);
+  TemplateBuilder([BuilderOptions? options]) : _fileName = _get_dest(options);
 
   @override
   Future build(BuildStep buildStep) async {
@@ -21,7 +21,7 @@ class TemplateBuilder implements Builder {
     await buildStep.writeAsString(id, content);
   }
 
-  static String _get_dest(BuilderOptions options) {
+  static String _get_dest(BuilderOptions? options) {
     const defaultDestination = 'lib/src/iip_template.dart';
     if (options == null) return defaultDestination;
     if (options.config == null) return defaultDestination;

@@ -2,8 +2,8 @@ library esiur;
 
 import 'AsyncReply.dart';
 
-class AsyncQueue<T> extends AsyncReply<T> {
-  List<AsyncReply<T>> _list = <AsyncReply<T>>[];
+class AsyncQueue<T> extends AsyncReply<T?> {
+  List<AsyncReply<T?>> _list = <AsyncReply<T?>>[];
 
 //      object queueLock = new object();
 
@@ -23,7 +23,7 @@ class AsyncQueue<T> extends AsyncReply<T> {
     processQueue(null);
   }
 
-  void processQueue(T o) {
+  void processQueue(T? o) {
     //lock (queueLock)
     for (var i = 0; i < _list.length; i++)
       if (_list[i].ready) {

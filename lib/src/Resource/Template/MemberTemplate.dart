@@ -17,12 +17,8 @@ class MemberTemplate
 
     TypeTemplate get template => _template;
 
-    MemberTemplate(TypeTemplate template, MemberType type, int index, String name)
+    MemberTemplate(this._template, this._type, this._index, this._name)
     {
-        this._template = template;
-        this._type = type;
-        this._index = index;
-        this._name = name;
     }
 
     String get fullname => _template.className + "." + _name;

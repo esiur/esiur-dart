@@ -34,8 +34,8 @@ const UNIX_EPOCH = 621355968000000000;
 const TWO_PWR_32 = (1 << 16) * (1 << 16);
 
 class DC with IterableMixin<int> {
-  Uint8List _data;
-  ByteData _dv;
+  late Uint8List _data;
+  late ByteData _dv;
 
   DC(int length) {
     _data = new Uint8List(length);
@@ -245,7 +245,8 @@ class DC with IterableMixin<int> {
     var list = new BinaryList();
     for (var i = 0; i < value.length; i++) {
       var s = DC.stringToBytes(value[i]);
-      list.addUint32(s.length).addUint8Array(s.toArray());
+      list..addUint32(s.length)
+          ..addUint8Array(s.toArray());
     }
 
     return list.toDC();
@@ -289,67 +290,67 @@ class DC with IterableMixin<int> {
         Uint8List.fromList(_data.getRange(offset, offset + length).toList()));
   }
 
-  getInt8(int offset) {
+  int getInt8(int offset) {
     return _dv.getInt8(offset);
   }
 
-  getUint8(int offset) {
+  int getUint8(int offset) {
     return _data[offset]; // this.dv.getUint8(offset);
   }
 
-  getInt16(int offset) {
+  int getInt16(int offset) {
     return _dv.getInt16(offset);
   }
 
-  getUint16(int offset) {
+  int getUint16(int offset) {
     return _dv.getUint16(offset);
   }
 
-  getInt32(int offset) {
+  int getInt32(int offset) {
     return _dv.getInt32(offset);
   }
 
-  getUint32(int offset) {
+  int getUint32(int offset) {
     return _dv.getUint32(offset);
   }
 
-  getFloat32(int offset) {
+  double getFloat32(int offset) {
     return _dv.getFloat32(offset);
   }
 
-  getFloat64(int offset) {
+  double getFloat64(int offset) {
     return _dv.getFloat64(offset);
   }
 
-  setInt8(int offset, int value) {
+  void setInt8(int offset, int value) {
     return _dv.setInt8(offset, value);
   }
 
-  setUint8(int offset, int value) {
+  void setUint8(int offset, int value) {
     return _dv.setUint8(offset, value);
   }
 
-  setInt16(int offset, int value) {
+  void setInt16(int offset, int value) {
     return _dv.setInt16(offset, value);
   }
 
-  setUint16(int offset, int value) {
+  void setUint16(int offset, int value) {
     return _dv.setUint16(offset, value);
   }
 
-  setInt32(int offset, int value) {
+  void setInt32(int offset, int value) {
     return _dv.setInt32(offset, value);
   }
 
-  setUint32(int offset, int value) {
+  void setUint32(int offset, int value) {
     return _dv.setUint32(offset, value);
   }
 
-  setFloat32(int offset, double value) {
+  void setFloat32(int offset, double value) {
     return _dv.setFloat32(offset, value);
   }
 
-  setFloat64(int offset, double value) {
+  void setFloat64(int offset, double value) {
     return _dv.setFloat64(offset, value);
   }
 
@@ -397,7 +398,7 @@ class DC with IterableMixin<int> {
     return this.getUint8(offset) > 0;
   }
 
-  setBoolean(int offset, bool value) {
+  void setBoolean(int offset, bool value) {
     this.setUint8(offset, value ? 1 : 0);
   }
 
@@ -411,7 +412,7 @@ class DC with IterableMixin<int> {
     return String.fromCharCode(this.getUint16(offset));
   }
 
-  setChar(int offset, int value) {
+  void setChar(int offset, int value) {
     this.setUint16(offset, value); //value.codeUnitAt(0));
   }
 
@@ -462,11 +463,11 @@ class DC with IterableMixin<int> {
     return rt;
   }
 
-  getInt64(offset) {
+  int getInt64(offset) {
     return _dv.getUint64(offset);
   }
 
-  getUint64(offset) {
+  int getUint64(offset) {
     return _dv.getInt64(offset);
   }
 
@@ -478,7 +479,7 @@ class DC with IterableMixin<int> {
     _dv.setUint64(offset, value);
   }
 
-  setDateTime(offset, DateTime value) {
+  void setDateTime(offset, DateTime value) {
     // Unix Epoch
     var ticks = UNIX_EPOCH + (value.millisecondsSinceEpoch * 10000);
     this.setUint64(offset, ticks);
@@ -500,7 +501,7 @@ class DC with IterableMixin<int> {
     return new Guid(this.clip(offset, 16));
   }
 
-  setGuid(int offset, Guid guid) {
+  void setGuid(int offset, Guid guid) {
     set(guid.value, offset);
   }
 

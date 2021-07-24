@@ -37,7 +37,7 @@ abstract class ISocket extends IDestructible {
 
   //void send(DC message);
 
-  INetworkReceiver<ISocket> receiver;
+  INetworkReceiver<ISocket>? receiver;
 
   void send(DC message, [int offset, int size]);
   void close();
@@ -45,6 +45,6 @@ abstract class ISocket extends IDestructible {
   bool begin();
 
   AsyncReply<ISocket> accept();
-  IPEndPoint remoteEndPoint;
-  IPEndPoint localEndPoint;
+  IPEndPoint? remoteEndPoint;
+  IPEndPoint? localEndPoint;
 }

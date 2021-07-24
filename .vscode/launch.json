@@ -11,12 +11,12 @@
             "type": "dart"
         },
         {
-            "program": "test/template_test/.dart_tool/build/entrypoint/build.dart",
-            "name": "template_test",
-            "cwd": "template_test",
+
+            "name": "Test",
+            "program": "test/template_test/bin/service.dart",
             "request": "launch",
-            "type": "dart",
-            "args": ["serve"],
+            "type": "dart"
+
         }
     ]
 }

@@ -1,48 +1,38 @@
-class IEventHandler
-{
-    Map<String, List<Function>> _events;
+class IEventHandler {
+  Map<String, List<Function>> _events = {};
 
-    register(String event)
-    {
-        _events[event.toLowerCase()] = [];
+  register(String event) {
+    _events[event.toLowerCase()] = [];
+  }
+
+  IEventHandler() {}
+
+  emitArgs(String event, List arguments) {
+    //event = event.toLowerCase();
+
+    var et = _events[event.toLowerCase()];
+    if (et != null) {
+      for (var i = 0; i < et.length; i++)
+        if (Function.apply(et[i], arguments) != null) return true;
     }
 
-    IEventHandler()
-    {
-        _events = {};
-    }
+    return false;
+  }
 
-    emitArgs(String event, List arguments)
-    {
-        event = event.toLowerCase();
-        if (_events.containsKey(event))
-            for(var i = 0; i < _events[event].length; i++)
-                if (Function.apply(_events[event][i], arguments) != null)
-                    return true;
+  on(String event, Function callback) {
+    event = event.toLowerCase();
+    if (_events.containsKey(event)) register(event);
+    _events[event]?.add(callback);
+    return this;
+  }
 
-        return false;
+  off(event, callback) {
+    event = event.toString();
+    if (_events.containsKey(event)) {
+      if (callback != null)
+        _events[event]?.remove(callback);
+      else
+        this._events[event] = [];
     }
-    
-    on(String event, Function callback)
-    {
-        event = event.toLowerCase();
-        // add
-        if (!_events.containsKey(event))
-            register(event);
-
-        _events[event].add(callback);
-        return this;
-    }
-
-    off(event, callback)
-    {
-        event = event.toString();
-        if (_events.containsKey(event))
-        {
-            if (callback != null)
-              _events[event].remove(callback);
-            else
-                this._events[event] = [];
-        }
-    }
+  }
 }

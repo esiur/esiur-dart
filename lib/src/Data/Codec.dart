@@ -21,6 +21,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
+
+import '../Core/AsyncException.dart';
+import '../Core/ErrorType.dart';
+import '../Core/ExceptionCode.dart';
+
 import '../Resource/Template/TemplateType.dart';
 
 import 'DataType.dart';
@@ -93,7 +98,7 @@ class Codec {
   /// <param name="next">Next structure to compare with the initial</param>
   /// <param name="connection">DistributedConnection is required in case a structure holds items at the other end</param>
   static int compareStructures(
-      Structure initial, Structure next, DistributedConnection connection) {
+      Structure? initial, Structure? next, DistributedConnection connection) {
     if (next == null) return StructureComparisonResult.Null;
 
     if (initial == null) return StructureComparisonResult.Structure;
@@ -126,7 +131,7 @@ class Codec {
   /// <param name="initial">Initial record to compare with</param>
   /// <param name="next">Next record to compare with the initial</param>
   /// <param name="connection">DistributedConnection is required in case a structure holds items at the other end</param>
-  static int compareRecords(IRecord initial, IRecord next) {
+  static int compareRecords(IRecord? initial, IRecord? next) {
     if (next == null) return RecordComparisonResult.Null;
 
     if (initial == null) return RecordComparisonResult.Record;
@@ -139,9 +144,9 @@ class Codec {
     return RecordComparisonResult.Record;
   }
 
-  static AsyncBag parseRecordArray(
+  static AsyncBag<IRecord?> parseRecordArray(
       DC data, int offset, int length, DistributedConnection connection) {
-    var reply = new AsyncBag();
+    var reply = new AsyncBag<IRecord?>();
 
     if (length == 0) {
       reply.seal();
@@ -161,12 +166,12 @@ class Codec {
       var template =
           Warehouse.getTemplateByClassId(classId, TemplateType.Record);
 
-      reply.arrayType = template.definedType;
+      reply.arrayType = template?.definedType;
 
-      AsyncReply<IRecord> previous = null;
+      AsyncReply<IRecord?>? previous = null;
 
       if (result == RecordComparisonResult.Null)
-        previous = new AsyncReply<IRecord>.ready(null);
+        previous = AsyncReply<IRecord?>.ready(null);
       else if (result == RecordComparisonResult.Record ||
           result == RecordComparisonResult.RecordSameType) {
         var cs = data.getUint32(offset);
@@ -176,13 +181,13 @@ class Codec {
         offset += recordLength;
       }
 
-      reply.add(previous);
+      reply.add(previous as AsyncReply<IRecord?>);
 
       while (offset < end) {
         result = data[offset++];
 
         if (result == RecordComparisonResult.Null)
-          previous = new AsyncReply<IRecord>.ready(null);
+          previous = new AsyncReply<IRecord?>.ready(null);
         else if (result == RecordComparisonResult.Record ||
             result == RecordComparisonResult.RecordSameType) {
           var cs = data.getUint32(offset);
@@ -193,14 +198,14 @@ class Codec {
           // do nothing
         }
 
-        reply.add(previous);
+        reply.add(previous as AsyncReply<IRecord?>);
       }
     } else {
-      AsyncReply<IRecord> previous = null;
-      Guid classId = null;
+      AsyncReply<IRecord?>? previous = null;
+      Guid? classId = null;
 
       if (result == RecordComparisonResult.Null)
-        previous = new AsyncReply<IRecord>.ready(null);
+        previous = new AsyncReply<IRecord?>.ready(null);
       else if (result == RecordComparisonResult.Record) {
         var cs = data.getUint32(offset);
         var recordLength = cs - 16;
@@ -211,13 +216,13 @@ class Codec {
         offset += recordLength;
       }
 
-      reply.add(previous);
+      reply.add(previous as AsyncReply<IRecord?>);
 
       while (offset < end) {
         result = data[offset++];
 
         if (result == RecordComparisonResult.Null)
-          previous = new AsyncReply<IRecord>.ready(null);
+          previous = new AsyncReply<IRecord?>.ready(null);
         else if (result == RecordComparisonResult.Record) {
           var cs = data.getUint32(offset);
           var recordLength = cs - 16;
@@ -236,7 +241,7 @@ class Codec {
           // do nothing
         }
 
-        reply.add(previous);
+        reply.add(previous as AsyncReply<IRecord?>);
       }
     }
 
@@ -301,7 +306,7 @@ class Codec {
 
   static AsyncReply<IRecord> parseRecord(
       DC data, int offset, int length, DistributedConnection connection,
-      [Guid classId = null]) {
+      [Guid? classId = null]) {
     var reply = new AsyncReply<IRecord>();
 
     if (classId == null) {
@@ -317,7 +322,7 @@ class Codec {
       parseVarArray(data, offset, length, connection).then((ar) {
         if (template.definedType != null) {
           var record =
-              Warehouse.createInstance(template.definedType) as IRecord;
+              Warehouse.createInstance(template.definedType as Type) as IRecord;
 
           Map<String, dynamic> value = {};
 
@@ -337,16 +342,24 @@ class Codec {
         }
       });
     } else {
-      connection.getTemplate(classId).then<dynamic>((tmp) {
-        parseVarArray(data, offset, length, connection).then<dynamic>((ar) {
-          var record = new Record();
+      connection.getTemplate(classId)
+        ..then((tmp) {
+          if (tmp != null) {
+            parseVarArray(data, offset, length, connection)
+              ..then((ar) {
+                var record = new Record();
 
-          for (var i = 0; i < tmp.properties.length; i++)
-            record.add(tmp.properties[i].name, ar[i]);
+                for (var i = 0; i < tmp.properties.length; i++)
+                  record.add(tmp.properties[i].name, ar[i]);
 
-          reply.trigger(record);
-        });
-      }).error((x) => reply.triggerError(x));
+                reply.trigger(record);
+              });
+          } else {
+            reply.triggerError(AsyncException(ErrorType.Management,
+                ExceptionCode.TemplateNotFound.index, null));
+          }
+        })
+        ..error((x) => reply.triggerError(x));
     }
 
     return reply;
@@ -377,9 +390,9 @@ class Codec {
   }
 
   static DC composeRecordArray<T extends IRecord>(
-      List<T> records, DistributedConnection connection,
+      List<T>? records, DistributedConnection connection,
       [bool prependLength = false]) {
-    if (records == null || records?.length == 0)
+    if (records == null || records.length == 0)
       return prependLength ? new DC(4) : new DC(0);
 
     var rt = new BinaryList();
@@ -391,14 +404,14 @@ class Codec {
     if (isTyped) {
       var template = Warehouse.getTemplateByType(T);
 
-      if (template != null) {
-        // typed array ... no need to add class id , it will be included at the first entry
-        rt.addUint8(0x10 | comparsion);
-        rt.addGuid(template.classId);
-      } else // something wrong
-      {
-        throw new Exception("Template for type `${T}` not found.");
-      }
+      //if (template != null) {
+      // typed array ... no need to add class id , it will be included at the first entry
+      rt.addUint8(0x10 | comparsion);
+      rt.addGuid(template.classId);
+      //} else // something wrong
+      //{
+      //  throw new Exception("Template for type `${T}` not found.");
+      //}
 
       if (comparsion == RecordComparisonResult.Record)
         rt.addDC(composeRecord(records[0], connection, false, true));
@@ -468,17 +481,17 @@ class Codec {
   /// <param name="prependLength">If true, prepend the length as UInt32 at the beginning of the returned bytes array</param>
   /// <returns>Array of bytes in the network byte order</returns>
   static DC composeStructureArray(
-      List<Structure> structures, DistributedConnection connection,
+      List<Structure>? structures, DistributedConnection connection,
       [bool prependLength = false]) {
-    if (structures == null || structures?.length == 0)
+    if (structures == null || structures.length == 0)
       return prependLength ? new DC(4) : new DC(0);
 
     var rt = new BinaryList();
     var comparsion = StructureComparisonResult.Structure;
 
     rt
-        .addUint8(comparsion)
-        .addDC(composeStructure(structures[0], connection, true, true, true));
+      ..addUint8(comparsion)
+      ..addDC(composeStructure(structures[0], connection, true, true, true));
 
     for (var i = 1; i < structures.length; i++) {
       comparsion =
@@ -508,9 +521,9 @@ class Codec {
   /// <param name="length">Number of bytes to parse</param>
   /// <param name="connection">DistributedConnection is required in case a structure in the array holds items at the other end</param>
   /// <returns>Array of structures</returns>
-  static AsyncBag<Structure> parseStructureArray(
+  static AsyncBag<Structure?> parseStructureArray(
       DC data, int offset, int length, DistributedConnection connection) {
-    var reply = new AsyncBag<Structure>();
+    var reply = new AsyncBag<Structure?>();
     if (length == 0) {
       reply.seal();
       return reply;
@@ -520,14 +533,14 @@ class Codec {
 
     var result = data[offset++];
 
-    AsyncReply<Structure> previous = null;
+    AsyncReply<Structure?>? previous = null;
     // string[] previousKeys = null;
     // DataType[] previousTypes = null;
 
     StructureMetadata metadata = new StructureMetadata();
 
     if (result == StructureComparisonResult.Null)
-      previous = new AsyncReply<Structure>.ready(null);
+      previous = new AsyncReply<Structure?>.ready(null);
     else if (result == StructureComparisonResult.Structure) {
       int cs = data.getUint32(offset);
       offset += 4;
@@ -535,13 +548,13 @@ class Codec {
       offset += cs;
     }
 
-    reply.add(previous);
+    reply.add(previous as AsyncReply<Structure?>);
 
     while (offset < end) {
       result = data[offset++];
 
       if (result == StructureComparisonResult.Null)
-        previous = new AsyncReply<Structure>.ready(null);
+        previous = new AsyncReply<Structure?>.ready(null);
       else if (result == StructureComparisonResult.Structure) {
         int cs = data.getUint32(offset);
         offset += 4;
@@ -562,7 +575,7 @@ class Codec {
         offset += cs;
       }
 
-      reply.add(previous);
+      reply.add(previous as AsyncReply<Structure?>);
     }
 
     reply.seal();
@@ -587,7 +600,10 @@ class Codec {
     if (includeKeys) {
       for (var k in value.keys) {
         var key = DC.stringToBytes(k);
-        rt.addUint8(key.length).addDC(key).addDC(compose(value[k], connection));
+        rt
+          ..addUint8(key.length)
+          ..addDC(key)
+          ..addDC(compose(value[k], connection));
       }
     } else {
       for (var k in value.keys)
@@ -613,9 +629,9 @@ class Codec {
   /// <returns>Structure</returns>
   static AsyncReply<Structure> parseStructure(
       DC data, int offset, int length, DistributedConnection connection,
-      [StructureMetadata metadata = null,
-      List<String> keys = null,
-      List<int> types =
+      [StructureMetadata? metadata = null,
+      List<String>? keys = null,
+      List<int>? types =
           null]) // out string[] parsedKeys, out DataType[] parsedTypes, string[] keys = null, DataType[] types = null)
   {
     var reply = new AsyncReply<Structure>();
@@ -685,9 +701,8 @@ class Codec {
   /// <param name="connection">DistributedConnection is required in case a structure in the array holds items at the other end.</param>
   /// <param name="dataType">DataType, in case the data is not prepended with DataType</param>
   /// <returns>Value</returns>
-  static AsyncReply<dynamic> parse(
-      DC data, int offset, DistributedConnection connection,
-      [SizeObject sizeObject, int dataType = DataType.Unspecified]) {
+  static AsyncReply parse(DC data, int offset, DistributedConnection connection,
+      [SizeObject? sizeObject, int dataType = DataType.Unspecified]) {
     bool isArray;
     int t;
 
@@ -850,7 +865,8 @@ class Codec {
       }
     }
 
-    return null;
+    // @TODO: Throw exception
+    return AsyncReply.ready(null);
   }
 
   /// <summary>
@@ -859,8 +875,8 @@ class Codec {
   /// <param name="data">Bytes array</param>
   /// <param name="offset">Zero-indexed offset.</param>
   /// <returns>Resource</returns>
-  static AsyncReply<IResource> parseResource(DC data, int offset) {
-    return Warehouse.get(data.getUint32(offset));
+  static AsyncReply<IResource?> parseResource(DC data, int offset) {
+    return Warehouse.getById(data.getUint32(offset));
   }
 
   /// <summary>
@@ -904,7 +920,7 @@ class Codec {
   /// <returns>Null, same, local, distributed or same class distributed.</returns>
 
   static int compareResources(
-      IResource initial, IResource next, DistributedConnection connection) {
+      IResource? initial, IResource? next, DistributedConnection connection) {
     if (next == null)
       return ResourceComparisonResult.Null;
     else if (next == initial)
@@ -924,13 +940,12 @@ class Codec {
   static DC composeResource(
       IResource resource, DistributedConnection connection) {
     if (isLocalResource(resource, connection))
-      return DC.uint32ToBytes((resource as DistributedResource).id);
+      return DC.uint32ToBytes((resource as DistributedResource).id as int);
     else {
-      return new BinaryList()
-          .addGuid(resource.instance.template.classId)
-          .addUint32(resource.instance.id)
+      return (BinaryList()
+            ..addGuid(resource.instance?.template.classId as Guid)
+            ..addUint32(resource.instance?.id as int))
           .toDC();
-      //return BinaryList.ToBytes(resource.Instance.Template.ClassId, resource.Instance.Id);
     }
   }
 
@@ -943,9 +958,9 @@ class Codec {
   /// <returns>Array of bytes in the network byte order.</returns>
 
   static DC composeResourceArray<T extends IResource>(
-      List<T> resources, DistributedConnection connection,
+      List<T>? resources, DistributedConnection connection,
       [bool prependLength = false]) {
-    if (resources == null || resources?.length == 0)
+    if (resources == null || resources.length == 0)
       return prependLength ? new DC(4) : new DC(0);
 
     var rt = new BinaryList();
@@ -971,17 +986,17 @@ class Codec {
     }
 
     if (comparsion == ResourceComparisonResult.Local)
-      rt.addUint32((resources[0] as DistributedResource).id);
+      rt.addUint32((resources[0] as DistributedResource).id as int);
     else if (comparsion == ResourceComparisonResult.Distributed)
-      rt.addUint32(resources[0].instance.id);
+      rt.addUint32(resources[0].instance?.id as int);
 
     for (var i = 1; i < resources.length; i++) {
       comparsion = compareResources(resources[i - 1], resources[i], connection);
       rt.addUint8(comparsion);
       if (comparsion == ResourceComparisonResult.Local)
-        rt.addUint32((resources[i] as DistributedResource).id);
+        rt.addUint32((resources[i] as DistributedResource).id as int);
       else if (comparsion == ResourceComparisonResult.Distributed)
-        rt.addUint32(resources[i].instance.id);
+        rt.addUint32(resources[i].instance?.id as int);
     }
 
     if (prependLength) rt.insertInt32(0, rt.length);
@@ -997,11 +1012,11 @@ class Codec {
   /// <param name="offset">Zero-indexed offset.</param>
   /// <param name="connection">DistributedConnection is required to fetch resources.</param>
   /// <returns>Array of resources.</returns>
-  static AsyncBag<IResource> parseResourceArray(
+  static AsyncBag<IResource?> parseResourceArray(
       DC data, int offset, int length, DistributedConnection connection) {
     //print("parseResourceArray ${offset} ${length}");
 
-    var reply = new AsyncBag<IResource>();
+    var reply = new AsyncBag<IResource?>();
     if (length == 0) {
       reply.seal();
       return reply;
@@ -1031,27 +1046,27 @@ class Codec {
       reply.arrayType = tmp?.definedType;
     }
 
-    AsyncReply<IResource> previous = null;
+    AsyncReply<IResource?>? previous = null;
 
     if (result == ResourceComparisonResult.Null)
-      previous = new AsyncReply<IResource>.ready(null);
+      previous = new AsyncReply<IResource?>.ready(null);
     else if (result == ResourceComparisonResult.Local) {
-      previous = Warehouse.get(data.getUint32(offset));
+      previous = Warehouse.getById(data.getUint32(offset));
       offset += 4;
     } else if (result == ResourceComparisonResult.Distributed) {
       previous = connection.fetch(data.getUint32(offset));
       offset += 4;
     }
 
-    reply.add(previous);
+    reply.add(previous as AsyncReply<IResource?>);
 
     while (offset < end) {
       result = data[offset++];
 
-      AsyncReply<IResource> current = null;
+      AsyncReply<IResource?>? current = null;
 
       if (result == ResourceComparisonResult.Null) {
-        current = new AsyncReply<IResource>.ready(null);
+        current = new AsyncReply<IResource?>.ready(null);
       } else if (result == ResourceComparisonResult.Same) {
         current = previous;
       } else if (result == ResourceComparisonResult.Local) {
@@ -1062,7 +1077,7 @@ class Codec {
         offset += 4;
       }
 
-      reply.add(current);
+      reply.add(current as AsyncReply<IResource?>);
 
       previous = current;
     }
@@ -1146,10 +1161,10 @@ class Codec {
   static DC composePropertyValue(PropertyValue propertyValue,
       DistributedConnection connection) //, bool includeAge = true)
   {
-    return new BinaryList()
-        .addUint64(propertyValue.age)
-        .addDateTime(propertyValue.date)
-        .addDC(compose(propertyValue.value, connection))
+    return (BinaryList()
+          ..addUint64(propertyValue.age)
+          ..addDateTime(propertyValue.date)
+          ..addDC(compose(propertyValue.value, connection)))
         .toDC();
   }
 
@@ -1194,7 +1209,8 @@ class Codec {
   static AsyncReply<KeyList<PropertyTemplate, List<PropertyValue>>>
       parseHistory(DC data, int offset, int length, IResource resource,
           DistributedConnection connection) {
-    var list = new KeyList<PropertyTemplate, List<PropertyValue>>();
+    var list = <
+        PropertyTemplate>[]; //new KeyList<PropertyTemplate, List<PropertyValue>?>();
 
     var reply =
         new AsyncReply<KeyList<PropertyTemplate, List<PropertyValue>>>();
@@ -1207,20 +1223,26 @@ class Codec {
 
     while (offset < ends) {
       var index = data[offset++];
-      var pt = resource.instance.template.getPropertyTemplateByIndex(index);
-      list.add(pt, null);
-      var cs = data.getUint32(offset);
-      offset += 4;
-      bagOfBags.add(parsePropertyValueArray(data, offset, cs, connection));
-      offset += cs;
+      var pt = resource.instance?.template.getPropertyTemplateByIndex(index);
+      if (pt != null) {
+        list.add(pt); //, null);
+        var cs = data.getUint32(offset);
+        offset += 4;
+        bagOfBags.add(parsePropertyValueArray(data, offset, cs, connection));
+        offset += cs;
+      }
     }
 
     bagOfBags.seal();
 
     bagOfBags.then((x) {
-      for (var i = 0; i < list.length; i++) list[list.keys.elementAt(i)] = x[i];
+      var keyList = KeyList<PropertyTemplate, List<PropertyValue>>();
 
-      reply.trigger(list);
+      for (var i = 0; i < list.length; i++) keyList.add(list[i], x[i]);
+
+      //list[list.keys.elementAt(i)] = x[i];
+
+      reply.trigger(keyList);
     });
 
     return reply;
@@ -1239,9 +1261,10 @@ class Codec {
     var rt = new BinaryList();
 
     for (var i = 0; i < history.length; i++)
-      rt.addUint8(history.keys.elementAt(i).index).addDC(
-          composePropertyValueArray(
-              history.values.elementAt(i), connection, true));
+      rt
+        ..addUint8(history.keys.elementAt(i).index)
+        ..addDC(composePropertyValueArray(
+            history.values.elementAt(i), connection, true));
 
     if (prependLength) rt.insertInt32(0, rt.length);
 
@@ -1292,7 +1315,7 @@ class Codec {
     if (value is Function(DistributedConnection))
       value = Function.apply(value, [connection]);
     else if (value is DistributedPropertyContext)
-      value = (value as DistributedPropertyContext).method(connection);
+      value = value.method?.call(connection);
 
     var type = getDataType(value, connection);
     var rt = new BinaryList();
@@ -1304,15 +1327,17 @@ class Codec {
 
       case DataType.String:
         var st = DC.stringToBytes(value);
-        rt.addInt32(st.length).addDC(st);
+        rt
+          ..addInt32(st.length)
+          ..addDC(st);
         break;
 
       case DataType.Resource:
-        rt.addUint32((value as DistributedResource).id);
+        rt.addUint32((value as DistributedResource).id as int);
         break;
 
       case DataType.DistributedResource:
-        rt.addUint32((value as IResource).instance.id);
+        rt.addUint32((value as IResource).instance?.id as int);
         break;
 
       case DataType.Structure:
