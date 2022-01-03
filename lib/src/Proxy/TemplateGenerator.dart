@@ -219,7 +219,7 @@ class TemplateGenerator {
       var con = await Warehouse.get<DistributedConnection>(
           (path[1] as String) + "://" + (path[2] as String),
           !isNullOrEmpty(username) && !isNullOrEmpty(password)
-              ? {username: username, password: password}
+              ? {"username": username, "password": password}
               : null);
 
       if (con == null) throw Exception("Can't connect to server");

@@ -3,4 +3,6 @@ class RecordComparisonResult {
   static const Record = 1;
   static const RecordSameType = 2;
   static const Same = 3;
+  static const Empty = 4;
+
 }

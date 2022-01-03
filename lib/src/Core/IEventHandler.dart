@@ -1,4 +1,8 @@
+import 'dart:async';
+
 class IEventHandler {
+  final _propertyModifiedController = StreamController<String>();
+
   Map<String, List<Function>> _events = {};
 
   register(String event) {
@@ -6,6 +10,12 @@ class IEventHandler {
   }
 
   IEventHandler() {}
+
+  Stream get properyModified => _propertyModifiedController.stream;
+
+  emitProperty(String name) {
+    _propertyModifiedController.add(name);
+  }
 
   emitArgs(String event, List arguments) {
     //event = event.toLowerCase();
@@ -21,13 +31,13 @@ class IEventHandler {
 
   on(String event, Function callback) {
     event = event.toLowerCase();
-    if (_events.containsKey(event)) register(event);
+    if (!_events.containsKey(event)) register(event);
     _events[event]?.add(callback);
     return this;
   }
 
-  off(event, callback) {
-    event = event.toString();
+  off(String event, callback) {
+    event = event.toLowerCase();
     if (_events.containsKey(event)) {
       if (callback != null)
         _events[event]?.remove(callback);

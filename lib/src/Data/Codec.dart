@@ -170,9 +170,12 @@ class Codec {
 
       AsyncReply<IRecord?>? previous = null;
 
-      if (result == RecordComparisonResult.Null)
+      if (result == RecordComparisonResult.Empty) {
+        reply.seal();
+        return reply;
+      } else if (result == RecordComparisonResult.Null) {
         previous = AsyncReply<IRecord?>.ready(null);
-      else if (result == RecordComparisonResult.Record ||
+      } else if (result == RecordComparisonResult.Record ||
           result == RecordComparisonResult.RecordSameType) {
         var cs = data.getUint32(offset);
         var recordLength = cs;
@@ -203,8 +206,10 @@ class Codec {
     } else {
       AsyncReply<IRecord?>? previous = null;
       Guid? classId = null;
-
-      if (result == RecordComparisonResult.Null)
+      if (result == RecordComparisonResult.Empty) {
+        reply.seal();
+        return reply;
+      } else if (result == RecordComparisonResult.Null)
         previous = new AsyncReply<IRecord?>.ready(null);
       else if (result == RecordComparisonResult.Record) {
         var cs = data.getUint32(offset);
@@ -392,11 +397,13 @@ class Codec {
   static DC composeRecordArray<T extends IRecord>(
       List<T>? records, DistributedConnection connection,
       [bool prependLength = false]) {
-    if (records == null || records.length == 0)
+    if (records == null) // || records.length == 0)
       return prependLength ? new DC(4) : new DC(0);
 
     var rt = new BinaryList();
-    var comparsion = compareRecords(null, records[0]);
+    var comparsion = records.length == 0
+        ? RecordComparisonResult.Empty
+        : compareRecords(null, records[0]);
 
     //var type = records.getType().GetElementType();
     var isTyped = T == IRecord; // != typeof(IRecord);
@@ -960,11 +967,14 @@ class Codec {
   static DC composeResourceArray<T extends IResource>(
       List<T>? resources, DistributedConnection connection,
       [bool prependLength = false]) {
-    if (resources == null || resources.length == 0)
+    if (resources == null) // || resources.length == 0)
       return prependLength ? new DC(4) : new DC(0);
 
     var rt = new BinaryList();
-    var comparsion = compareResources(null, resources[0], connection);
+    //var comparsion = compareResources(null, resources[0], connection);
+    var comparsion = resources.length == 0
+        ? ResourceComparisonResult.Empty
+        : compareResources(null, resources[0], connection);
 
     if (T != IResource) {
       // get template
@@ -1048,7 +1058,10 @@ class Codec {
 
     AsyncReply<IResource?>? previous = null;
 
-    if (result == ResourceComparisonResult.Null)
+    if (result == ResourceComparisonResult.Empty) {
+      reply.seal();
+      return reply;
+    } else if (result == ResourceComparisonResult.Null)
       previous = new AsyncReply<IResource?>.ready(null);
     else if (result == ResourceComparisonResult.Local) {
       previous = Warehouse.getById(data.getUint32(offset));
@@ -1065,7 +1078,10 @@ class Codec {
 
       AsyncReply<IResource?>? current = null;
 
-      if (result == ResourceComparisonResult.Null) {
+      if (result == ResourceComparisonResult.Empty) {
+        reply.seal();
+        return reply;
+      } else if (result == ResourceComparisonResult.Null) {
         current = new AsyncReply<IResource?>.ready(null);
       } else if (result == ResourceComparisonResult.Same) {
         current = previous;

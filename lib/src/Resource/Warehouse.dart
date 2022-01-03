@@ -65,7 +65,8 @@ class Warehouse {
 
   static KeyList<Type, FactoryEntry> _factory = _getBuiltInTypes();
 
-  static KeyList<String, AsyncReply<IStore> Function(String, dynamic)>
+  static KeyList<String,
+          AsyncReply<IStore> Function(String, Map<String, dynamic>?)>
       protocols = _getSupportedProtocols();
 
   static bool _warehouseIsOpen = false;
@@ -222,7 +223,7 @@ class Warehouse {
   /// <param name="path"></param>
   /// <returns>Resource instance.</returns>
   static AsyncReply<T?> get<T extends IResource>(String path,
-      [attributes = null,
+      [Map<String, dynamic>? attributes = null,
       IResource? parent = null,
       IPermissionsManager? manager = null]) {
     var rt = AsyncReply<T?>();
@@ -232,8 +233,8 @@ class Warehouse {
       var url = _urlRegex.allMatches(path).first;
 
       if (protocols.containsKey(url[1])) {
-        var handler =
-            protocols[url[1]] as AsyncReply<IStore> Function(String, dynamic);
+        var handler = protocols[url[1]] as AsyncReply<IStore> Function(
+            String, Map<String, dynamic>?);
 
         var getFromStore = () {
           handler(url[2] as String, attributes)
@@ -360,7 +361,7 @@ class Warehouse {
       TypeTemplate? customTemplate = null,
       int age = 0,
       IPermissionsManager? manager = null,
-      attributes = null]) {
+      Map<String, dynamic>? attributes = null]) {
     var rt = AsyncReply<T?>();
 
     if (resource.instance != null) {
@@ -493,7 +494,7 @@ class Warehouse {
       [IStore? store = null,
       IResource? parent = null,
       IPermissionsManager? manager = null,
-      attributes = null,
+      Map<String, dynamic>? attributes = null,
       properties = null]) {
     if (_factory[T] == null)
       throw Exception("No Instance Creator was found for type ${T}");
@@ -640,15 +641,30 @@ class Warehouse {
     return true;
   }
 
-  static KeyList<String, AsyncReply<IStore> Function(String, dynamic)>
+  static KeyList<String,
+          AsyncReply<IStore> Function(String, Map<String, dynamic>?)>
       _getSupportedProtocols() {
-    var rt =
-        new KeyList<String, AsyncReply<IStore> Function(String, dynamic)>();
-    rt.add(
-        "iip",
-        (String name, attributes) =>
-            Warehouse.newResource<DistributedConnection>(
-                name, null, null, null, attributes));
+    var rt = new KeyList<String,
+        AsyncReply<IStore> Function(String, Map<String, dynamic>?)>();
+    rt
+      ..add(
+          "iip",
+          (String name, Map<String, dynamic>? attributes) =>
+              Warehouse.newResource<DistributedConnection>(
+                  name, null, null, null, attributes))
+      ..add("iipws", (String name, Map<String, dynamic>? attributes) {
+        if (attributes == null) attributes = {};
+        attributes['ws'] = true;
+        return Warehouse.newResource<DistributedConnection>(
+            name, null, null, null, attributes);
+      })
+      ..add("iipwss", (String name, Map<String, dynamic>? attributes) {
+        if (attributes == null) attributes = {};
+        attributes['wss'] = true;
+        return Warehouse.newResource<DistributedConnection>(
+            name, null, null, null, attributes);
+      });
+
     return rt;
   }
 

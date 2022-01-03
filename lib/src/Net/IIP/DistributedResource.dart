@@ -22,6 +22,7 @@ SOFTWARE.
 
 */
 
+import 'dart:async';
 
 import '../../Resource/Instance.dart';
 
@@ -371,12 +372,12 @@ class DistributedResource extends IResource {
           ..addUint8(index)
           ..addDC(parameters))
         .done()
-          ..then((res) {
-            // not really needed, server will always send property modified,
-            // this only happens if the programmer forgot to emit in property setter
-            _properties[index] = value;
-            reply.trigger(null);
-          });
+      ..then((res) {
+        // not really needed, server will always send property modified,
+        // this only happens if the programmer forgot to emit in property setter
+        _properties[index] = value;
+        reply.trigger(null);
+      });
 
     return reply;
   }

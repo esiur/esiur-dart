@@ -1,3 +1,9 @@
+## [1.4.3] - Hotfix
+Bugfix
+
+## [1.4.2] - Release
+Added get-template command
+
 ## [1.2.3] - Release
 Improved property updating
 

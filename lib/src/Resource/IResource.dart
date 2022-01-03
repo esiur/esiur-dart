@@ -40,4 +40,5 @@ abstract class IResource extends IDestructible {
   getProperty(String name);
 
   TemplateDescriber get template;
+
 }

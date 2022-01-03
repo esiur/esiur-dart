@@ -23,7 +23,14 @@ class AsyncBag<T> extends AsyncReply<List<T>> {
     if (_sealedBag) return;
     _sealedBag = true;
 
-    if (_replies.length == 0) trigger(<T>[]);
+    if (_replies.length == 0) {
+      if (arrayType != null) {
+        var ar = Warehouse.createArray(arrayType as Type);
+        trigger(ar as List<T>);
+      } else {
+        trigger(<T>[]);
+      }
+    }
 
     var results = List<T?>.filled(_replies.length, null);
 
@@ -31,21 +38,23 @@ class AsyncBag<T> extends AsyncReply<List<T>> {
       var k = _replies[i];
       var index = i;
 
-      k..then((r) {
-        results[index] = r;
-        _count++;
-        if (_count == _replies.length) {
-          if (arrayType != null) {
-            var ar = Warehouse.createArray(arrayType as Type);
-            results.forEach(ar.add);
-            trigger(ar as List<T>);
-          } else {
-            trigger(results.cast<T>());
+      k
+        ..then((r) {
+          results[index] = r;
+          _count++;
+          if (_count == _replies.length) {
+            if (arrayType != null) {
+              var ar = Warehouse.createArray(arrayType as Type);
+              results.forEach(ar.add);
+              trigger(ar as List<T>);
+            } else {
+              trigger(results.cast<T>());
+            }
           }
-        }
-      })..error((ex) {
-        triggerError(ex);
-      });
+        })
+        ..error((ex) {
+          triggerError(ex);
+        });
     }
   }
 
