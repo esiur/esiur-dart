@@ -209,9 +209,10 @@ class TemplateGenerator {
   }
 
   static Future<String> getTemplate(String url,
-      [String? dir = null,
-      String? username = null,
-      String? password = null]) async {
+      {String? dir,
+      String? username,
+      String? password,
+      bool getx = false}) async {
     try {
       if (!_urlRegex.hasMatch(url)) throw Exception("Invalid IIP URL");
 
@@ -233,7 +234,7 @@ class TemplateGenerator {
 
       var dstDir = Directory("lib/$dir");
 
-      if (!dstDir.existsSync()) dstDir.createSync();
+      if (!dstDir.existsSync()) dstDir.createSync(recursive: true);
 
       //Map<String, String> namesMap = Map<String, String>();
 
@@ -241,6 +242,9 @@ class TemplateGenerator {
         var imports = StringBuffer();
         imports.writeln("import 'dart:async';");
         imports.writeln("import 'package:esiur/esiur.dart';");
+        if (getx) {
+          imports.writeln("import 'package:get/get.dart';");
+        }
         // make import names
         templates.forEach((tmp) {
           if (tmp != skipTemplate) {
@@ -257,16 +261,16 @@ class TemplateGenerator {
       // make sources
       templates.forEach((tmp) {
         print("Generating `${tmp.className}`.");
+        final filePath = "${dstDir.path}/${tmp.className}.g.dart";
+        final f = File(filePath);
 
+        var source = "";
         if (tmp.type == TemplateType.Resource) {
-          var source = makeImports(tmp) + generateClass(tmp, templates);
-          var f = File("${dstDir.path}/${tmp.className}.g.dart");
-          f.writeAsStringSync(source);
+          source = makeImports(tmp) + generateClass(tmp, templates, getx: getx);
         } else if (tmp.type == TemplateType.Record) {
-          var source = makeImports(tmp) + generateRecord(tmp, templates);
-          var f = File("${dstDir.path}/${tmp.className}.g.dart");
-          f.writeAsStringSync(source);
+          source = makeImports(tmp) + generateRecord(tmp, templates);
         }
+        f.writeAsStringSync(source);
       });
 
       // generate info class
@@ -288,6 +292,8 @@ class TemplateGenerator {
       var f = File("${dstDir.path}/init.g.dart");
       f.writeAsStringSync(typesFile);
 
+      Process.run("dart", ["format", dstDir.path]);
+
       return dstDir.path;
     } catch (ex) {
       throw ex;
@@ -302,7 +308,8 @@ class TemplateGenerator {
   }
 
   static String generateClass(
-      TypeTemplate template, List<TypeTemplate> templates) {
+      TypeTemplate template, List<TypeTemplate> templates,
+      {bool getx = false}) {
     var className = template.className.split('.').last;
 
     var rt = StringBuffer();
@@ -316,7 +323,24 @@ class TemplateGenerator {
       rt.writeln("on('${e.name}', (x) => _${e.name}Controller.add(x));");
     });
 
+    if (getx) {
+      rt.writeln("ob = obs;");
+      rt.writeln("_sub = properyModified.listen((_) => ob.trigger(this));");
+    }
+
     rt.writeln("}");
+
+    if (getx) {
+      rt.writeln("\nlate final Rx<$className> ob;");
+      rt.writeln("late final StreamSubscription? _sub;\n");
+
+      rt.writeln("""@override
+  void destroy() {
+    _sub?.cancel();
+
+    super.destroy();
+  }""");
+    }
 
     template.functions.forEach((f) {
       var rtTypeName = getTypeName(template, f.returnType, templates, true);
