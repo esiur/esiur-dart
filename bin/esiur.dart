@@ -23,7 +23,8 @@ void main(List<String> arguments) async {
     final parser = ArgParser()
       ..addOption('username', abbr: 'u')
       ..addOption('password', abbr: 'p')
-      ..addOption('dir', abbr: 'd');
+      ..addOption('dir', abbr: 'd')
+      ..addFlag("getx", abbr: 'x');
 
     var results = parser.parse(arguments.skip(2));
 
@@ -34,8 +35,11 @@ void main(List<String> arguments) async {
     //print("Username ${username} password ${password} dir ${dir}");
 
     // make template
-    var destDir =
-        await TemplateGenerator.getTemplate(link, dir, username, password);
+    var destDir = await TemplateGenerator.getTemplate(link,
+        dir: dir,
+        username: username,
+        password: password,
+        getx: results['getx']);
 
     print("Generated directory `${destDir}`");
 
