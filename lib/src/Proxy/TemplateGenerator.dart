@@ -355,14 +355,13 @@ class TemplateGenerator {
       if (f.arguments.isNotEmpty && namedArgs) {
         rt.write("{");
       }
-      final typeSuffix = namedArgs ? "?" : "";
-      rt.write(f.arguments
-          .map((x) =>
-              getTypeName(template, x.type, templates, true) +
-              typeSuffix +
-              " " +
-              x.name)
-          .join(","));
+      rt.write(f.arguments.map((x) {
+        final typeName = getTypeName(template, x.type, templates, true);
+        return typeName +
+            (namedArgs && !typeName.endsWith("?") ? "?" : "") +
+            " " +
+            x.name;
+      }).join(","));
       if (f.arguments.isNotEmpty && namedArgs) {
         rt.write("}");
       }
