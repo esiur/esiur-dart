@@ -208,11 +208,14 @@ class TemplateGenerator {
     return v == null || v == "";
   }
 
-  static Future<String> getTemplate(String url,
-      {String? dir,
-      String? username,
-      String? password,
-      bool getx = false}) async {
+  static Future<String> getTemplate(
+    String url, {
+    String? dir,
+    String? username,
+    String? password,
+    bool getx = false,
+    bool namedArgs = false,
+  }) async {
     try {
       if (!_urlRegex.hasMatch(url)) throw Exception("Invalid IIP URL");
 
@@ -266,7 +269,8 @@ class TemplateGenerator {
 
         var source = "";
         if (tmp.type == TemplateType.Resource) {
-          source = makeImports(tmp) + generateClass(tmp, templates, getx: getx);
+          source = makeImports(tmp) +
+              generateClass(tmp, templates, getx: getx, namedArgs: namedArgs);
         } else if (tmp.type == TemplateType.Record) {
           source = makeImports(tmp) + generateRecord(tmp, templates);
         }
@@ -308,8 +312,11 @@ class TemplateGenerator {
   }
 
   static String generateClass(
-      TypeTemplate template, List<TypeTemplate> templates,
-      {bool getx = false}) {
+    TypeTemplate template,
+    List<TypeTemplate> templates, {
+    bool getx = false,
+    bool namedArgs = false,
+  }) {
     var className = template.className.split('.').last;
 
     var rt = StringBuffer();
@@ -345,10 +352,20 @@ class TemplateGenerator {
     template.functions.forEach((f) {
       var rtTypeName = getTypeName(template, f.returnType, templates, true);
       rt.write("AsyncReply<$rtTypeName> ${f.name}(");
+      if (f.arguments.isNotEmpty && namedArgs) {
+        rt.write("{");
+      }
+      final typeSuffix = namedArgs ? "?" : "";
       rt.write(f.arguments
           .map((x) =>
-              getTypeName(template, x.type, templates, true) + " " + x.name)
+              getTypeName(template, x.type, templates, true) +
+              typeSuffix +
+              " " +
+              x.name)
           .join(","));
+      if (f.arguments.isNotEmpty && namedArgs) {
+        rt.write("}");
+      }
 
       rt.writeln(") {");
       rt.writeln("var rt = AsyncReply<$rtTypeName>();");
