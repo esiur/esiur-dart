@@ -377,10 +377,12 @@ class TemplateGenerator {
     });
 
     template.properties.forEach((p) {
-      var ptTypeName = getTypeName(template, p.valueType, templates, true);
-      rt.writeln("${ptTypeName} get ${p.name} { return get(${p.index}); }");
+      final ptTypeName = getTypeName(template, p.valueType, templates, true);
+      final suffix = p.valueType.type == DataType.String ? "?" : "";
       rt.writeln(
-          "set ${p.name}(${ptTypeName} value) { set(${p.index}, value); }");
+          "$ptTypeName$suffix get ${p.name} { return get(${p.index}); }");
+      rt.writeln(
+          "set ${p.name}($ptTypeName$suffix value) { set(${p.index}, value); }");
     });
 
     template.events.forEach((e) {

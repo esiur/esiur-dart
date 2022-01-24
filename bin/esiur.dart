@@ -72,6 +72,10 @@ printUsage() {
   print("");
   print("Available commands:");
   print("\tget-template\tGet a template from an IIP link.");
+  print("\t\tFlags:");
+  print("\t\t\t-x, --getx\tGenerate apropriate getx bindings for resources.");
+  print(
+      "\t\t\t--namedargs\tUse named arguments instead of positional arguments for resource methods");
   print("\tversion: print esiur version.");
   print("");
   print("Global options:");
