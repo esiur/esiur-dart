@@ -24,7 +24,17 @@ void main(List<String> arguments) async {
       ..addOption('username', abbr: 'u')
       ..addOption('password', abbr: 'p')
       ..addOption('dir', abbr: 'd')
-      ..addFlag("getx", abbr: 'x');
+      ..addFlag(
+        "getx",
+        abbr: 'x',
+        defaultsTo: false,
+        help: "Generate apropriate getx bindings for resources",
+      )
+      ..addFlag(
+        "namedargs",
+        help:
+            "Use named arguments instead of positional arguments for resource methods",
+      );
 
     var results = parser.parse(arguments.skip(2));
 
@@ -35,11 +45,14 @@ void main(List<String> arguments) async {
     //print("Username ${username} password ${password} dir ${dir}");
 
     // make template
-    var destDir = await TemplateGenerator.getTemplate(link,
-        dir: dir,
-        username: username,
-        password: password,
-        getx: results['getx']);
+    var destDir = await TemplateGenerator.getTemplate(
+      link,
+      dir: dir,
+      username: username,
+      password: password,
+      getx: results['getx'],
+      namedArgs: results["namedargs"],
+    );
 
     print("Generated directory `${destDir}`");
 
