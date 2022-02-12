@@ -1,7 +1,10 @@
 import 'dart:async';
 
+import 'PropertyModificationInfo.dart';
+
 class IEventHandler {
-  final _propertyModifiedController = StreamController<String>();
+  final _propertyModifiedController =
+      StreamController<PropertyModificationInfo>();
 
   Map<String, List<Function>> _events = {};
 
@@ -11,10 +14,11 @@ class IEventHandler {
 
   IEventHandler() {}
 
-  Stream get properyModified => _propertyModifiedController.stream;
+  Stream<PropertyModificationInfo> get properyModified =>
+      _propertyModifiedController.stream;
 
-  emitProperty(String name) {
-    _propertyModifiedController.add(name);
+  emitProperty(PropertyModificationInfo event) {
+    _propertyModifiedController.add(event);
   }
 
   emitArgs(String event, List arguments) {
