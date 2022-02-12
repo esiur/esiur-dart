@@ -482,12 +482,12 @@ class Warehouse {
     return rt;
   }
 
-  static T createInstance<T>(Type T) {
-    return _factory[T]?.instanceCreator.call();
+  static T createInstance<T>(Type type) {
+    return _factory[type]?.instanceCreator.call();
   }
 
-  static List<T> createArray<T>(Type T) {
-    return _factory[T]?.arrayCreator.call();
+  static List<T> createArray<T>(Type type) {
+    return _factory[type]?.arrayCreator.call();
   }
 
   static AsyncReply<T> newResource<T extends IResource>(String name,
@@ -546,16 +546,17 @@ class Warehouse {
   /// </summary>
   /// <param name="type">.Net type.</param>
   /// <returns>Resource template.</returns>
-  static TypeTemplate getTemplateByType(Type type) {
+  static TypeTemplate? getTemplateByType(Type type) {
     // loaded ?
     for (var tmps in _templates.values)
       for (var tmp in tmps.values) if (tmp.definedType == type) return tmp;
 
-    //if (tmp.className == type.toString()) return tmp;
-
+    //try {
     var template = new TypeTemplate.fromType(type, true);
-
     return template;
+    //} catch (ex) {
+    //  return null;
+    //}
   }
 
   /// <summary>

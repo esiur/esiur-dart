@@ -1,4 +1,4 @@
-import 'dart:ffi';
+//import 'dart:ffi';
 
 import '../../Data/IRecord.dart';
 import '../../Resource/IResource.dart';
@@ -27,31 +27,32 @@ class TemplateDataType {
   TemplateDataType.fromType(type, bool isArray) {
     int dt;
 
-    if (type == null || type == dynamic)
+    if (type == null || type == dynamic) {
       dt = DataType.Void;
-    else if (type is int) {
-      dt = type;
-    } else if (type == bool)
+    }
+    // else if (type is int) {
+    //   dt = type;
+    else if (type == bool)
       dt = DataType.Bool;
-    else if (type == Uint8)
-      dt = DataType.UInt8;
-    else if (type == Int8)
-      dt = DataType.Int8;
-    else if (type == Uint16)
-      dt = DataType.UInt16;
-    else if (type == Int16)
-      dt = DataType.Int16;
-    else if (type == Uint32)
-      dt = DataType.UInt32;
-    else if (type == Int32)
-      dt = DataType.Int32;
-    else if (type == Uint64)
-      dt = DataType.UInt64;
-    else if (type == Int64 || type == int)
+    // else if (type == Uint8)
+    //   dt = DataType.UInt8;
+    // else if (type == Int8)
+    //   dt = DataType.Int8;
+    // else if (type == Uint16)
+    //   dt = DataType.UInt16;
+    // else if (type == Int16)
+    //   dt = DataType.Int16;
+    // else if (type == Uint32)
+    //   dt = DataType.UInt32;
+    // else if (type == Int32)
+    //   dt = DataType.Int32;
+    // else if (type == Uint64)
+    //   dt = DataType.UInt64;
+    else if (/* type == Int64 || */ type == int)
       dt = DataType.Int64;
-    else if (type == Float)
-      dt = DataType.Float32;
-    else if (type == Double || type == double)
+    // else if (type == Float)
+    //   dt = DataType.Float32;
+    else if (/* type == Double || */ type == double)
       dt = DataType.Float64;
     else if (type == String)
       dt = DataType.String;

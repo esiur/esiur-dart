@@ -1,4 +1,5 @@
 import 'dart:core';
+
 import '../Data/DC.dart';
 import '../Data/Structure.dart';
 import '../Data/AutoList.dart';
@@ -20,6 +21,9 @@ import '../Security/Authority/Session.dart';
 import './Template/MemberTemplate.dart';
 import '../Data/PropertyValue.dart';
 import 'Warehouse.dart';
+
+import '../Core/PropertyModificationInfo.dart';
+
 
 class Instance extends IEventHandler {
   String _name;
@@ -387,7 +391,8 @@ class Instance extends IEventHandler {
     //_resource.emitArgs("modified", [pt.name, value]);
     _resource.emitArgs(":${pt.name}", [value]);
 
-    _resource.emitProperty(pt.name);
+    _resource.emitProperty(
+        PropertyModificationInfo(_resource, pt, value, _instanceAge));
   }
 
   /// <summary>
@@ -542,7 +547,7 @@ class Instance extends IEventHandler {
     if (customTemplate != null)
       _template = customTemplate;
     else
-      _template = Warehouse.getTemplateByType(resource.runtimeType);
+      _template = Warehouse.getTemplateByType(resource.runtimeType)!;
 
     // set ages
     for (int i = 0; i < _template.properties.length; i++) {

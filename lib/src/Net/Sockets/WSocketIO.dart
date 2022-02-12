@@ -22,8 +22,11 @@ SOFTWARE.
 
 */
 
-//import 'package:web_socket_channel/html.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
+import 'dart:io';
+
+//import 'package:web_socket_channel/io.dart' as WS;
+
+import 'package:web_socket_channel/io.dart';
 
 import '../../Core/ErrorType.dart';
 import '../../Core/ExceptionCode.dart';
@@ -37,8 +40,9 @@ import 'SocketState.dart';
 import 'IPEndPoint.dart';
 import '../../Core/AsyncReply.dart';
 
-class WSocket extends ISocket {
-  WebSocketChannel? _channel;
+class WSocketIO extends ISocket {
+  WebSocket? _sock;
+  IOWebSocketChannel? _channel;
 
   NetworkBuffer receiveNetworkBuffer = new NetworkBuffer();
 
@@ -55,19 +59,16 @@ class WSocket extends ISocket {
 
     began = true;
 
-    if (_channel != null) {
-      _localEP = IPEndPoint([0, 0, 0, 0], 0);
-      _remoteEP = IPEndPoint([0, 0, 0, 0], 0);
-      _channel?.stream
-          .listen(_dataHandler, onError: errorHandler, onDone: doneHandler);
+    if (_sock != null) {
+      var s = _sock as Socket;
+      _localEP = IPEndPoint(s.address.rawAddress, s.port);
+      _remoteEP = IPEndPoint(s.remoteAddress.rawAddress, s.remotePort);
     }
-
     return true;
   }
 
-  void _dataHandler(data) {
+  void dataHandler(List<int> data) {
     try {
-      //List<int> data
       if (_state == SocketState.Closed || _state == SocketState.Terminated)
         return;
 
@@ -85,7 +86,6 @@ class WSocket extends ISocket {
 
   void errorHandler(error, StackTrace trace) {
     print(error);
-    close();
   }
 
   void doneHandler() {
@@ -99,15 +99,19 @@ class WSocket extends ISocket {
     try {
       _state = SocketState.Connecting;
 
-      _channel = WebSocketChannel.connect(
-        Uri.parse("${secure ? 'wss' : 'ws'}://${hostname}:${port}"),
-      ); //binaryType: BinaryType.list);
-
-      _state = SocketState.Established;
-
-      begin();
-      receiver?.networkConnect(this);
-      rt.trigger(true);
+      WebSocket.connect("${secure ? 'wss' : 'ws'}://${hostname}:${port}'")
+          .then((s) {
+        _sock = s;
+        _state = SocketState.Established;
+        _channel = IOWebSocketChannel(s);
+        begin();
+        receiver?.networkConnect(this);
+        rt.trigger(true);
+      }).catchError((ex) {
+        close();
+        rt.triggerError(AsyncException(ErrorType.Management,
+            ExceptionCode.HostNotReachable.index, ex.toString()));
+      });
     } catch (ex) {
       rt.triggerError(AsyncException(ErrorType.Management,
           ExceptionCode.HostNotReachable.index, ex.toString()));
@@ -129,19 +133,22 @@ class WSocket extends ISocket {
     if (state != SocketState.Closed && state != SocketState.Terminated)
       _state = SocketState.Closed;
 
-    _channel?.sink.close();
+    _sock?.close();
+
     receiver?.networkClose(this);
+
+    //emitArgs("close", []);
   }
 
   void send(DC message, [int? offset, int? size]) {
     if (state == SocketState.Established) {
       if (offset != null && size == null) {
         _channel?.sink
-            .add(message.clip(offset, message.length - offset).toArray());
+            .add(message.clip(offset, message.length - offset).toList());
       } else if (offset != null && size != null) {
-        _channel?.sink.add(message.clip(offset, size).toArray());
+        _channel?.sink.add(message.clip(offset, size).toList());
       } else {
-        _channel?.sink.add(message.toArray());
+        _channel?.sink.add(message.toList());
       }
     }
   }

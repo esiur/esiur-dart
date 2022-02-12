@@ -137,7 +137,7 @@ class SHA256 {
       // (The initial values in w[0..63] don't matter, so many implementations zero them here)
       // copy chunk into first 16 words w[0..15] of the message schedule array
 
-      var w = new Uint64List(64); // uint[64];
+      var w = new Uint32List(64); // new Uint64List(64); // uint[64];
       for (var i = 0; i < 16; i++) w[i] = data.getUint32(chunk + (i * 4));
 
       //for(var i = 16; i < 64; i++)

@@ -267,7 +267,7 @@ class DistributedConnection extends NetworkConnection with IStore {
       throw AsyncException(ErrorType.Exception, 0, "Session not initialized");
 
     if (socket == null) {
-      if (useWebsocket) {
+      if (useWebsocket || kIsWeb) {
         socket = new WSocket()..secure = secureWebSocket;
       } else
         socket = new TCPSocket();
@@ -2381,7 +2381,7 @@ class DistributedConnection extends NetworkConnection with IStore {
           // @TODO: Generator code
           DistributedResource dr;
 
-          if (resource == null) {
+          if (resource == null) { 
             var template =
                 Warehouse.getTemplateByClassId(rt[0], TemplateType.Wrapper);
             if (template?.definedType != null) {

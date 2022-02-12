@@ -20,11 +20,14 @@
 * SOFTWARE.
 */
 
+ 
 import 'dart:typed_data';
 import 'dart:convert';
 import 'BinaryList.dart';
 import 'dart:collection';
 import 'Guid.dart';
+
+const bool kIsWeb = identical(0, 0.0);
 
 /**
  * Created by Ahmed Zamil on 6/10/2019.
@@ -245,8 +248,9 @@ class DC with IterableMixin<int> {
     var list = new BinaryList();
     for (var i = 0; i < value.length; i++) {
       var s = DC.stringToBytes(value[i]);
-      list..addUint32(s.length)
-          ..addUint8Array(s.toArray());
+      list
+        ..addUint32(s.length)
+        ..addUint8Array(s.toArray());
     }
 
     return list.toDC();
@@ -386,12 +390,26 @@ class DC with IterableMixin<int> {
     return _data.buffer.asFloat64List(offset, length);
   }
 
-  Int64List getInt64Array(int offset, int length) {
-    return _data.buffer.asInt64List(offset, length);
+  //Int64List
+  getInt64Array(int offset, int length) {
+    if (kIsWeb) {
+      var rt = <int>[];
+      for (var i = offset; i < length; i += 4) rt.add(this.getInt64(offset));
+      return rt;
+    } else {
+      return _data.buffer.asInt64List(offset, length);
+    }
   }
 
-  Uint64List getUint64Array(int offset, int length) {
-    return _data.buffer.asUint64List(offset, length);
+  //Uint64List
+  getUint64Array(int offset, int length) {
+    if (kIsWeb) {
+      var rt = <int>[];
+      for (var i = offset; i < length; i += 4) rt.add(this.getUint64(offset));
+      return rt;
+    } else {
+      return _data.buffer.asUint64List(offset, length);
+    }
   }
 
   bool getBoolean(int offset) {
@@ -464,11 +482,23 @@ class DC with IterableMixin<int> {
   }
 
   int getInt64(offset) {
-    return _dv.getUint64(offset);
+    if (kIsWeb) {
+      var h = this.getUint32(offset);
+      var l = this.getUint32(offset + 4);
+      return h * TWO_PWR_32 + ((l >= 0) ? l : TWO_PWR_32 + l);
+    } else {
+      return _dv.getUint64(offset);
+    }
   }
 
   int getUint64(offset) {
-    return _dv.getInt64(offset);
+    if (kIsWeb) {
+      var h = this.getUint32(offset);
+      var l = this.getUint32(offset + 4);
+      return h * TWO_PWR_32 + ((l >= 0) ? l : TWO_PWR_32 + l);
+    } else {
+      return _dv.getInt64(offset);
+    }
   }
 
   void setInt64(offset, value) {
@@ -476,7 +506,14 @@ class DC with IterableMixin<int> {
   }
 
   void setUint64(offset, value) {
-    _dv.setUint64(offset, value);
+    if (kIsWeb) {
+      var l = (value % TWO_PWR_32) | 0;
+      var h = (value / TWO_PWR_32) | 0;
+      _dv.setInt32(offset, h);
+      _dv.setInt32(offset + 4, l);
+    } else {
+      _dv.setUint64(offset, value);
+    }
   }
 
   void setDateTime(offset, DateTime value) {
