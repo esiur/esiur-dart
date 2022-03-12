@@ -58,13 +58,13 @@ void main(List<String> arguments) async {
 
     return;
   } else if (cmd == "version") {
-    await printVersion();
+    printVersion();
   } else {
     printUsage();
   }
 }
 
-printUsage() {
+void printUsage() {
   // print help
   print("Esiur package command line");
   print("");
@@ -80,7 +80,7 @@ printUsage() {
   print("\t-d, --dir\tName of the directory to generate model inside.");
 }
 
-printVersion() async {
+void printVersion() async {
   var p = Platform.script.pathSegments;
   var path = p.take(p.length - 2).join('/') + "/pubspec.yaml";
   var yaml = await File(path).readAsString();

@@ -22,6 +22,16 @@ SOFTWARE.
 
 */
 
+import '../Data/IntType.dart';
+
+import '../Data/TransmissionType.dart';
+import '../Data/RepresentationType.dart';
+
+import '../Data/Record.dart';
+
+import '../Core/Tuple.dart';
+import '../Data/IRecord.dart';
+
 import '../Core/AsyncException.dart';
 import '../Core/ErrorType.dart';
 import '../Core/ExceptionCode.dart';
@@ -32,7 +42,6 @@ import 'Template/TemplateType.dart';
 import 'Template/TypeTemplate.dart';
 import '../Data/Guid.dart';
 import '../Data/KeyList.dart';
-import '../Data/Structure.dart';
 import '../Security/Permissions/IPermissionsManager.dart';
 import 'IResource.dart';
 import 'Instance.dart';
@@ -52,7 +61,7 @@ class Warehouse {
   static KeyList<TemplateType, KeyList<Guid, TypeTemplate>> _templates =
       _initTemplates(); //
 
-  static _initTemplates() {
+  static KeyList<TemplateType, KeyList<Guid, TypeTemplate>> _initTemplates() {
     var rt = new KeyList<TemplateType, KeyList<Guid, TypeTemplate>>();
 
     rt.add(TemplateType.Unspecified, new KeyList<Guid, TypeTemplate>());
@@ -427,8 +436,7 @@ class Warehouse {
     resource.instance = new Instance(
         resourceCounter++, name, resource, store, customTemplate, age);
 
-    if (attributes != null)
-      resource.instance?.setAttributes(Structure.fromMap(attributes));
+    if (attributes != null) resource.instance?.setAttributes(attributes);
 
     if (manager != null) resource.instance?.managers.add(manager);
 
@@ -482,12 +490,14 @@ class Warehouse {
     return rt;
   }
 
+  static KeyList<Type, FactoryEntry> get typesFactory => _factory;
+
   static T createInstance<T>(Type type) {
-    return _factory[type]?.instanceCreator.call();
+    return _factory[type]?.instanceCreator.call() as T;
   }
 
   static List<T> createArray<T>(Type type) {
-    return _factory[type]?.arrayCreator.call();
+    return _factory[type]?.arrayCreator.call() as List<T>;
   }
 
   static AsyncReply<T> newResource<T extends IResource>(String name,
@@ -495,17 +505,17 @@ class Warehouse {
       IResource? parent = null,
       IPermissionsManager? manager = null,
       Map<String, dynamic>? attributes = null,
-      properties = null]) {
+      Map<String, dynamic>? properties = null]) {
     if (_factory[T] == null)
       throw Exception("No Instance Creator was found for type ${T}");
 
-    var resource = _factory[T]?.instanceCreator.call();
+    var resource = _factory[T]?.instanceCreator.call() as T;
 
     if (properties != null) {
       dynamic d = resource;
 
       for (var i = 0; i < properties.length; i++)
-        d[properties.keys.elementAt(i)] = properties.at(i);
+        d[properties.keys.elementAt(i)] = properties.values.elementAt(i);
       //setProperty(resource, properties.keys.elementAt(i), properties.at(i));
     }
 
@@ -669,17 +679,112 @@ class Warehouse {
     return rt;
   }
 
-  static defineCreator(
-      Type type, Function instanceCreator, Function arrayCreator) {
-    _factory.add(type, FactoryEntry(type, instanceCreator, arrayCreator));
+  static List<FactoryEntry> _getTypeEntries<T>(
+      Function instanceCreator, RepresentationType representationType) {
+    return [
+      FactoryEntry<T>(instanceCreator, representationType),
+      FactoryEntry<T?>(instanceCreator, representationType.toNullable()),
+      FactoryEntry<List<T>>(
+          () => <T>[],
+          RepresentationType(RepresentationTypeIdentifier.TypedList, false,
+              null, [representationType])),
+      FactoryEntry<List<T>?>(
+          () => <T>[],
+          RepresentationType(RepresentationTypeIdentifier.TypedList, true, null,
+              [representationType])),
+      FactoryEntry<List<T?>>(
+          () => <T?>[],
+          RepresentationType(RepresentationTypeIdentifier.TypedList, false,
+              null, [representationType.toNullable()])),
+      FactoryEntry<List<T?>?>(
+          () => <T?>[],
+          RepresentationType(RepresentationTypeIdentifier.TypedList, true, null,
+              [representationType.toNullable()])),
+    ];
+  }
+
+  static void defineType<T>(
+      Function instanceCreator, RepresentationType representationType) {
+    var entries = _getTypeEntries<T>(instanceCreator, representationType);
+    entries.forEach((e) {
+      _factory.add(e.type, e);
+    });
   }
 
   static KeyList<Type, FactoryEntry> _getBuiltInTypes() {
     var rt = KeyList<Type, FactoryEntry>();
-    rt.add(
-        DistributedConnection,
-        FactoryEntry(DistributedConnection, () => DistributedConnection(),
-            () => DistributedConnection()));
+
+    var types = <FactoryEntry>[
+      FactoryEntry<DistributedConnection>(
+          () => DistributedConnection(), RepresentationType.Void)
+    ];
+
+    types
+      ..addAll(_getTypeEntries<Int8>(() => 0,
+          RepresentationType(RepresentationTypeIdentifier.Int8, false)))
+      ..addAll(_getTypeEntries<UInt8>(() => 0,
+          RepresentationType(RepresentationTypeIdentifier.UInt8, false)))
+      ..addAll(_getTypeEntries<Int16>(() => 0,
+          RepresentationType(RepresentationTypeIdentifier.Int16, false)))
+      ..addAll(_getTypeEntries<UInt16>(() => 0,
+          RepresentationType(RepresentationTypeIdentifier.UInt16, false)))
+      ..addAll(_getTypeEntries<Int32>(() => 0,
+          RepresentationType(RepresentationTypeIdentifier.Int32, false)))
+      ..addAll(_getTypeEntries<UInt32>(() => 0,
+          RepresentationType(RepresentationTypeIdentifier.UInt32, false)))
+      ..addAll(_getTypeEntries<int>(() => 0,
+          RepresentationType(RepresentationTypeIdentifier.Int64, false)))
+      ..addAll(_getTypeEntries<bool>(() => false,
+          RepresentationType(RepresentationTypeIdentifier.Bool, false)))
+      ..addAll(_getTypeEntries<double>(() => 0.0,
+          RepresentationType(RepresentationTypeIdentifier.Float64, false)))
+      ..addAll(_getTypeEntries<String>(() => "",
+          RepresentationType(RepresentationTypeIdentifier.String, false)))
+      ..addAll(_getTypeEntries<DateTime>(() => DateTime.now(),
+          RepresentationType(RepresentationTypeIdentifier.DateTime, false)))
+      ..addAll(_getTypeEntries<Record>(() => Record(),
+          RepresentationType(RepresentationTypeIdentifier.Record, false)))
+      ..addAll(_getTypeEntries<IResource>(() => null,
+          RepresentationType(RepresentationTypeIdentifier.Resource, false)))
+      ..addAll(_getTypeEntries<List>(() => [],
+          RepresentationType(RepresentationTypeIdentifier.List, false)))
+      ..addAll(_getTypeEntries<Map>(() => Map(),
+          RepresentationType(RepresentationTypeIdentifier.Map, false)))
+      ..addAll(_getTypeEntries<Map<String, dynamic>>(
+          () => Map<String, dynamic>,
+          RepresentationType(
+              RepresentationTypeIdentifier.TypedMap, false, null, [
+            RepresentationType(RepresentationTypeIdentifier.String, false),
+            RepresentationType.Dynamic
+          ])))
+      ..addAll(_getTypeEntries<Map<int, dynamic>>(
+          () => Map<int, dynamic>(),
+          RepresentationType(
+              RepresentationTypeIdentifier.TypedMap, false, null, [
+            RepresentationType(RepresentationTypeIdentifier.Int64, false),
+            RepresentationType.Dynamic
+          ])))
+      ..addAll(_getTypeEntries<Map<Int32, dynamic>>(
+          () => Map<Int32, dynamic>(),
+          RepresentationType(
+              RepresentationTypeIdentifier.TypedMap, false, null, [
+            RepresentationType(RepresentationTypeIdentifier.Int32, false),
+            RepresentationType.Dynamic
+          ])))
+      ..addAll(_getTypeEntries<Map<UInt8, dynamic>>(
+          () => Map<UInt8, dynamic>(),
+          RepresentationType(
+              RepresentationTypeIdentifier.TypedMap, false, null, [
+            RepresentationType(RepresentationTypeIdentifier.UInt8, false),
+            RepresentationType.Dynamic
+          ])))
+      ..addAll(
+          _getTypeEntries<dynamic>(() => Object(), RepresentationType.Dynamic));
+
+    types.forEach((element) {
+      rt.add(element.type, element);
+    });
+
     return rt;
   }
 }

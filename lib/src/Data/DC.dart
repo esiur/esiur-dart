@@ -20,7 +20,6 @@
 * SOFTWARE.
 */
 
- 
 import 'dart:typed_data';
 import 'dart:convert';
 import 'BinaryList.dart';
@@ -55,6 +54,28 @@ class DC with IterableMixin<int> {
     _dv = ByteData.view(_data.buffer);
   }
 
+  String toHex([String separator = " ", int? offset, int? length]) {
+    var start = offset ?? 0;
+    var count = length ?? _data.length - start;
+
+    if (count == 0) return "";
+
+    var rt = _data[start].toRadixString(16).padLeft(2, '0');
+
+    for (var i = start + 1; i < count; i++) {
+      rt += separator + _data[i].toRadixString(16).padLeft(2, '0');
+    }
+
+    return rt;
+  }
+
+  DC.fromHex(String hex, [String separator = ' ']) {
+    var list =
+        hex.split(separator).map((e) => int.parse(e, radix: 16)).toList();
+    _data = Uint8List.fromList(list);
+    _dv = ByteData.view(_data.buffer);
+  }
+
   int operator [](int index) => _data[index];
   operator []=(int index, int value) => _data[index] = value;
   int get length => _data.length;
@@ -69,7 +90,7 @@ class DC with IterableMixin<int> {
     return rt;
   }
 
-  static DC boolToBytes(value) {
+  static DC boolToBytes(bool value) {
     var rt = new DC(1);
     rt.setBoolean(0, value);
     return rt;
@@ -81,19 +102,7 @@ class DC with IterableMixin<int> {
     return rt;
   }
 
-  static DC guidArrayToBytes(List<Guid> value) {
-    var rt = new DC(value.length * 16);
-    for (var i = 0; i < value.length; i++) rt.setGuid(i * 16, value[i]);
-    return rt;
-  }
-
-  static DC boolArrayToBytes(List<bool> value) {
-    var rt = new DC(value.length);
-    for (var i = 0; i < value.length; i++) rt[i] = value[i] ? 1 : 0;
-    return rt;
-  }
-
-  static DC int8ToBytes(value) {
+  static DC int8ToBytes(int value) {
     var rt = new DC(1);
     rt.setInt8(0, value);
     return rt;
@@ -105,7 +114,7 @@ class DC with IterableMixin<int> {
     return rt;
   }
 
-  static DC uint8ToBytes(value) {
+  static DC uint8ToBytes(int value) {
     var rt = new DC(1);
     rt.setUint8(0, value);
     return rt;
@@ -123,28 +132,21 @@ class DC with IterableMixin<int> {
     return rt;
   }
 
-  static DC charArrayToBytes(Uint16List value) {
-    var rt = new DC(value.length * 2);
-    for (var i = 0; i < value.length; i++) rt.setChar(i * 2, value[i]);
-
-    return rt;
-  }
-
-  static DC int16ToBytes(int value) {
+  static DC int16ToBytes(int value, [Endian endian = Endian.little]) {
     var rt = new DC(2);
-    rt.setInt16(0, value);
+    rt.setInt16(0, value, endian);
     return rt;
   }
 
-  static DC int16ArrayToBytes(List<int> value) {
+  static DC int16ArrayToBytes(Int16List value) {
     var rt = new DC(value.length * 2);
     for (var i = 0; i < value.length; i++) rt.setInt16(i * 2, value[i]);
     return rt;
   }
 
-  static DC uint16ToBytes(int value) {
+  static DC uint16ToBytes(int value, [Endian endian = Endian.little]) {
     var rt = new DC(2);
-    rt.setUint16(0, value);
+    rt.setUint16(0, value, endian);
     return rt;
   }
 
@@ -154,9 +156,9 @@ class DC with IterableMixin<int> {
     return rt;
   }
 
-  static DC int32ToBytes(int value) {
+  static DC int32ToBytes(int value, [Endian endian = Endian.little]) {
     var rt = new DC(4);
-    rt.setInt32(0, value);
+    rt.setInt32(0, value, endian);
     return rt;
   }
 
@@ -166,9 +168,9 @@ class DC with IterableMixin<int> {
     return rt;
   }
 
-  static DC uint32ToBytes(int value) {
+  static DC uint32ToBytes(int value, [Endian endian = Endian.little]) {
     var rt = new DC(4);
-    rt.setUint32(0, value);
+    rt.setUint32(0, value, endian);
     return rt;
   }
 
@@ -178,9 +180,9 @@ class DC with IterableMixin<int> {
     return rt;
   }
 
-  static DC float32ToBytes(double value) {
+  static DC float32ToBytes(double value, [Endian endian = Endian.little]) {
     var rt = new DC(4);
-    rt.setFloat32(0, value);
+    rt.setFloat32(0, value, endian);
     return rt;
   }
 
@@ -190,9 +192,9 @@ class DC with IterableMixin<int> {
     return rt;
   }
 
-  static DC int64ToBytes(int value) {
+  static DC int64ToBytes(int value, [Endian endian = Endian.little]) {
     var rt = new DC(8);
-    rt.setInt64(0, value);
+    rt.setInt64(0, value, endian);
     return rt;
   }
 
@@ -202,9 +204,9 @@ class DC with IterableMixin<int> {
     return rt;
   }
 
-  static DC uint64ToBytes(int value) {
+  static DC uint64ToBytes(int value, [Endian endian = Endian.little]) {
     var rt = new DC(8);
-    rt.setUint64(0, value);
+    rt.setUint64(0, value, endian);
     return rt;
   }
 
@@ -214,9 +216,9 @@ class DC with IterableMixin<int> {
     return rt;
   }
 
-  static DC float64ToBytes(double value) {
+  static DC float64ToBytes(double value, [Endian endian = Endian.little]) {
     var rt = new DC(8);
-    rt.setFloat64(0, value);
+    rt.setFloat64(0, value, endian);
     return rt;
   }
 
@@ -226,15 +228,15 @@ class DC with IterableMixin<int> {
     return rt;
   }
 
-  static DC dateTimeToBytes(DateTime value) {
+  static DC dateTimeToBytes(DateTime value, [Endian endian = Endian.little]) {
     var rt = new DC(8);
-    rt.setDateTime(0, value);
+    rt.setDateTime(0, value, endian);
     return rt;
   }
 
-  static DC dateTimeArrayToBytes(List<DateTime> value) {
+  static DC dateTimeArrayToBytes(List<DateTime> value, [Endian endian = Endian.little]) {
     var rt = new DC(value.length * 8);
-    for (var i = 0; i < value.length; i++) rt.setDateTime(i * 8, value[i]);
+    for (var i = 0; i < value.length; i++) rt.setDateTime(i * 8, value[i], endian);
     return rt;
   }
 
@@ -244,26 +246,14 @@ class DC with IterableMixin<int> {
     return rt;
   }
 
-  static DC stringArrayToBytes(List<String> value) {
-    var list = new BinaryList();
-    for (var i = 0; i < value.length; i++) {
-      var s = DC.stringToBytes(value[i]);
-      list
-        ..addUint32(s.length)
-        ..addUint8Array(s.toArray());
-    }
-
-    return list.toDC();
-  }
-
   DC append(DC src, int offset, int length) {
     //if (!(src is DC))
     //  src = new DC(src);
 
     var appendix = src.clip(offset, length);
     var rt = new DC(this.length + appendix.length);
-    rt.set(this, 0);
-    rt.set(appendix, this.length);
+    rt.set(this, 0, 0, this.length);
+    rt.set(appendix, 0, this.length, appendix.length);
 
     this._data = rt._data;
     this._dv = rt._dv;
@@ -271,25 +261,25 @@ class DC with IterableMixin<int> {
     return this;
   }
 
-  set(DC dc, int offset) {
-    _data.setRange(offset, offset + dc.length, dc._data);
+  void set(DC src, int srcOffset, int dstOffset, int length) {
+    _data.setRange(dstOffset, dstOffset + length, src._data, srcOffset);
   }
 
-  static combine(a, aOffset, aLength, b, bOffset, bLength) {
-    if (!(a is DC)) a = new DC(a);
-    if (!(b is DC)) b = new DC(b);
+  static DC combine(a, int aOffset, int aLength, b, int bOffset, int bLength) {
+    if (!(a is DC)) a = DC.fromList(a as List<int>);
+    if (!(b is DC)) b = DC.fromList(b as List<int>);
 
     a = a.clip(aOffset, aLength);
     b = b.clip(bOffset, bLength);
 
     var rt = new DC(a.length + b.length);
 
-    rt.set(a, 0);
-    rt.set(b, a.length);
+    rt.set(a, 0, 0, a.length);
+    rt.set(b, 0, a.length, b.length);
     return rt;
   }
 
-  DC clip(offset, length) {
+  DC clip(int offset, int length) {
     return DC.fromUint8Array(
         Uint8List.fromList(_data.getRange(offset, offset + length).toList()));
   }
@@ -302,28 +292,28 @@ class DC with IterableMixin<int> {
     return _data[offset]; // this.dv.getUint8(offset);
   }
 
-  int getInt16(int offset) {
-    return _dv.getInt16(offset);
+  int getInt16(int offset, [Endian endian = Endian.little]) {
+    return _dv.getInt16(offset, endian);
   }
 
-  int getUint16(int offset) {
-    return _dv.getUint16(offset);
+  int getUint16(int offset, [Endian endian = Endian.little]) {
+    return _dv.getUint16(offset, endian);
   }
 
-  int getInt32(int offset) {
-    return _dv.getInt32(offset);
+  int getInt32(int offset, [Endian endian = Endian.little]) {
+    return _dv.getInt32(offset, endian);
   }
 
-  int getUint32(int offset) {
-    return _dv.getUint32(offset);
+  int getUint32(int offset, [Endian endian = Endian.little]) {
+    return _dv.getUint32(offset, endian);
   }
 
-  double getFloat32(int offset) {
-    return _dv.getFloat32(offset);
+  double getFloat32(int offset, [Endian endian = Endian.little]) {
+    return _dv.getFloat32(offset, endian);
   }
 
-  double getFloat64(int offset) {
-    return _dv.getFloat64(offset);
+  double getFloat64(int offset, [Endian endian = Endian.little]) {
+    return _dv.getFloat64(offset, endian);
   }
 
   void setInt8(int offset, int value) {
@@ -334,28 +324,28 @@ class DC with IterableMixin<int> {
     return _dv.setUint8(offset, value);
   }
 
-  void setInt16(int offset, int value) {
-    return _dv.setInt16(offset, value);
+  void setInt16(int offset, int value, [Endian endian = Endian.little]) {
+    return _dv.setInt16(offset, value, endian);
   }
 
-  void setUint16(int offset, int value) {
-    return _dv.setUint16(offset, value);
+  void setUint16(int offset, int value, [Endian endian = Endian.little]) {
+    return _dv.setUint16(offset, value, endian);
   }
 
-  void setInt32(int offset, int value) {
-    return _dv.setInt32(offset, value);
+  void setInt32(int offset, int value, [Endian endian = Endian.little]) {
+    return _dv.setInt32(offset, value, endian);
   }
 
-  void setUint32(int offset, int value) {
-    return _dv.setUint32(offset, value);
+  void setUint32(int offset, int value, [Endian endian = Endian.little]) {
+    return _dv.setUint32(offset, value, endian);
   }
 
-  void setFloat32(int offset, double value) {
-    return _dv.setFloat32(offset, value);
+  void setFloat32(int offset, double value, [Endian endian = Endian.little]) {
+    return _dv.setFloat32(offset, value, endian);
   }
 
-  void setFloat64(int offset, double value) {
-    return _dv.setFloat64(offset, value);
+  void setFloat64(int offset, double value, [Endian endian = Endian.little]) {
+    return _dv.setFloat64(offset, value, endian);
   }
 
   Int8List getInt8Array(int offset, int length) {
@@ -420,12 +410,6 @@ class DC with IterableMixin<int> {
     this.setUint8(offset, value ? 1 : 0);
   }
 
-  List<bool> getBooleanArray(int offset, int length) {
-    List<bool> rt = [];
-    for (var i = 0; i < length; i++) rt.add(this.getBoolean(offset + i));
-    return rt;
-  }
-
   String getChar(int offset) {
     return String.fromCharCode(this.getUint16(offset));
   }
@@ -434,13 +418,7 @@ class DC with IterableMixin<int> {
     this.setUint16(offset, value); //value.codeUnitAt(0));
   }
 
-  List<String> getCharArray(int offset, int length) {
-    List<String> rt = [];
-    for (var i = 0; i < length; i += 2) rt.add(this.getChar(offset + i));
-    return rt;
-  }
-
-  String getHex(offset, length) {
+  String getHex(int offset, int length) {
     var rt = "";
     for (var i = offset; i < offset + length; i++) {
       var h = _data[i].toRadixString(16);
@@ -461,13 +439,194 @@ class DC with IterableMixin<int> {
 
   Uint8List toArray() => _data;
 
-  String getString(offset, length) {
+  String getString(int offset, int length) {
     var bytes = clip(offset, length)._data; // toList(offset, length);
     var str = utf8.decode(bytes);
     return str;
   }
 
-  List<String> getStringArray(offset, length) {
+  int getInt64(int offset, [Endian endian = Endian.little]) {
+    if (kIsWeb) {
+      if (endian == Endian.big) {
+        var bi = BigInt.from(0);
+
+        bi |= BigInt.from(getUint8(offset++)) << 56;
+        bi |= BigInt.from(getUint8(offset++)) << 48;
+        bi |= BigInt.from(getUint8(offset++)) << 40;
+        bi |= BigInt.from(getUint8(offset++)) << 32;
+        bi |= BigInt.from(getUint8(offset++)) << 24;
+        bi |= BigInt.from(getUint8(offset++)) << 16;
+        bi |= BigInt.from(getUint8(offset++)) << 8;
+        bi |= BigInt.from(getUint8(offset++));
+
+        return bi.toInt();
+      } else {
+        var bi = BigInt.from(0);
+
+        bi |= BigInt.from(getUint8(offset++));
+        bi |= BigInt.from(getUint8(offset++)) << 8;
+        bi |= BigInt.from(getUint8(offset++)) << 16;
+        bi |= BigInt.from(getUint8(offset++)) << 24;
+        bi |= BigInt.from(getUint8(offset++)) << 32;
+        bi |= BigInt.from(getUint8(offset++)) << 40;
+        bi |= BigInt.from(getUint8(offset++)) << 48;
+        bi |= BigInt.from(getUint8(offset++)) << 56;
+
+        return bi.toInt();
+      }
+
+      //var l = this.getUint32(offset);
+      //var h = this.getUint32(offset + 4);
+      //return h * TWO_PWR_32 + ((l >= 0) ? l : TWO_PWR_32 + l);
+    } else {
+      return _dv.getUint64(offset);
+    }
+  }
+
+  int getUint64(int offset, [Endian endian = Endian.little]) {
+     if (kIsWeb) {
+      if (endian == Endian.big) {
+        var bi = BigInt.from(0);
+
+        bi |= BigInt.from(getUint8(offset++)) << 56;
+        bi |= BigInt.from(getUint8(offset++)) << 48;
+        bi |= BigInt.from(getUint8(offset++)) << 40;
+        bi |= BigInt.from(getUint8(offset++)) << 32;
+        bi |= BigInt.from(getUint8(offset++)) << 24;
+        bi |= BigInt.from(getUint8(offset++)) << 16;
+        bi |= BigInt.from(getUint8(offset++)) << 8;
+        bi |= BigInt.from(getUint8(offset++));
+
+        return bi.toInt();
+      } else {
+        var bi = BigInt.from(0);
+
+        bi |= BigInt.from(getUint8(offset++));
+        bi |= BigInt.from(getUint8(offset++)) << 8;
+        bi |= BigInt.from(getUint8(offset++)) << 16;
+        bi |= BigInt.from(getUint8(offset++)) << 24;
+        bi |= BigInt.from(getUint8(offset++)) << 32;
+        bi |= BigInt.from(getUint8(offset++)) << 40;
+        bi |= BigInt.from(getUint8(offset++)) << 48;
+        bi |= BigInt.from(getUint8(offset++)) << 56;
+
+        return bi.toInt();
+      }
+
+      //var l = this.getUint32(offset);
+      //var h = this.getUint32(offset + 4);
+      //return h * TWO_PWR_32 + ((l >= 0) ? l : TWO_PWR_32 + l);
+    } else {
+      return _dv.getUint64(offset);
+    }
+    // if (kIsWeb) {
+    //   print("getUint64");
+    //   var l = this.getUint32(offset);
+    //   var h = this.getUint32(offset + 4);
+    //   return h * TWO_PWR_32 + ((l >= 0) ? l : TWO_PWR_32 + l);
+    // } else {
+    //   return _dv.getInt64(offset);
+    // }
+  }
+
+  void setInt64(int offset, int value, [Endian endian = Endian.little]) {
+    if (kIsWeb) {
+      var bi = BigInt.from(value);
+      var byte = BigInt.from(0xFF);
+
+      if (endian == Endian.big) {
+        _dv.setUint8(offset++, ((bi >> 56) & byte).toInt());
+        _dv.setUint8(offset++, ((bi >> 48) & byte).toInt());
+        _dv.setUint8(offset++, ((bi >> 40) & byte).toInt());
+        _dv.setUint8(offset++, ((bi >> 32) & byte).toInt());
+        _dv.setUint8(offset++, ((bi >> 24) & byte).toInt());
+        _dv.setUint8(offset++, ((bi >> 16) & byte).toInt());
+        _dv.setUint8(offset++, ((bi >> 8) & byte).toInt());
+        _dv.setUint8(offset++, (bi & byte).toInt());
+      } else {
+        _dv.setUint8(offset++, ((bi) & byte).toInt());
+        _dv.setUint8(offset++, ((bi >> 8) & byte).toInt());
+        _dv.setUint8(offset++, ((bi >> 16) & byte).toInt());
+        _dv.setUint8(offset++, ((bi >> 24) & byte).toInt());
+        _dv.setUint8(offset++, ((bi >> 32) & byte).toInt());
+        _dv.setUint8(offset++, ((bi >> 40) & byte).toInt());
+        _dv.setUint8(offset++, ((bi >> 48) & byte).toInt());
+        _dv.setUint8(offset++, ((bi >> 56) & byte).toInt());
+      }
+    } else {
+      _dv.setInt64(offset, value, endian);
+    }
+  }
+
+  void setUint64(int offset, int value, [Endian endian = Endian.little]) {
+    if (kIsWeb) {
+      // BigInt a = 33 as BigInt;
+
+      // int l = BigInt value & 0xFFFFFFFF;
+      // int h = value >> 32;
+
+      // int h = (value % TWO_PWR_32) | 0;
+      // int l = ((value / TWO_PWR_32)) | 0;
+      // _dv.setInt32(offset, h, endian);
+      // _dv.setInt32(offset + 4, l, endian);
+      var bi = BigInt.from(value);
+      var byte = BigInt.from(0xFF);
+
+      if (endian == Endian.big) {
+        _dv.setUint8(offset++, ((bi >> 56) & byte).toInt());
+        _dv.setUint8(offset++, ((bi >> 48) & byte).toInt());
+        _dv.setUint8(offset++, ((bi >> 40) & byte).toInt());
+        _dv.setUint8(offset++, ((bi >> 32) & byte).toInt());
+        _dv.setUint8(offset++, ((bi >> 24) & byte).toInt());
+        _dv.setUint8(offset++, ((bi >> 16) & byte).toInt());
+        _dv.setUint8(offset++, ((bi >> 8) & byte).toInt());
+        _dv.setUint8(offset++, (bi & byte).toInt());
+      } else {
+        _dv.setUint8(offset++, ((bi) & byte).toInt());
+        _dv.setUint8(offset++, ((bi >> 8) & byte).toInt());
+        _dv.setUint8(offset++, ((bi >> 16) & byte).toInt());
+        _dv.setUint8(offset++, ((bi >> 24) & byte).toInt());
+        _dv.setUint8(offset++, ((bi >> 32) & byte).toInt());
+        _dv.setUint8(offset++, ((bi >> 40) & byte).toInt());
+        _dv.setUint8(offset++, ((bi >> 48) & byte).toInt());
+        _dv.setUint8(offset++, ((bi >> 56) & byte).toInt());
+      }
+    } else {
+      _dv.setUint64(offset, value, endian);
+    }
+  }
+
+  void setDateTime(int offset, DateTime value, [Endian endian = Endian.little]) {
+    // Unix Epoch
+    var ticks = UNIX_EPOCH + (value.millisecondsSinceEpoch * 10000);
+    this.setUint64(offset, ticks, endian);
+  }
+
+  DateTime getDateTime(int offset, [Endian endian = Endian.little]) {
+    var ticks = this.getUint64(offset, endian);
+    // there are 10,000 ticks in a millisecond
+    return DateTime.fromMillisecondsSinceEpoch((ticks - UNIX_EPOCH) ~/ 10000);
+  }
+
+  Guid getGuid(int offset) {
+    return new Guid(this.clip(offset, 16));
+  }
+
+  void setGuid(int offset, Guid guid) {
+    set(guid.value, 0, offset, 16);
+  }
+
+  bool sequenceEqual(ar) {
+    if (ar.length != this.length)
+      return false;
+    else {
+      for (var i = 0; i < this.length; i++) if (ar[i] != this[i]) return false;
+    }
+
+    return true;
+  }
+
+  List<String> getStringArray(int offset, int length) {
     List<String> rt = [];
     var i = 0;
 
@@ -481,80 +640,15 @@ class DC with IterableMixin<int> {
     return rt;
   }
 
-  int getInt64(offset) {
-    if (kIsWeb) {
-      var h = this.getUint32(offset);
-      var l = this.getUint32(offset + 4);
-      return h * TWO_PWR_32 + ((l >= 0) ? l : TWO_PWR_32 + l);
-    } else {
-      return _dv.getUint64(offset);
-    }
-  }
-
-  int getUint64(offset) {
-    if (kIsWeb) {
-      var h = this.getUint32(offset);
-      var l = this.getUint32(offset + 4);
-      return h * TWO_PWR_32 + ((l >= 0) ? l : TWO_PWR_32 + l);
-    } else {
-      return _dv.getInt64(offset);
-    }
-  }
-
-  void setInt64(offset, value) {
-    _dv.setInt64(offset, value);
-  }
-
-  void setUint64(offset, value) {
-    if (kIsWeb) {
-      var l = (value % TWO_PWR_32) | 0;
-      var h = (value / TWO_PWR_32) | 0;
-      _dv.setInt32(offset, h);
-      _dv.setInt32(offset + 4, l);
-    } else {
-      _dv.setUint64(offset, value);
-    }
-  }
-
-  void setDateTime(offset, DateTime value) {
-    // Unix Epoch
-    var ticks = UNIX_EPOCH + (value.millisecondsSinceEpoch * 10000);
-    this.setUint64(offset, ticks);
-  }
-
-  DateTime getDateTime(int offset) {
-    var ticks = this.getUint64(offset);
-    // there are 10,000 ticks in a millisecond
-    return DateTime.fromMillisecondsSinceEpoch((ticks - UNIX_EPOCH) ~/ 10000);
-  }
-
-  List<DateTime> getDateTimeArray(int offset, int length) {
-    List<DateTime> rt = [];
-    for (var i = 0; i < length; i += 8) rt.add(this.getDateTime(offset + i));
-    return rt;
-  }
-
-  Guid getGuid(int offset) {
-    return new Guid(this.clip(offset, 16));
-  }
-
-  void setGuid(int offset, Guid guid) {
-    set(guid.value, offset);
-  }
-
-  List<Guid> getGuidArray(int offset, int length) {
-    List<Guid> rt = [];
-    for (var i = 0; i < length; i += 16) rt.add(this.getGuid(offset + i));
-    return rt;
-  }
-
-  bool sequenceEqual(ar) {
-    if (ar.length != this.length)
-      return false;
-    else {
-      for (var i = 0; i < this.length; i++) if (ar[i] != this[i]) return false;
+  static DC stringArrayToBytes(List<String> value) {
+    var list = new BinaryList();
+    for (var i = 0; i < value.length; i++) {
+      var s = DC.stringToBytes(value[i]);
+      list
+        ..addUint32(s.length)
+        ..addUint8Array(s.toArray());
     }
 
-    return true;
+    return list.toDC();
   }
 }

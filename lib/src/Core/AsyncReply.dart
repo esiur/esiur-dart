@@ -45,7 +45,7 @@ class AsyncReply<T> implements Future<T> {
     return _resultReady;
   }
 
-  set ready(value) {
+  set ready(bool value) {
     _resultReady = value;
   }
 
@@ -53,7 +53,7 @@ class AsyncReply<T> implements Future<T> {
     return _result;
   }
 
-  setResultReady(bool val) {
+  void setResultReady(bool val) {
     _resultReady = val;
   }
 

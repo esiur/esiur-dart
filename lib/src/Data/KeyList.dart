@@ -37,9 +37,12 @@ class KeyList<KT, T> extends IEventHandler with MapMixin<KT, T> {
   Iterable<KT> get keys => _map.keys;
   Iterable<T> get values => _map.values;
 
-  operator [](index) => _map[index];
+  //T? operator [](Object? key);
+  //operator []=(KT key, T value);
 
-  operator []=(index, value) => add(index, value);
+  T? operator [](Object? index) => _map[index];
+
+  operator []=(KT index, T value) => add(index, value);
 
   at(int index) => _map.values.elementAt(index);
 
@@ -101,8 +104,7 @@ class KeyList<KT, T> extends IEventHandler with MapMixin<KT, T> {
 
     var value = _map[key];
 
-    if (_removableList)
-      (value as IDestructible).off("destroy", _itemDestroyed);
+    if (_removableList) (value as IDestructible).off("destroy", _itemDestroyed);
 
     _map.remove(key);
 

@@ -36,10 +36,10 @@ abstract class IStore implements IResource {
   AsyncReply<IResource?> retrieve(int iid);
   AsyncReply<bool> put(IResource resource);
   String? link(IResource resource);
-  bool record(IResource resource, String propertyName, dynamic value, int age,
-      DateTime dateTime);
-  bool modify(IResource resource, String propertyName, dynamic value, int age,
-      DateTime dateTime);
+  bool record(IResource resource, String propertyName, dynamic value, int? age,
+      DateTime? dateTime);
+  bool modify(IResource resource, String propertyName, dynamic value, int? age,
+      DateTime? dateTime);
   bool remove(IResource resource);
 
   AsyncReply<KeyList<PropertyTemplate, List<PropertyValue>>?> getRecord(

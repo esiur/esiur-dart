@@ -1,11 +1,10 @@
 import 'dart:io';
 
-import '../Data/DataType.dart';
+import '../Data/RepresentationType.dart';
+
 import '../Net/IIP/DistributedConnection.dart';
 import '../Resource/Template/TemplateType.dart';
 import '../Resource/Warehouse.dart';
-
-import '../Resource/Template/TemplateDataType.dart';
 
 import '../Resource/Template/TypeTemplate.dart';
 
@@ -18,10 +17,22 @@ class TemplateGenerator {
     var className = template.className.split('.').last;
     var rt = StringBuffer();
 
-    rt.writeln("class ${className} extends IRecord {");
+    String? parentName;
+
+    if (template.parentId != null) {
+      parentName = _translateClassName(templates
+          .singleWhere((x) =>
+              (x.classId == template.parentId) &&
+              (x.type == TemplateType.Record))
+          .className);
+      rt.writeln("class ${className} extends ${parentName} {");
+    } else {
+      rt.writeln("class ${className} extends IRecord {");
+    }
 
     template.properties.forEach((p) {
-      var ptTypeName = getTypeName(template, p.valueType, templates, false);
+      if (p.inherited) return;
+      var ptTypeName = getTypeName(template, p.valueType, templates);
       rt.writeln("${ptTypeName}? ${p.name};");
       rt.writeln();
     });
@@ -50,16 +61,17 @@ class TemplateGenerator {
     rt.writeln("}");
 
     // add template
-    var descProps = template.properties.map((p) {
-      var isArray = p.valueType.type & 0x80 == 0x80;
-      var ptType = p.valueType.type & 0x7F;
-      var ptTypeName = getTypeName(template,
-          TemplateDataType(ptType, p.valueType.typeGuid), templates, false);
-//      return "Prop(\"${p.name}\", ${ptTypeName}, ${isArray})";
-      return "Prop('${p.name}', ${ptTypeName}, ${isArray}, ${_escape(p.readExpansion)}, ${_escape(p.writeExpansion)})";
+    var descProps = template.properties //.where((p) => !p.inherited)
+        .map((p) {
+      var ptTypeName = getTypeName(template, p.valueType, templates);
+      return "Prop('${p.name}', getTypeOf<${ptTypeName}>(), ${_escape(p.readExpansion)}, ${_escape(p.writeExpansion)})";
     }).join(', ');
 
-    rt.writeln("""@override
+    if (parentName != null)
+      rt.writeln("""@override
+               TemplateDescriber get template => TemplateDescriber('${template.className}', parent: ${parentName}, properties: [${descProps}]);""");
+    else
+      rt.writeln("""@override
                TemplateDescriber get template => TemplateDescriber('${template.className}', properties: [${descProps}]);""");
 
     rt.writeln("\r\n}");
@@ -67,144 +79,140 @@ class TemplateGenerator {
     return rt.toString();
   }
 
-  static String _translateClassName(String className, bool nullable) {
+  static String _translateClassName(String className) {
     var cls = className.split('.');
     var nameSpace = cls.take(cls.length - 1).join('_').toLowerCase();
-    return "$nameSpace.${cls.last}${nullable ? '?' : ''}";
+    return "$nameSpace.${cls.last}";
   }
 
-  static String getTypeName(
-      TypeTemplate forTemplate,
-      TemplateDataType templateDataType,
-      List<TypeTemplate> templates,
-      bool nullable) {
-    if (templateDataType.type == DataType.Resource) {
-      if (templateDataType.typeGuid == forTemplate.classId)
-        return forTemplate.className.split('.').last + (nullable ? "?" : "");
-      else {
-        var tmp = templates.firstWhere((x) =>
-            x.classId == templateDataType.typeGuid &&
-            (x.type == TemplateType.Resource ||
-                x.type == TemplateType.Wrapper));
+  static String getTypeName(TypeTemplate forTemplate,
+      RepresentationType representationType, List<TypeTemplate> templates) {
+    String name;
 
-        if (tmp == null) return "dynamic"; // something went wrong
-
-        return _translateClassName(tmp.className, nullable);
-      }
-    } else if (templateDataType.type == DataType.ResourceArray) {
-      if (templateDataType.typeGuid == forTemplate.classId)
-        return "List<${forTemplate.className.split('.').last + (nullable ? '?' : '')}>";
-      else {
-        var tmp = templates.firstWhere((x) =>
-            x.classId == templateDataType.typeGuid &&
-            (x.type == TemplateType.Resource ||
-                x.type == TemplateType.Wrapper));
-
-        if (tmp == null) return "dynamic"; // something went wrong
-
-        return "List<${_translateClassName(tmp.className, nullable)}>";
-      }
-    } else if (templateDataType.type == DataType.Record) {
-      if (templateDataType.typeGuid == forTemplate.classId)
-        return forTemplate.className.split('.').last + (nullable ? '?' : '');
-      else {
-        var tmp = templates.firstWhere((x) =>
-            x.classId == templateDataType.typeGuid &&
-            x.type == TemplateType.Record);
-        if (tmp == null) return "dynamic"; // something went wrong
-        return _translateClassName(tmp.className, nullable);
-      }
-    } else if (templateDataType.type == DataType.RecordArray) {
-      if (templateDataType.typeGuid == forTemplate.classId)
-        return "List<${forTemplate.className.split('.').last + (nullable ? '?' : '')}?>";
-      else {
-        var tmp = templates.firstWhere((x) =>
-            x.classId == templateDataType.typeGuid &&
-            x.type == TemplateType.Record);
-        if (tmp == null) return "dynamic"; // something went wrong
-        return "List<${_translateClassName(tmp.className, nullable)}>";
+    if (representationType.identifier ==
+        RepresentationTypeIdentifier.TypedResource) {
+      if (representationType.guid == forTemplate.classId)
+        name = forTemplate.className.split('.').last;
+      else
+        name = _translateClassName(templates
+            .singleWhere((x) =>
+                x.classId == representationType.guid &&
+                (x.type == TemplateType.Resource ||
+                    x.type == TemplateType.Wrapper))
+            .className);
+    } else if (representationType.identifier ==
+        RepresentationTypeIdentifier.TypedRecord) {
+      if (representationType.guid == forTemplate.classId)
+        name = forTemplate.className.split('.').last;
+      else
+        name = _translateClassName(templates
+            .singleWhere((x) =>
+                x.classId == representationType.guid &&
+                x.type == TemplateType.Record)
+            .className);
+    } else if (representationType.identifier ==
+        RepresentationTypeIdentifier
+            .Enum) if (representationType.guid == forTemplate.classId)
+      name = forTemplate.className.split('.').last;
+    else
+      name = _translateClassName(templates
+          .singleWhere((x) =>
+              x.classId == representationType.guid &&
+              x.type == TemplateType.Enum)
+          .className);
+    else if (representationType.identifier ==
+        RepresentationTypeIdentifier.TypedList)
+      name = "List<" +
+          getTypeName(forTemplate, representationType.subTypes![0], templates) +
+          ">";
+    else if (representationType.identifier ==
+        RepresentationTypeIdentifier.TypedMap)
+      name = "Map<" +
+          getTypeName(forTemplate, representationType.subTypes![0], templates) +
+          "," +
+          getTypeName(forTemplate, representationType.subTypes![1], templates) +
+          ">";
+    else if (representationType.identifier ==
+            RepresentationTypeIdentifier.Tuple2 ||
+        representationType.identifier == RepresentationTypeIdentifier.Tuple3 ||
+        representationType.identifier == RepresentationTypeIdentifier.Tuple4 ||
+        representationType.identifier == RepresentationTypeIdentifier.Tuple5 ||
+        representationType.identifier == RepresentationTypeIdentifier.Tuple6 ||
+        representationType.identifier == RepresentationTypeIdentifier.Tuple7)
+      name = "Tuple";
+    //name = "(" + String.Join(",", representationType.SubTypes.Select(x=> GetTypeName(x, templates)))
+    //       + ")";
+    else {
+      switch (representationType.identifier) {
+        case RepresentationTypeIdentifier.Dynamic:
+          name = "dynamic";
+          break;
+        case RepresentationTypeIdentifier.Bool:
+          name = "bool";
+          break;
+        case RepresentationTypeIdentifier.Char:
+          name = "String";
+          break;
+        case RepresentationTypeIdentifier.DateTime:
+          name = "DateTime";
+          break;
+        case RepresentationTypeIdentifier.Decimal:
+          name = "double";
+          break;
+        case RepresentationTypeIdentifier.Float32:
+          name = "double";
+          break;
+        case RepresentationTypeIdentifier.Float64:
+          name = "double";
+          break;
+        case RepresentationTypeIdentifier.Int16:
+          name = "int";
+          break;
+        case RepresentationTypeIdentifier.Int32:
+          name = "int";
+          break;
+        case RepresentationTypeIdentifier.Int64:
+          name = "int";
+          break;
+        case RepresentationTypeIdentifier.Int8:
+          name = "int";
+          break;
+        case RepresentationTypeIdentifier.String:
+          name = "String";
+          break;
+        case RepresentationTypeIdentifier.Map:
+          name = "Map";
+          break;
+        case RepresentationTypeIdentifier.UInt16:
+          name = "int";
+          break;
+        case RepresentationTypeIdentifier.UInt32:
+          name = "int";
+          break;
+        case RepresentationTypeIdentifier.UInt64:
+          name = "int";
+          break;
+        case RepresentationTypeIdentifier.UInt8:
+          name = "int";
+          break;
+        case RepresentationTypeIdentifier.List:
+          name = "List";
+          break;
+        case RepresentationTypeIdentifier.Resource:
+          name = "IResource";
+          break;
+        case RepresentationTypeIdentifier.Record:
+          name = "IRecord";
+          break;
+        default:
+          name = "dynamic";
       }
     }
 
-    var name = ((x) {
-      switch (x) {
-        case DataType.Bool:
-          return "bool";
-        case DataType.BoolArray:
-          return "List<bool>";
-        case DataType.Char:
-          return "String" + (nullable ? "?" : "");
-        case DataType.CharArray:
-          return "List<String${nullable ? '?' : ''}>";
-        case DataType.DateTime:
-          return "DateTime";
-        case DataType.DateTimeArray:
-          return "List<DateTime${nullable ? '?' : ''}>";
-        case DataType.Decimal:
-          return "double";
-        case DataType.DecimalArray:
-          return "List<double>";
-        case DataType.Float32:
-          return "double";
-        case DataType.Float32Array:
-          return "List<double>";
-        case DataType.Float64:
-          return "double";
-        case DataType.Float64Array:
-          return "List<double>";
-        case DataType.Int16:
-          return "int";
-        case DataType.Int16Array:
-          return "List<int>";
-        case DataType.Int32:
-          return "int";
-        case DataType.Int32Array:
-          return "List<int>";
-        case DataType.Int64:
-          return "int";
-        case DataType.Int64Array:
-          return "List<int>";
-        case DataType.Int8:
-          return "int";
-        case DataType.Int8Array:
-          return "List<int>";
-        case DataType.String:
-          return "String";
-        case DataType.StringArray:
-          return "List<String${nullable ? '?' : ''}>";
-        case DataType.Structure:
-          return "Structure" + (nullable ? "?" : "");
-        case DataType.StructureArray:
-          return "List<Structure${(nullable ? '?' : '')}>";
-        case DataType.UInt16:
-          return "int";
-        case DataType.UInt16Array:
-          return "List<int>";
-        case DataType.UInt32:
-          return "int";
-        case DataType.UInt32Array:
-          return "List<int>";
-        case DataType.UInt64:
-          return "int";
-        case DataType.UInt64Array:
-          return "List<int>";
-        case DataType.UInt8:
-          return "int";
-        case DataType.UInt8Array:
-          return "List<int>";
-        case DataType.VarArray:
-          return "List<dynamic>";
-        case DataType.Void:
-          return "dynamic";
-        default:
-          return "dynamic";
-      }
-    })(templateDataType.type);
-
-    return name;
+    return (representationType.nullable) ? name + "?" : name;
   }
 
-  static isNullOrEmpty(v) {
+  static bool isNullOrEmpty(v) {
     return v == null || v == "";
   }
 
@@ -222,8 +230,8 @@ class TemplateGenerator {
       var path = _urlRegex.allMatches(url).first;
       var con = await Warehouse.get<DistributedConnection>(
           (path[1] as String) + "://" + (path[2] as String),
-          !isNullOrEmpty(username) && !isNullOrEmpty(password)
-              ? {"username": username, "password": password}
+          username != null
+              ? {"username": username, "password": password ?? ""}
               : null);
 
       if (con == null) throw Exception("Can't connect to server");
@@ -273,20 +281,33 @@ class TemplateGenerator {
               generateClass(tmp, templates, getx: getx, namedArgs: namedArgs);
         } else if (tmp.type == TemplateType.Record) {
           source = makeImports(tmp) + generateRecord(tmp, templates);
+        } else if (tmp.type == TemplateType.Enum) {
+          source = makeImports(tmp) + generateEnum(tmp, templates);
         }
         f.writeAsStringSync(source);
       });
 
       // generate info class
+      // Warehouse.defineType<test.MyService>(
+      //     () => test.MyService(),
+      //     RepresentationType(RepresentationTypeIdentifier.TypedResource, false,
+      //         Guid(DC.fromList([1, 2, 3]))));
 
       var defineCreators = templates.map((tmp) {
         // creator
-        var className = _translateClassName(tmp.className, false);
-        return "Warehouse.defineCreator(${className}, () => ${className}(), () => <${className}?>[]);";
+        var className = _translateClassName(tmp.className);
+        if (tmp.type == TemplateType.Resource ||
+            tmp.type == TemplateType.Wrapper) {
+          return "Warehouse.defineType<${className}>(() => ${className}(), RepresentationType(RepresentationTypeIdentifier.TypedResource, false, Guid.fromString('${tmp.classId.toString()}')));\r\n";
+        } else if (tmp.type == TemplateType.Record) {
+          return "Warehouse.defineType<${className}>(() => ${className}(), RepresentationType(RepresentationTypeIdentifier.TypedRecord, false, Guid.fromString('${tmp.classId.toString()}')));\r\n";
+        } else if (tmp.type == TemplateType.Enum) {
+          return "Warehouse.defineType<${className}>(() => ${className}(), RepresentationType(RepresentationTypeIdentifier.Enum, false, Guid.fromString('${tmp.classId.toString()}')));\r\n";
+        }
       }).join("\r\n");
 
       var putTemplates = templates.map((tmp) {
-        var className = _translateClassName(tmp.className, false);
+        var className = _translateClassName(tmp.className);
         return "Warehouse.putTemplate(TypeTemplate.fromType(${className}));";
       }).join("\r\n");
 
@@ -311,6 +332,38 @@ class TemplateGenerator {
       return "r'$str'";
   }
 
+  static String generateEnum(
+      TypeTemplate template, List<TypeTemplate> templates) {
+    var className = template.className.split('.').last;
+    var rt = StringBuffer();
+
+    rt.writeln("class ${className} extends IEnum {");
+
+    template.constants.forEach((c) {
+      rt.writeln(
+          "static ${className} ${c.name} = ${className}(${c.index}, ${c.value}, '${c.name}');");
+      rt.writeln();
+    });
+
+    rt.writeln();
+
+    rt.writeln(
+        "${className}([int index = 0, value, String name = '']) : super(index, value, name);");
+
+    // add template
+    var descConsts = template.constants.map((p) {
+      var ctTypeName = getTypeName(template, p.valueType, templates);
+      return "Const('${p.name}', getTypeOf<${ctTypeName}>(), ${p.value}, ${_escape(p.expansion)})";
+    }).join(', ');
+
+    rt.writeln("""@override
+               TemplateDescriber get template => TemplateDescriber('${template.className}', constants: [${descConsts}]);""");
+
+    rt.writeln("\r\n}");
+
+    return rt.toString();
+  }
+
   static String generateClass(
     TypeTemplate template,
     List<TypeTemplate> templates, {
@@ -319,14 +372,25 @@ class TemplateGenerator {
   }) {
     var className = template.className.split('.').last;
 
+    String? parentName;
+
     var rt = StringBuffer();
-    rt.writeln("class $className extends DistributedResource {");
 
-    rt.writeln(
-//      "$className(DistributedConnection connection, int instanceId, int age, String link) : super(connection, instanceId, age, link) {");
-        "$className() {");
+    if (template.parentId != null) {
+      parentName = _translateClassName(templates
+          .singleWhere((x) =>
+              (x.classId == template.parentId) &&
+              (x.type == TemplateType.Resource ||
+                  x.type == TemplateType.Wrapper))
+          .className);
+      rt.writeln("class ${className} extends ${parentName} {");
+    } else {
+      rt.writeln("class ${className} extends DistributedResource {");
+    }
 
-    template.events.forEach((e) {
+    rt.writeln("$className() {");
+
+    template.events.where((e) => !e.inherited).forEach((e) {
       rt.writeln("on('${e.name}', (x) => _${e.name}Controller.add(x));");
     });
 
@@ -349,42 +413,50 @@ class TemplateGenerator {
   }""");
     }
 
-    template.functions.forEach((f) {
-      var rtTypeName = getTypeName(template, f.returnType, templates, true);
+    template.functions.where((f) => !f.inherited).forEach((f) {
+      var rtTypeName = getTypeName(template, f.returnType, templates);
+      var positionalArgs = f.arguments.where((x) => !x.optional);
+      var optionalArgs = f.arguments.where((x) => x.optional);
+
       rt.write("AsyncReply<$rtTypeName> ${f.name}(");
-      if (f.arguments.isNotEmpty && namedArgs) {
-        rt.write("{");
-      }
-      rt.write(f.arguments.map((x) {
-        final typeName = getTypeName(template, x.type, templates, true);
-        return typeName +
-            (namedArgs && !typeName.endsWith("?") ? "?" : "") +
-            " " +
-            x.name;
-      }).join(","));
-      if (f.arguments.isNotEmpty && namedArgs) {
-        rt.write("}");
+
+      if (positionalArgs.length > 0)
+        rt.write(
+            "${positionalArgs.map((a) => getTypeName(template, a.type, templates) + " " + a.name).join(',')}");
+
+      if (optionalArgs.length > 0) {
+        if (positionalArgs.length > 0) rt.write(",");
+        rt.write(
+            "[${optionalArgs.map((a) => getTypeName(template, a.type.toNullable(), templates) + " " + a.name).join(',')}]");
       }
 
       rt.writeln(") {");
-      rt.writeln("var rt = AsyncReply<$rtTypeName>();");
+
       rt.writeln(
-          "internal_invokeByArrayArguments(${f.index}, [${f.arguments.map((x) => x.name).join(',')}])");
+          "var args = <UInt8, dynamic>{${positionalArgs.map((e) => "UInt8(" + e.index.toString() + ') :' + e.name).join(',')}};");
+
+      optionalArgs.forEach((a) {
+        rt.writeln(
+            "if (${a.name} != null) args[UInt8(${a.index})] = ${a.name};");
+      });
+
+      rt.writeln("var rt = AsyncReply<$rtTypeName>();");
+      rt.writeln("internal_invoke(${f.index}, args)");
       rt.writeln(".then<dynamic>((x) => rt.trigger(x))");
       rt.writeln(".error((x) => rt.triggerError(x))");
       rt.writeln(".chunk((x) => rt.triggerChunk(x));");
       rt.writeln("return rt; }");
     });
 
-    template.properties.forEach((p) {
-      var ptTypeName = getTypeName(template, p.valueType, templates, true);
+    template.properties.where((p) => !p.inherited).forEach((p) {
+      var ptTypeName = getTypeName(template, p.valueType, templates);
       rt.writeln("${ptTypeName} get ${p.name} { return get(${p.index}); }");
       rt.writeln(
           "set ${p.name}(${ptTypeName} value) { set(${p.index}, value); }");
     });
 
-    template.events.forEach((e) {
-      var etTypeName = getTypeName(template, e.argumentType, templates, true);
+    template.events.where((e) => !e.inherited).forEach((e) {
+      var etTypeName = getTypeName(template, e.argumentType, templates);
 
       rt.writeln(
           "final _${e.name}Controller = StreamController<$etTypeName>();");
@@ -394,41 +466,37 @@ class TemplateGenerator {
     });
 
     // add template
-    var descProps = template.properties.map((p) {
-      var isArray = p.valueType.type & 0x80 == 0x80;
-      var ptType = p.valueType.type & 0x7F;
-      var ptTypeName = getTypeName(template,
-          TemplateDataType(ptType, p.valueType.typeGuid), templates, false);
-      return "Prop('${p.name}', ${ptTypeName}, ${isArray}, ${_escape(p.readExpansion)}, ${_escape(p.writeExpansion)})";
+    var descProps = template.properties //.where((p) => !p.inherited)
+        .map((p) {
+      var ptTypeName = getTypeName(template, p.valueType, templates);
+      return "Prop('${p.name}', getTypeOf<${ptTypeName}>(), ${_escape(p.readExpansion)}, ${_escape(p.writeExpansion)})";
     }).join(', ');
 
-    var descFuncs = template.functions.map((f) {
-      var isArray = f.returnType.type & 0x80 == 0x80;
-      var ftType = f.returnType.type & 0x7F;
-      var ftTypeName = getTypeName(template,
-          TemplateDataType(ftType, f.returnType.typeGuid), templates, false);
+    var descFuncs = template.functions //.where((f) => !f.inherited)
+        .map((f) {
+      var ftTypeName = getTypeName(template, f.returnType, templates);
 
       var args = f.arguments.map((a) {
-        var isArray = a.type.type & 0x80 == 0x80;
-        var atType = a.type.type & 0x7F;
-        var atTypeName = getTypeName(template,
-            TemplateDataType(atType, a.type.typeGuid), templates, false);
-        return "Arg('${a.name}', ${atTypeName}, ${isArray})";
+        var atTypeName = getTypeName(template, a.type, templates);
+        return "Arg('${a.name}', getTypeOf<${atTypeName}>(), ${a.optional})";
       }).join(', ');
 
-      return "Func('${f.name}', ${ftTypeName}, ${isArray}, [${args}], ${_escape(f.expansion)})";
+      return "Func('${f.name}', getTypeOf<${ftTypeName}>(), [${args}], ${_escape(f.expansion)})";
     }).join(', ');
 
-    var descEvents = template.events.map((e) {
-      var isArray = e.argumentType.type & 0x80 == 0x80;
-      var etType = e.argumentType.type & 0x7F;
-      var etTypeName = getTypeName(template,
-          TemplateDataType(etType, e.argumentType.typeGuid), templates, false);
-      return "Evt('${e.name}', ${etTypeName}, ${isArray}, ${e.listenable}, ${_escape(e.expansion)})";
+    var descEvents = template.events
+        //.where((e) => !e.inherited)
+        .map((e) {
+      var etTypeName = getTypeName(template, e.argumentType, templates);
+      return "Evt('${e.name}', getTypeOf<${etTypeName}>(), ${e.listenable}, ${_escape(e.expansion)})";
     }).join(', ');
 
-    rt.writeln(
-        "TemplateDescriber get template => TemplateDescriber('${template.className}', properties: [${descProps}], functions: [${descFuncs}], events: [$descEvents]);");
+    if (parentName != null)
+      rt.writeln(
+          "TemplateDescriber get template => TemplateDescriber('${template.className}', parent: ${parentName}, properties: [${descProps}], functions: [${descFuncs}], events: [$descEvents]);");
+    else
+      rt.writeln(
+          "TemplateDescriber get template => TemplateDescriber('${template.className}', properties: [${descProps}], functions: [${descFuncs}], events: [$descEvents]);");
 
     rt.writeln("\r\n}");
 

@@ -1,3 +1,6 @@
+## [1.4.6] - Release
+Added GetX support
+
 ## [1.4.3] - Hotfix
 Bugfix
 

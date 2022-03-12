@@ -31,5 +31,4 @@ class DistributedServer extends IResource {
   @override
   TemplateDescriber get template =>
       TemplateDescriber("Esiur.Net.IIP.DistributedServer");
-
 }

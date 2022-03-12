@@ -1,18 +1,17 @@
-import 'TemplateDataType.dart';
-
 import 'MemberTemplate.dart';
 import '../../Data/DC.dart';
 import '../../Data/BinaryList.dart';
 import 'TypeTemplate.dart';
 import 'MemberType.dart';
 import '../StorageMode.dart';
+import '../../Data/RepresentationType.dart';
 
 class PropertyTemplate extends MemberTemplate {
-  TemplateDataType valueType;
+  RepresentationType valueType;
 
   int permission = 0;
 
-  int storage;
+  bool recordable;
 
   String? readExpansion;
 
@@ -20,7 +19,9 @@ class PropertyTemplate extends MemberTemplate {
 
   DC compose() {
     var name = super.compose();
-    var pv = ((permission) << 1) | (storage == StorageMode.Recordable ? 1 : 0);
+    var pv = (permission << 1) | (recordable ? 1 : 0);
+
+    if (inherited) pv |= 0x80;
 
     if (writeExpansion != null && readExpansion != null) {
       var rexp = DC.stringToBytes(readExpansion as String);
@@ -65,8 +66,9 @@ class PropertyTemplate extends MemberTemplate {
   }
 
   PropertyTemplate(TypeTemplate template, int index, String name,
-      this.valueType, this.readExpansion, this.writeExpansion, this.storage)
-      : super(template, MemberType.Property, index, name) {
-    //this.Recordable = recordable;
-  }
+      bool inherited, this.valueType,
+      [this.readExpansion = null,
+      this.writeExpansion = null,
+      this.recordable = false])
+      : super(template, index, name, inherited) {}
 }

@@ -123,7 +123,7 @@ class SHA256 {
     var data = (BinaryList()
           ..addDC(msg)
           ..addDC(paddingBytes)
-          ..addUint64(L))
+          ..addUint64(L, Endian.big))
         .toDC();
 
     // append L as a 64-bit big-endian integer, making the total post-processed length a multiple of 512 bits
@@ -138,7 +138,8 @@ class SHA256 {
       // copy chunk into first 16 words w[0..15] of the message schedule array
 
       var w = new Uint32List(64); // new Uint64List(64); // uint[64];
-      for (var i = 0; i < 16; i++) w[i] = data.getUint32(chunk + (i * 4));
+      for (var i = 0; i < 16; i++)
+        w[i] = data.getUint32(chunk + (i * 4), Endian.big);
 
       //for(var i = 16; i < 64; i++)
       //  w[i] = 0;
@@ -204,7 +205,7 @@ class SHA256 {
     //digest := hash := h0 append h1 append h2 append h3 append h4 append h5 append h6 append h7
 
     var results = new BinaryList();
-    for (var i = 0; i < 8; i++) results.addUint32(hash[i]);
+    for (var i = 0; i < 8; i++) results.addUint32(hash[i], Endian.big);
 
     return results.toDC();
   }

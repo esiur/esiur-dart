@@ -24,9 +24,13 @@ SOFTWARE.
 
 import '../Resource/Template/TemplateDescriber.dart';
 
-
 abstract class IRecord {
   Map<String, dynamic> serialize();
   void deserialize(Map<String, dynamic> value);
   TemplateDescriber get template;
+
+  @override
+  String toString() {
+    return serialize().toString();
+  }
 }

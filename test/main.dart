@@ -1,9 +1,18 @@
-import 'package:esiur/esiur.dart';
 import 'TestResource.dart';
 
-main() async {
+void main() async {
   try {
-    
+    List<int> a = [2, 1, 2];
+
+    Map<Type, int> map = Map();
+
+    map[<int?>[].runtimeType] = 33;
+
+    print(map[a.runtimeType]);
+
+    print(a.runtimeType.toString());
+
+    print("Test");
   } catch (ex) {
     print("Error occured");
     print(ex);

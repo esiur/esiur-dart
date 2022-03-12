@@ -1,7 +1,33 @@
-class FactoryEntry {
-  final Type type;
-  final Function instanceCreator;
-  final Function arrayCreator;
+import '../Data/RepresentationType.dart';
 
-  FactoryEntry(this.type, this.instanceCreator, this.arrayCreator);
+// class DumClass<T> {
+//   Type type = T;
+// }
+
+// Type getNullableType<T>() => DumClass<T?>().type;
+// Type getTypeOf<T>() => DumClass<T>().type;
+
+class FactoryEntry<T> {
+  Type get type => T;
+
+  late Type nullableType;
+  final Function instanceCreator;
+  final Function arrayCreator = () => <T>[];
+  final RepresentationType representationType;
+
+  bool isMapKeySubType(Map map) {
+    return map is Map<T, dynamic>;
+  }
+
+  bool isMapValueSubType(Map map) {
+    return map is Map<dynamic, T>;
+  }
+
+  bool isListSubType(List list) {
+    return list is List<T>;
+  }
+
+  FactoryEntry(this.instanceCreator, this.representationType) {
+    nullableType = getNullableType<T>();
+  }
 }

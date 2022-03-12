@@ -9,6 +9,6 @@ class PropertyModificationInfo {
 
   String get name => propertyTemplate.name;
 
-  PropertyModificationInfo(
+  const PropertyModificationInfo(
       this.resource, this.propertyTemplate, this.value, this.age);
 }

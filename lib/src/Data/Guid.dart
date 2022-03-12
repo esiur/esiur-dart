@@ -1,10 +1,12 @@
 import 'DC.dart';
 
 class Guid {
-  DC _data;
+  late DC _data;
 
-  Guid(this._data) {
-    
+  Guid(this._data) {}
+
+  Guid.fromString(String data) {
+    _data = DC.fromHex(data, '');
   }
 
   DC get value => _data;
@@ -18,7 +20,7 @@ class Guid {
 
   @override
   String toString() {
-    return _data.getString(0, _data.length);
+    return _data.toHex('');
   }
 
   @override

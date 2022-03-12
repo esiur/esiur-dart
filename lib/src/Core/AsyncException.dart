@@ -8,7 +8,7 @@ class AsyncException implements Exception {
 
   AsyncException(this.type, this.code, this.message) {}
 
-  static toAsyncException(Exception ex) {
+  static AsyncException toAsyncException(Exception ex) {
     return ex is AsyncException
         ? ex
         : new AsyncException(ErrorType.Exception, 0, ex.toString());

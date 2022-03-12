@@ -20,8 +20,8 @@ class IIPPacketAction {
   static const int LinkTemplates = 0xF;
 
   // Request Invoke
-  static const int InvokeFunctionArrayArguments = 0x10;
-  static const int InvokeFunctionNamedArguments = 0x11;
+  static const int InvokeFunction = 0x10;
+  static const int Reserved = 0x11;
   static const int Listen = 0x12;
   static const int Unlisten = 0x13;
   static const int SetProperty = 0x14;

@@ -1,29 +1,34 @@
+import '../../Data/RepresentationType.dart';
+
 import '../../Data/DC.dart';
 import '../../Data/BinaryList.dart';
 import "../../Data/ParseResult.dart";
-import './TemplateDataType.dart';
 
 class ArgumentTemplate {
-  String name;
+  final String name;
+  final bool optional;
+  final RepresentationType type;
+  final int index;
 
-  TemplateDataType type;
+  static ParseResult<ArgumentTemplate> parse(DC data, int offset, int index) {
+    var optional = (data[offset++] & 0x1) == 0x1;
 
-  static ParseResult<ArgumentTemplate> parse(DC data, int offset) {
     var cs = data[offset++];
     var name = data.getString(offset, cs);
     offset += cs;
-    var tdr = TemplateDataType.parse(data, offset);
+    var tdr = RepresentationType.parse(data, offset);
 
     return ParseResult<ArgumentTemplate>(
-        cs + 1 + tdr.size, ArgumentTemplate(name, tdr.value));
+        cs + 2 + tdr.size, ArgumentTemplate(name, tdr.type, optional, index));
   }
 
-  ArgumentTemplate(this.name, this.type);
+  ArgumentTemplate(this.name, this.type, this.optional, this.index);
 
   DC compose() {
     var name = DC.stringToBytes(this.name);
 
     return (BinaryList()
+          ..addUint8(optional ? 1 : 0)
           ..addUint8(name.length)
           ..addDC(name)
           ..addDC(type.compose()))

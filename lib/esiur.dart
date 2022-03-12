@@ -1,3 +1,4 @@
+
 // Resource
 export 'src/Resource/Warehouse.dart';
 export 'src/Resource/Instance.dart';
@@ -15,8 +16,11 @@ export 'src/Resource/Template/PropertyPermission.dart';
 export 'src/Resource/Template/PropertyTemplate.dart';
 export 'src/Resource/Template/TypeTemplate.dart';
 export 'src/Resource/Template/TemplateDescriber.dart';
-
 // -----------------------------------------------------------------
+
+// Proxy
+export 'src/Proxy/TemplateGenerator.dart';
+
 // Core
 export 'src/Core/ProgressType.dart';
 export 'src/Core/AsyncBag.dart';
@@ -27,26 +31,25 @@ export 'src/Core/ErrorType.dart';
 export 'src/Core/ExceptionCode.dart';
 export 'src/Core/IDestructible.dart';
 export 'src/Core/IEventHandler.dart';
-
+export 'src/Core/Tuple.dart';
 // -----------------------------------------------------------------
 // Data
 export 'src/Data/AutoList.dart';
 export 'src/Data/BinaryList.dart';
 export 'src/Data/Codec.dart';
-export 'src/Data/DataType.dart';
+export 'src/Data/RepresentationType.dart';
 export 'src/Data/DC.dart';
 export 'src/Data/Guid.dart';
 export 'src/Data/KeyList.dart';
 export 'src/Data/NotModified.dart';
 export 'src/Data/PropertyValue.dart';
-export 'src/Data/ResourceComparisonResult.dart';
 export 'src/Data/SizeObject.dart';
-export 'src/Data/Structure.dart';
-export 'src/Data/StructureComparisonResult.dart';
-export 'src/Data/StructureMetadata.dart';
 export 'src/Data/ValueObject.dart';
 export 'src/Data/IRecord.dart';
 export 'src/Data/Record.dart';
+export 'src/Data/IEnum.dart';
+export 'src/Data/IntType.dart';
+
 // -----------------------------------------------------------------
 // Net
 export 'src/Net/NetworkBuffer.dart';

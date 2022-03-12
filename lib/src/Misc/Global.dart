@@ -3,7 +3,7 @@ import 'dart:math';
 class Global {
   static String generateCode(
       [int length = 16,
-      chars =
+      String chars =
           "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"]) {
     var rand = Random();
 

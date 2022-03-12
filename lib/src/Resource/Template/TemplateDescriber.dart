@@ -1,14 +1,21 @@
-import '../../Data/DataType.dart';
-
+ 
 class TemplateDescriber {
   final List<Prop>? properties;
   final List<Evt>? events;
   final List<Func>? functions;
+  final List<Const>? constants;
+
   final String nameSpace;
   final int version;
+  final Type? parent;
 
-  TemplateDescriber(this.nameSpace,
-      {this.properties, this.functions, this.events, this.version = 0});
+  const TemplateDescriber(this.nameSpace,
+      {this.parent,
+      this.properties,
+      this.functions,
+      this.events,
+      this.constants,
+      this.version = 0});
 }
 
 // class Property<T> {
@@ -46,10 +53,10 @@ class TemplateDescriber {
 class Prop {
   final String name;
   final Type type;
-  final bool isArray;
+  //final bool isNullable;
   final String? readAnnotation;
   final String? writeAnnotation;
-  Prop(this.name, this.type, this.isArray,
+  const Prop(this.name, this.type,
       [this.readAnnotation = null, this.writeAnnotation = null]);
 }
 
@@ -57,28 +64,36 @@ class Evt {
   final String name;
   final bool listenable;
   final Type type;
-  final bool isArray;
+  //final bool isNullable;
   final String? annotation;
+  const Evt(this.name, this.type, [this.listenable = false, this.annotation]);
+}
 
-  Evt(this.name, this.type, this.isArray,
-      [this.listenable = false, this.annotation]);
+class Const {
+  final String name;
+  final Type type;
+  //final bool isNullable;
+  final String? annotation;
+  final value;
+
+  const Const(this.name, this.type, this.value, [this.annotation]);
 }
 
 class Func {
   final String name;
   final Type returnType;
   final List<Arg> argsType;
-  final bool isArray;
+  //final bool isNullable;
   final String? annotation;
 
-  Func(this.name, this.returnType, this.isArray, this.argsType,
+  const Func(this.name, this.returnType, this.argsType,
       [this.annotation = null]);
 }
 
 class Arg {
   final String name;
   final Type type;
-  final bool isArray;
-
-  Arg(this.name, this.type, this.isArray);
+  //final bool isNullable;
+  final bool optional;
+  const Arg(this.name, this.type, this.optional);
 }

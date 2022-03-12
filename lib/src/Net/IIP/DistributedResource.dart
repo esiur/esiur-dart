@@ -24,6 +24,8 @@ SOFTWARE.
 
 import 'dart:async';
 
+import '../../Data/IntType.dart';
+
 import '../../Resource/Instance.dart';
 
 import '../../Core/AsyncException.dart';
@@ -37,7 +39,6 @@ import '../../Data/KeyValuePair.dart';
 import '../../Resource/IResource.dart';
 import '../../Core/AsyncReply.dart';
 import '../../Data/PropertyValue.dart';
-import '../../Data/Structure.dart';
 import '../../Data/Codec.dart';
 import './DistributedConnection.dart';
 import '../Packets/IIPPacketAction.dart';
@@ -196,7 +197,7 @@ class DistributedResource extends IResource {
 
     EventTemplate? et = event is EventTemplate
         ? event
-        : instance?.template.getEventTemplateByName(event);
+        : instance?.template.getEventTemplateByName(event.toString());
 
     if (et == null)
       return AsyncReply<dynamic>().triggerError(new AsyncException(
@@ -216,7 +217,7 @@ class DistributedResource extends IResource {
 
     EventTemplate? et = event is EventTemplate
         ? event
-        : instance?.template.getEventTemplateByName(event);
+        : instance?.template.getEventTemplateByName(event.toString());
 
     if (et == null)
       return AsyncReply().triggerError(new AsyncException(
@@ -237,28 +238,11 @@ class DistributedResource extends IResource {
     var et = instance?.template.getEventTemplateByIndex(index);
     if (et != null) {
       emitArgs(et.name, [args]);
-      instance?.emitResourceEvent(null, null, et.name, args);
+      instance?.emitResourceEvent(null, null, et, args);
     }
   }
 
-  AsyncReply<dynamic> internal_invokeByNamedArguments(
-      int index, Structure namedArgs) {
-    if (_destroyed) throw new Exception("Trying to access destroyed object");
-    if (_suspended) throw new Exception("Trying to access suspended object");
-
-    if (instance == null) throw Exception("Object not initialized.");
-
-    var ins = instance as Instance;
-
-    if (index >= ins.template.functions.length)
-      throw new Exception("Function index is incorrect");
-
-    return connection?.sendInvokeByNamedArguments(
-        _instanceId as int, index, namedArgs) as AsyncReply<dynamic>;
-  }
-
-  AsyncReply<dynamic> internal_invokeByArrayArguments(
-      int index, List<dynamic> args) {
+  AsyncReply<dynamic> internal_invoke(int index, Map<UInt8, dynamic> args) {
     if (_destroyed) throw new Exception("Trying to access destroyed object");
 
     if (_suspended) throw new Exception("Trying to access suspended object");
@@ -269,8 +253,8 @@ class DistributedResource extends IResource {
     if (index >= ins.template.functions.length)
       throw new Exception("Function index is incorrect");
 
-    return _connection?.sendInvokeByArrayArguments(
-        _instanceId as int, index, args) as AsyncReply;
+    return _connection?.sendInvoke(_instanceId as int, index, args)
+        as AsyncReply;
   }
 
   operator [](String index) {
@@ -299,16 +283,24 @@ class DistributedResource extends IResource {
       var ft = instance?.template.getFunctionTemplateByName(memberName);
 
       if (_attached && ft != null) {
-        if (invocation.namedArguments.length > 0) {
-          var namedArgs = new Structure();
-          for (var p in invocation.namedArguments.keys)
-            namedArgs[_getMemberName(p)] = invocation.namedArguments[p];
+        var args = Map<UInt8, dynamic>();
 
-          return internal_invokeByNamedArguments(ft.index, namedArgs);
-        } else {
-          return internal_invokeByArrayArguments(
-              ft.index, invocation.positionalArguments);
+        for (var i = 0;
+            i < invocation.positionalArguments.length &&
+                i < ft.arguments.length;
+            i++) args[UInt8(i)] = invocation.positionalArguments[i];
+
+        for (var i = invocation.positionalArguments.length;
+            i < ft.arguments.length;
+            i++) {
+          for (var j = 0; j < invocation.namedArguments.length; j++) {
+            if (ft.arguments[i].name ==
+                _getMemberName(invocation.namedArguments.keys.elementAt(j))) ;
+            args[UInt8(i)] = invocation.namedArguments.values.elementAt(j);
+          }
         }
+
+        return internal_invoke(ft.index, args);
       }
     } else if (invocation.isSetter) {
       var pt = instance?.template.getPropertyTemplateByName(memberName);
@@ -380,5 +372,10 @@ class DistributedResource extends IResource {
       });
 
     return reply;
+  }
+
+  @override
+  String toString() {
+    return "DR<${instance?.template.className ?? ''}>";
   }
 }

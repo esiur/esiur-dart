@@ -24,13 +24,11 @@ SOFTWARE.
 
 import 'Ruling.dart';
 import 'ActionType.dart';
-import '../../Data/Structure.dart';
 import '../../Resource/IResource.dart';
 import '../Authority/Session.dart';
 import '../../Resource/Template/MemberTemplate.dart';
 
-abstract class IPermissionsManager
-{
+abstract class IPermissionsManager {
   /// <summary>
   /// Check for permission.
   /// </summary>
@@ -40,9 +38,11 @@ abstract class IPermissionsManager
   /// <param name="member">Function, property or event to check for permission.</param>
   /// <param name="inquirer">Permission inquirer object.</param>
   /// <returns>Allowed or denined.</returns>
-  Ruling applicable(IResource resource, Session session, ActionType action, MemberTemplate member, [dynamic inquirer = null]);
+  Ruling applicable(IResource resource, Session session, ActionType action,
+      MemberTemplate? member,
+      [dynamic inquirer = null]);
 
-  bool initialize(Structure settings, IResource resource);
+  bool initialize(Map<String, dynamic> settings, IResource resource);
 
-  Structure get settings;
+  Map<String, dynamic> get settings;
 }

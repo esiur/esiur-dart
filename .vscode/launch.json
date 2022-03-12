@@ -13,10 +13,17 @@
         {
 
             "name": "Test",
-            "program": "test/template_test/bin/service.dart",
+            "program": "test/template/bin/service.dart",
             "request": "launch",
             "type": "dart"
+        },
 
-        }
+            {
+              "name": "Flutter",
+              "program": "test/flutter_demo/lib/main.dart",
+              "request": "launch",
+              "type": "dart",
+              "flutterMode": "debug"
+            }    
     ]
 }

@@ -8,7 +8,7 @@ class IEventHandler {
 
   Map<String, List<Function>> _events = {};
 
-  register(String event) {
+  void register(String event) {
     _events[event.toLowerCase()] = [];
   }
 
@@ -17,11 +17,11 @@ class IEventHandler {
   Stream<PropertyModificationInfo> get properyModified =>
       _propertyModifiedController.stream;
 
-  emitProperty(PropertyModificationInfo event) {
+  void emitProperty(PropertyModificationInfo event) {
     _propertyModifiedController.add(event);
   }
 
-  emitArgs(String event, List arguments) {
+  bool emitArgs(String event, List arguments) {
     //event = event.toLowerCase();
 
     var et = _events[event.toLowerCase()];
@@ -33,14 +33,13 @@ class IEventHandler {
     return false;
   }
 
-  on(String event, Function callback) {
+  void on(String event, Function callback) {
     event = event.toLowerCase();
     if (!_events.containsKey(event)) register(event);
     _events[event]?.add(callback);
-    return this;
   }
 
-  off(String event, callback) {
+  void off(String event, Function? callback) {
     event = event.toLowerCase();
     if (_events.containsKey(event)) {
       if (callback != null)

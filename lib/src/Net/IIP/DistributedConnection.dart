@@ -22,6 +22,14 @@ SOFTWARE.
 
 */
 
+import '../../Data/IntType.dart';
+
+import '../../Data/DataDeserializer.dart';
+import '../../Data/DataSerializer.dart';
+import '../../Data/TransmissionType.dart';
+import '../../Resource/EventOccurredInfo.dart';
+import '../../Resource/PropertyModificationInfo.dart';
+
 import '../Sockets/WSocket.dart';
 
 import '../../Resource/Template/TemplateDescriber.dart';
@@ -74,7 +82,6 @@ import '../../Resource/Template/TypeTemplate.dart';
 import '../../Security/Permissions/Ruling.dart';
 import '../../Security/Permissions/ActionType.dart';
 import '../../Data/Codec.dart';
-import '../../Data/Structure.dart';
 import '../../Core/ProgressType.dart';
 import '../../Security/Integrity/SHA256.dart';
 import '../../Resource/ResourceTrigger.dart';
@@ -188,7 +195,7 @@ class DistributedConnection extends NetworkConnection with IStore {
       var address = host[0];
       var port = host.length > 1 ? int.parse(host[1]) : 10518;
 
-      var domain = instance?.attributes["domain"] ?? address;
+      var domain = instance?.attributes["domain"].toString() ?? address;
 
       var ws = instance?.attributes.containsKey("ws") == true ||
           instance?.attributes.containsKey("wss") == true;
@@ -211,8 +218,9 @@ class DistributedConnection extends NetworkConnection with IStore {
             useWebsocket: ws,
             secureWebSocket: secure);
       } else if (instance?.attributes.containsKey("token") == true) {
-        var token = DC.stringToBytes(instance?.attributes["token"] ?? "");
-        var tokenIndex = instance?.attributes["tokenIndex"] ?? 0;
+        var token =
+            DC.stringToBytes(instance?.attributes["token"].toString() ?? "");
+        var tokenIndex = instance?.attributes["tokenIndex"] as int? ?? 0;
         return connect(
             method: AuthenticationMethod.Credentials,
             domain: domain,
@@ -478,7 +486,11 @@ class DistributedConnection extends NetworkConnection with IStore {
     var packet = new IIPPacket();
 
     if (_ready) {
+      print("Inc " + msg.length.toString());
+
       var rt = packet.parse(msg, offset, ends);
+
+      print("Packet " + packet.toString());
 
       if (rt <= 0) {
         // print("hold");
@@ -500,12 +512,12 @@ class DistributedConnection extends NetworkConnection with IStore {
               iipEventResourceDestroyed(packet.resourceId);
               break;
             case IIPPacketEvent.PropertyUpdated:
-              iipEventPropertyUpdated(
-                  packet.resourceId, packet.methodIndex, packet.content);
+              iipEventPropertyUpdated(packet.resourceId, packet.methodIndex,
+                  packet.dataType ?? TransmissionType.Null, msg);
               break;
             case IIPPacketEvent.EventOccurred:
-              iipEventEventOccurred(
-                  packet.resourceId, packet.methodIndex, packet.content);
+              iipEventEventOccurred(packet.resourceId, packet.methodIndex,
+                  packet.dataType ?? TransmissionType.Null, msg);
               break;
 
             case IIPPacketEvent.ChildAdded:
@@ -515,10 +527,11 @@ class DistributedConnection extends NetworkConnection with IStore {
               iipEventChildRemoved(packet.resourceId, packet.childId);
               break;
             case IIPPacketEvent.Renamed:
-              iipEventRenamed(packet.resourceId, packet.content);
+              iipEventRenamed(packet.resourceId, packet.resourceName);
               break;
             case IIPPacketEvent.AttributesUpdated:
-              iipEventAttributesUpdated(packet.resourceId, packet.content);
+              // @TODO: fix this
+              //iipEventAttributesUpdated(packet.resourceId, packet.dataType. ?? TransmissionType.Null);
               break;
           }
         } else if (packet.command == IIPPacketCommand.Request) {
@@ -535,8 +548,10 @@ class DistributedConnection extends NetworkConnection with IStore {
               iipRequestDetachResource(packet.callbackId, packet.resourceId);
               break;
             case IIPPacketAction.CreateResource:
-              iipRequestCreateResource(packet.callbackId, packet.storeId,
-                  packet.resourceId, packet.content);
+
+              // @TODO: Fix this
+              //iipRequestCreateResource(packet.callbackId, packet.storeId,
+              //  packet.resourceId, packet.content);
               break;
             case IIPPacketAction.DeleteResource:
               iipRequestDeleteResource(packet.callbackId, packet.resourceId);
@@ -551,7 +566,7 @@ class DistributedConnection extends NetworkConnection with IStore {
               break;
             case IIPPacketAction.RenameResource:
               iipRequestRenameResource(
-                  packet.callbackId, packet.resourceId, packet.content);
+                  packet.callbackId, packet.resourceId, packet.resourceName);
               break;
 
             // Inquire
@@ -587,14 +602,13 @@ class DistributedConnection extends NetworkConnection with IStore {
               break;
 
             // Invoke
-            case IIPPacketAction.InvokeFunctionArrayArguments:
-              iipRequestInvokeFunctionArrayArguments(packet.callbackId,
-                  packet.resourceId, packet.methodIndex, packet.content);
-              break;
-
-            case IIPPacketAction.InvokeFunctionNamedArguments:
-              iipRequestInvokeFunctionNamedArguments(packet.callbackId,
-                  packet.resourceId, packet.methodIndex, packet.content);
+            case IIPPacketAction.InvokeFunction:
+              iipRequestInvokeFunction(
+                  packet.callbackId,
+                  packet.resourceId,
+                  packet.methodIndex,
+                  packet.dataType ?? TransmissionType.Null,
+                  msg);
               break;
 
             case IIPPacketAction.Listen:
@@ -615,34 +629,39 @@ class DistributedConnection extends NetworkConnection with IStore {
                             break;
 */
             case IIPPacketAction.SetProperty:
-              iipRequestSetProperty(packet.callbackId, packet.resourceId,
-                  packet.methodIndex, packet.content);
+              iipRequestSetProperty(
+                  packet.callbackId,
+                  packet.resourceId,
+                  packet.methodIndex,
+                  packet.dataType ?? TransmissionType.Null,
+                  msg);
               break;
 
             // Attribute
             case IIPPacketAction.GetAllAttributes:
-              iipRequestGetAttributes(
-                  packet.callbackId, packet.resourceId, packet.content, true);
+              // @TODO: fix this
+              //iipRequestGetAttributes(
+              //  packet.callbackId, packet.resourceId, packet.content, true);
               break;
             case IIPPacketAction.UpdateAllAttributes:
-              iipRequestUpdateAttributes(
-                  packet.callbackId, packet.resourceId, packet.content, true);
+              //iipRequestUpdateAttributes(
+              //  packet.callbackId, packet.resourceId, packet.content, true);
               break;
             case IIPPacketAction.ClearAllAttributes:
-              iipRequestClearAttributes(
-                  packet.callbackId, packet.resourceId, packet.content, true);
+              //iipRequestClearAttributes(
+              //  packet.callbackId, packet.resourceId, packet.content, true);
               break;
             case IIPPacketAction.GetAttributes:
-              iipRequestGetAttributes(
-                  packet.callbackId, packet.resourceId, packet.content, false);
+              //iipRequestGetAttributes(
+              //  packet.callbackId, packet.resourceId, packet.content, false);
               break;
             case IIPPacketAction.UpdateAttributes:
-              iipRequestUpdateAttributes(
-                  packet.callbackId, packet.resourceId, packet.content, false);
+              //iipRequestUpdateAttributes(
+              //    packet.callbackId, packet.resourceId, packet.content, false);
               break;
             case IIPPacketAction.ClearAttributes:
-              iipRequestClearAttributes(
-                  packet.callbackId, packet.resourceId, packet.content, false);
+              //iipRequestClearAttributes(
+              //    packet.callbackId, packet.resourceId, packet.content, false);
               break;
           }
         } else if (packet.command == IIPPacketCommand.Reply) {
@@ -653,12 +672,17 @@ class DistributedConnection extends NetworkConnection with IStore {
                 packet.classId,
                 packet.resourceAge,
                 packet.resourceLink,
-                packet.content
+                packet.dataType ?? TransmissionType.Null,
+                msg
               ]);
               break;
 
             case IIPPacketAction.ReattachResource:
-              iipReply(packet.callbackId, [packet.resourceAge, packet.content]);
+              iipReply(packet.callbackId, [
+                packet.resourceAge,
+                packet.dataType ?? TransmissionType.Null,
+                msg
+              ]);
 
               break;
             case IIPPacketAction.DetachResource:
@@ -681,7 +705,15 @@ class DistributedConnection extends NetworkConnection with IStore {
             case IIPPacketAction.TemplateFromClassName:
             case IIPPacketAction.TemplateFromClassId:
             case IIPPacketAction.TemplateFromResourceId:
-              iipReply(packet.callbackId, [TypeTemplate.parse(packet.content)]);
+              if (packet.dataType != null) {
+                var content = msg.clip(packet.dataType?.offset ?? 0,
+                    packet.dataType?.contentLength ?? 0);
+                iipReply(packet.callbackId, [TypeTemplate.parse(content)]);
+              } else {
+                iipReportError(packet.callbackId, ErrorType.Management,
+                    ExceptionCode.TemplateNotFound.index, "Template not found");
+              }
+
               break;
 
             case IIPPacketAction.QueryLink:
@@ -689,13 +721,14 @@ class DistributedConnection extends NetworkConnection with IStore {
             case IIPPacketAction.ResourceParents:
             case IIPPacketAction.ResourceHistory:
             case IIPPacketAction.LinkTemplates:
-              iipReply(packet.callbackId, [packet.content]);
+              iipReply(packet.callbackId,
+                  [packet.dataType ?? TransmissionType.Null, msg]);
               break;
 
             // Invoke
-            case IIPPacketAction.InvokeFunctionArrayArguments:
-            case IIPPacketAction.InvokeFunctionNamedArguments:
-              iipReplyInvoke(packet.callbackId, packet.content);
+            case IIPPacketAction.InvokeFunction:
+              iipReplyInvoke(packet.callbackId,
+                  packet.dataType ?? TransmissionType.Null, msg);
               break;
 
             // case IIPPacketAction.GetProperty:
@@ -715,7 +748,8 @@ class DistributedConnection extends NetworkConnection with IStore {
             // Attribute
             case IIPPacketAction.GetAllAttributes:
             case IIPPacketAction.GetAttributes:
-              iipReply(packet.callbackId, [packet.content]);
+              iipReply(packet.callbackId,
+                  [packet.dataType ?? TransmissionType.Null, msg]);
               break;
 
             case IIPPacketAction.UpdateAllAttributes:
@@ -740,7 +774,8 @@ class DistributedConnection extends NetworkConnection with IStore {
                   packet.progressValue, packet.progressMax);
               break;
             case IIPPacketReport.ChunkStream:
-              iipReportChunk(packet.callbackId, packet.content);
+              iipReportChunk(packet.callbackId,
+                  packet.dataType ?? TransmissionType.Null, msg);
               break;
           }
         }
@@ -925,6 +960,7 @@ class DistributedConnection extends NetworkConnection with IStore {
 
   @override
   void dataReceived(NetworkBuffer data) {
+    print("dataReceived");
     // Console.WriteLine("DR " + hostType + " " + data.Available + " " + RemoteEndPoint.ToString());
     var msg = data.read();
     int offset = 0;
@@ -964,14 +1000,14 @@ class DistributedConnection extends NetworkConnection with IStore {
     return AsyncReply.ready(true);
   }
 
-  bool record(IResource resource, String propertyName, value, int age,
-      DateTime dateTime) {
+  bool record(IResource resource, String propertyName, value, int? age,
+      DateTime? dateTime) {
     // nothing to do
     return true;
   }
 
-  bool modify(IResource resource, String propertyName, value, int age,
-      DateTime dateTime) {
+  bool modify(IResource resource, String propertyName, value, int? age,
+      DateTime? dateTime) {
     // nothing to do
     return true;
   }
@@ -1032,16 +1068,16 @@ class DistributedConnection extends NetworkConnection with IStore {
     return reply;
   }
 
-  AsyncReply<dynamic> sendInvokeByArrayArguments(
-      int instanceId, int index, List<dynamic> parameters) {
-    var pb = Codec.composeVarArray(parameters, this, true);
+  AsyncReply<dynamic> sendInvoke(
+      int instanceId, int index, Map<UInt8, dynamic> parameters) {
+    var pb = Codec.compose(parameters, this);
 
     var reply = new AsyncReply<dynamic>();
     var c = _callbackCounter++;
     _requests.add(c, reply);
 
     sendParams()
-      ..addUint8(0x40 | IIPPacketAction.InvokeFunctionArrayArguments)
+      ..addUint8(0x40 | IIPPacketAction.InvokeFunction)
       ..addUint32(c)
       ..addUint32(instanceId)
       ..addUint8(index)
@@ -1058,24 +1094,6 @@ class DistributedConnection extends NetworkConnection with IStore {
     } catch (ex) {
       return null;
     }
-  }
-
-  AsyncReply<dynamic> sendInvokeByNamedArguments(
-      int instanceId, int index, Structure parameters) {
-    var pb = Codec.composeStructure(parameters, this, true, true, true);
-
-    var reply = new AsyncReply<dynamic>();
-    var c = _callbackCounter++;
-    _requests.add(c, reply);
-
-    sendParams()
-      ..addUint8(0x40 | IIPPacketAction.InvokeFunctionNamedArguments)
-      ..addUint32(c)
-      ..addUint32(instanceId)
-      ..addUint8(index)
-      ..addDC(pb)
-      ..done();
-    return reply;
   }
 
   void sendError(ErrorType type, int callbackId, int errorCode,
@@ -1108,7 +1126,7 @@ class DistributedConnection extends NetworkConnection with IStore {
   }
 
   void sendChunk(int callbackId, dynamic chunk) {
-    var c = Codec.compose(chunk, this, true);
+    var c = Codec.compose(chunk, this);
     sendParams()
       ..addUint8(0xC0 | IIPPacketReport.ChunkStream)
       ..addUint32(callbackId)
@@ -1121,10 +1139,10 @@ class DistributedConnection extends NetworkConnection with IStore {
     req?.trigger(results);
   }
 
-  void iipReplyInvoke(int callbackId, DC result) {
+  void iipReplyInvoke(int callbackId, TransmissionType dataType, DC data) {
     var req = _requests.take(callbackId);
 
-    Codec.parse(result, 0, this).then((rt) {
+    Codec.parse(data, 0, this, dataType).reply.then((rt) {
       req?.trigger(rt);
     });
   }
@@ -1141,10 +1159,10 @@ class DistributedConnection extends NetworkConnection with IStore {
     req?.triggerProgress(type, value, max);
   }
 
-  void iipReportChunk(int callbackId, DC data) {
+  void iipReportChunk(int callbackId, TransmissionType dataType, DC data) {
     if (_requests.containsKey(callbackId)) {
       var req = _requests[callbackId];
-      Codec.parse(data, 0, this).then((x) {
+      Codec.parse(data, 0, this, dataType).reply.then((x) {
         req?.triggerChunk(x);
       });
     }
@@ -1160,12 +1178,13 @@ class DistributedConnection extends NetworkConnection with IStore {
     }
   }
 
-  void iipEventPropertyUpdated(int resourceId, int index, DC content) {
+  void iipEventPropertyUpdated(
+      int resourceId, int index, TransmissionType dataType, DC data) {
     fetch(resourceId).then((r) {
       var item = new AsyncReply<DistributedResourceQueueItem>();
       _queue.add(item);
 
-      Codec.parse(content, 0, this).then((arguments) {
+      Codec.parse(data, 0, this, dataType).reply.then((arguments) {
         var pt = r.instance?.template.getPropertyTemplateByIndex(index);
         if (pt != null) {
           item.trigger(DistributedResourceQueueItem(
@@ -1214,13 +1233,14 @@ class DistributedConnection extends NetworkConnection with IStore {
           */
   }
 
-  void iipEventEventOccurred(int resourceId, int index, DC content) {
+  void iipEventEventOccurred(
+      int resourceId, int index, TransmissionType dataType, DC data) {
     fetch(resourceId).then((r) {
       // push to the queue to gaurantee serialization
       var item = new AsyncReply<DistributedResourceQueueItem>();
       _queue.add(item);
 
-      Codec.parse(content, 0, this).then((arguments) {
+      Codec.parse(data, 0, this, dataType).reply.then((arguments) {
         var et = r.instance?.template.getEventTemplateByIndex(index);
         if (et != null) {
           item.trigger(new DistributedResourceQueueItem(
@@ -1286,12 +1306,11 @@ class DistributedConnection extends NetworkConnection with IStore {
     });
   }
 
-  void iipEventRenamed(int resourceId, DC name) {
+  void iipEventRenamed(int resourceId, String name) {
     fetch(resourceId)
       ..then((resource) {
         if (resource != null) {
-          resource.instance?.attributes["name"] =
-              name.getString(0, name.length);
+          resource.instance?.attributes["name"] = name;
         }
       });
   }
@@ -1330,8 +1349,10 @@ class DistributedConnection extends NetworkConnection with IStore {
             ..addUint64(r.instance?.age as int)
             ..addUint16(link.length)
             ..addDC(link)
-            ..addDC(Codec.composePropertyValueArray(
-                r.internal_serialize(), this, true))
+            //..addDC(Codec.composePropertyValueArray(
+            //    r.internal_serialize(), this, true))
+            ..addDC(Codec.compose(
+                (r as DistributedResource).internal_serialize(), this))
             ..done();
         } else {
           // reply ok
@@ -1340,8 +1361,7 @@ class DistributedConnection extends NetworkConnection with IStore {
             ..addUint64((r.instance as Instance).age)
             ..addUint16(link.length)
             ..addDC(link)
-            ..addDC(Codec.composePropertyValueArray(
-                (r.instance as Instance).serialize(), this, true))
+            ..addDC(Codec.compose((r.instance as Instance).serialize(), this))
             ..done();
         }
 
@@ -1410,8 +1430,7 @@ class DistributedConnection extends NetworkConnection with IStore {
         // reply ok
         sendReply(IIPPacketAction.ReattachResource, callback)
           ..addUint64((r.instance as Instance).age)
-          ..addDC(Codec.composePropertyValueArray(
-              (r.instance as Instance).serialize(), this, true))
+          ..addDC(Codec.compose((r.instance as Instance).serialize(), this))
           ..done();
       } else {
         // reply failed
@@ -1491,30 +1510,26 @@ class DistributedConnection extends NetworkConnection with IStore {
           return;
         }
 
-        Codec.parseVarArray(content, offset, cl, this).then((parameters) {
+        DataDeserializer.listParser(content, offset, cl, this)
+            .then((parameters) {
           offset += cl;
           cl = content.getUint32(offset);
-          Codec.parseStructure(content, offset, cl, this).then((attributes) {
+          DataDeserializer.typedMapParser(content, offset, cl, this)
+              .then((attributes) {
             offset += cl;
             cl = content.length - offset;
 
-            Codec.parseStructure(content, offset, cl, this).then((values) {
+            DataDeserializer.typedMapParser(content, offset, cl, this)
+                .then((values) {
               var constructors =
                   []; //Type.GetType(className).GetTypeInfo().GetConstructors();
 
               var matching = constructors.where((x) {
                 var ps = x.GetParameters();
-                // if (ps.length > 0 && ps.length == parameters.length + 1)
-                //   if (ps.Last().ParameterType == typeof(DistributedConnection))
-                //     return true;
-
                 return ps.length == parameters.length;
               }).toList();
 
-              var pi = matching[0].getParameters();
-
-              // cast arguments
-              //List<dynamic>? args = null;
+              var pi = matching[0].getParameters() as List;
 
               if (pi.length > 0) {
                 int argsCount = pi.length;
@@ -1609,7 +1624,7 @@ class DistributedConnection extends NetworkConnection with IStore {
                 ? IIPPacketAction.GetAllAttributes
                 : IIPPacketAction.GetAttributes,
             callback)
-          ..addDC(Codec.composeStructure(st, this, true, true, true))
+          ..addDC(Codec.compose(st, this))
           ..done();
       else
         sendError(ErrorType.Management, callback,
@@ -1695,7 +1710,7 @@ class DistributedConnection extends NetworkConnection with IStore {
     });
   }
 
-  void iipRequestRenameResource(int callback, int resourceId, DC name) {
+  void iipRequestRenameResource(int callback, int resourceId, String name) {
     Warehouse.getById(resourceId).then((resource) {
       if (resource == null) {
         sendError(ErrorType.Management, callback,
@@ -1711,7 +1726,7 @@ class DistributedConnection extends NetworkConnection with IStore {
         return;
       }
 
-      resource.instance?.name = name.getString(0, name.length);
+      resource.instance?.name = name;
       sendReply(IIPPacketAction.RenameResource, callback).done();
     });
   }
@@ -1725,10 +1740,8 @@ class DistributedConnection extends NetworkConnection with IStore {
       }
 
       sendReply(IIPPacketAction.ResourceChildren, callback)
-        ..addDC(Codec.composeResourceArray<IResource>(
-            resource.instance?.children.toList() as List<IResource>,
-            this,
-            true))
+        ..addDC(Codec.compose(
+            resource.instance?.children.toList() as List<IResource>, this))
         ..done();
     });
   }
@@ -1742,8 +1755,8 @@ class DistributedConnection extends NetworkConnection with IStore {
       }
 
       sendReply(IIPPacketAction.ResourceParents, callback)
-        ..addDC(Codec.composeResourceArray<IResource>(
-            resource.instance?.parents.toList() as List<IResource>, this, true))
+        ..addDC(Codec.compose(
+            resource.instance?.parents.toList() as List<IResource>, this))
         ..done();
     });
   }
@@ -1799,9 +1812,11 @@ class DistributedConnection extends NetworkConnection with IStore {
         return;
       }
 
-      Codec.parseStructure(attributes, 0, attributes.length, this)
+      DataDeserializer.typedListParser(attributes, 0, attributes.length, this)
           .then((attrs) {
-        if (r.instance?.setAttributes(attrs, clearAttributes) == true)
+        if (r.instance?.setAttributes(
+                attrs as Map<String, dynamic>, clearAttributes) ==
+            true)
           sendReply(
                   clearAttributes
                       ? IIPPacketAction.ClearAllAttributes
@@ -1849,8 +1864,8 @@ class DistributedConnection extends NetworkConnection with IStore {
 
           // digggg
           sendReply(IIPPacketAction.LinkTemplates, callback)
-            ..addInt32(msg.length)
-            ..addUint8Array(msg.toArray())
+            ..addDC(TransmissionType.compose(
+                TransmissionTypeIdentifier.RawData, msg.toDC()))
             ..done();
         }
       }
@@ -1866,8 +1881,8 @@ class DistributedConnection extends NetworkConnection with IStore {
     var t = Warehouse.getTemplateByClassName(className);
     if (t != null) {
       sendReply(IIPPacketAction.TemplateFromClassName, callback)
-        ..addInt32(t.content.length)
-        ..addDC(t.content)
+        ..addDC(TransmissionType.compose(
+            TransmissionTypeIdentifier.RawData, t.content))
         ..done();
     } else {
       // reply failed
@@ -1880,8 +1895,8 @@ class DistributedConnection extends NetworkConnection with IStore {
     var t = Warehouse.getTemplateByClassId(classId);
     if (t != null)
       sendReply(IIPPacketAction.TemplateFromClassId, callback)
-        ..addInt32(t.content.length)
-        ..addDC(t.content)
+        ..addDC(TransmissionType.compose(
+            TransmissionTypeIdentifier.RawData, t.content))
         ..done();
     else {
       // reply failed
@@ -1894,8 +1909,8 @@ class DistributedConnection extends NetworkConnection with IStore {
     Warehouse.getById(resourceId).then((r) {
       if (r != null)
         sendReply(IIPPacketAction.TemplateFromResourceId, callback)
-          ..addInt32(r.instance?.template.content.length as int)
-          ..addDC(r.instance?.template.content as DC)
+          ..addDC(TransmissionType.compose(TransmissionTypeIdentifier.RawData,
+              r.instance?.template.content ?? new DC(0)))
           ..done();
       else {
         // reply failed
@@ -1923,7 +1938,7 @@ class DistributedConnection extends NetworkConnection with IStore {
               ExceptionCode.ResourceNotFound.index);
         else
           sendReply(IIPPacketAction.QueryLink, callback)
-            ..addDC(Codec.composeResourceArray(list, this, true))
+            ..addDC(Codec.compose(list, this))
             ..done();
       }
     });
@@ -1931,19 +1946,19 @@ class DistributedConnection extends NetworkConnection with IStore {
 
   void IIPRequestResourceAttribute(int callback, int resourceId) {}
 
-  void iipRequestInvokeFunctionArrayArguments(
-      int callback, int resourceId, int index, DC content) {
+  void iipRequestInvokeFunction(int callback, int resourceId, int index,
+      TransmissionType dataType, DC data) {
     Warehouse.getById(resourceId).then((r) {
       if (r != null) {
-        Codec.parseVarArray(content, 0, content.length, this).then((arguments) {
+        Codec.parse(data, 0, this, dataType).reply.then((arguments) {
           var ft = r.instance?.template.getFunctionTemplateByIndex(index);
           if (ft != null) {
             if (r is DistributedResource) {
-              var rt = r.internal_invokeByArrayArguments(index, arguments);
+              var rt =
+                  r.internal_invoke(index, arguments as Map<UInt8, dynamic>);
               if (rt != null) {
                 rt.then((res) {
-                  sendReply(
-                      IIPPacketAction.InvokeFunctionArrayArguments, callback)
+                  sendReply(IIPPacketAction.InvokeFunction, callback)
                     ..addDC(Codec.compose(res, this))
                     ..done();
                 });
@@ -1952,44 +1967,6 @@ class DistributedConnection extends NetworkConnection with IStore {
               }
             } else {
               var fi = null; //r.GetType().GetTypeInfo().GetMethod(ft.name);
-
-              if (fi != null) {
-              } else {
-                // ft found, fi not found, this should never happen
-              }
-            }
-          } else {
-            // no function at this index
-          }
-        });
-      } else {
-        // no resource with this id
-      }
-    });
-  }
-
-  void iipRequestInvokeFunctionNamedArguments(
-      int callback, int resourceId, int index, DC content) {
-    Warehouse.getById(resourceId).then((r) {
-      if (r != null) {
-        Codec.parseStructure(content, 0, content.length, this)
-            .then((namedArgs) {
-          var ft = r.instance?.template.getFunctionTemplateByIndex(index);
-          if (ft != null) {
-            if (r is DistributedResource) {
-              var rt = r.internal_invokeByNamedArguments(index, namedArgs);
-              if (rt != null) {
-                rt.then((res) {
-                  sendReply(
-                      IIPPacketAction.InvokeFunctionNamedArguments, callback)
-                    ..addDC(Codec.compose(res, this))
-                    ..done();
-                });
-              } else {
-                // function not found on a distributed object
-              }
-            } else {
-              var fi = null;
 
               if (fi != null) {
               } else {
@@ -2125,7 +2102,7 @@ class DistributedConnection extends NetworkConnection with IStore {
       if (r != null) {
         r.instance?.store?.getRecord(r, fromDate, toDate).then((results) {
           if (results != null) {
-            var history = Codec.composeHistory(results, this, true);
+            var history = DataSerializer.historyComposer(results, this, true);
 
             sendReply(IIPPacketAction.ResourceHistory, callback)
               ..addDC(history)
@@ -2182,13 +2159,13 @@ class DistributedConnection extends NetworkConnection with IStore {
   //   });
   // }
 
-  void iipRequestSetProperty(
-      int callback, int resourceId, int index, DC content) {
+  void iipRequestSetProperty(int callback, int resourceId, int index,
+      TransmissionType dataType, DC data) {
     Warehouse.getById(resourceId).then((r) {
       if (r != null) {
         var pt = r.instance?.template.getPropertyTemplateByIndex(index);
         if (pt != null) {
-          Codec.parse(content, 0, this).then((value) {
+          Codec.parse(data, 0, this, dataType).reply.then((value) {
             if (r is DistributedResource) {
               // propagation
               (r as DistributedResource).set(index, value).then<dynamic>((x) {
@@ -2215,14 +2192,14 @@ class DistributedConnection extends NetworkConnection with IStore {
                   return;
                 }
 
-                if (!pi.CanWrite) {
+                if (pi == null) {
                   sendError(ErrorType.Management, callback,
                       ExceptionCode.ReadOnlyProperty.index);
                   return;
                 }
 
                 if (pi.propertyType.runtimeType == DistributedPropertyContext) {
-                  value = new DistributedPropertyContext.setter(this, value);
+                  value = new DistributedPropertyContext.setter(value, this);
                 } else {
                   // cast new value type to property type
                   // value = DC.castConvert(value, pi.PropertyType);
@@ -2274,7 +2251,7 @@ class DistributedConnection extends NetworkConnection with IStore {
           _templateRequests.remove(classId);
           _templates[(rt[0] as TypeTemplate).classId] = rt[0] as TypeTemplate;
           Warehouse.putTemplate(rt[0] as TypeTemplate);
-          reply.trigger(rt[0]);
+          reply.trigger(rt[0] as TypeTemplate);
         } else {
           reply.triggerError(Exception("Null response"));
         }
@@ -2332,9 +2309,10 @@ class DistributedConnection extends NetworkConnection with IStore {
         // parse templates
 
         if (rt != null) {
-          DC data = rt[0];
+          TransmissionType tt = rt[0] as TransmissionType;
+          DC data = rt[1] as DC;
           //var offset = 0;
-          for (int offset = 0; offset < data.length;) {
+          for (int offset = tt.offset; offset < tt.contentLength;) {
             var cs = data.getUint32(offset);
             offset += 4;
             templates.add(TypeTemplate.parse(data, offset, cs));
@@ -2381,47 +2359,70 @@ class DistributedConnection extends NetworkConnection with IStore {
           // @TODO: Generator code
           DistributedResource dr;
 
-          if (resource == null) { 
-            var template =
-                Warehouse.getTemplateByClassId(rt[0], TemplateType.Wrapper);
+          if (resource == null) {
+            var template = Warehouse.getTemplateByClassId(
+                rt[0] as Guid, TemplateType.Wrapper);
             if (template?.definedType != null) {
               dr = Warehouse.createInstance(template?.definedType as Type);
-              dr.internal_init(this, id, rt[1], rt[2]);
+              dr.internal_init(this, id, rt[1] as int, rt[2] as String);
             } else {
               dr = new DistributedResource();
-              dr.internal_init(this, id, rt[1], rt[2]);
+              dr.internal_init(this, id, rt[1] as int, rt[2] as String);
             }
           } else
             dr = resource;
 
           //var dr = resource ?? new DistributedResource(this, id, rt[1], rt[2]);
 
+          TransmissionType transmissionType = rt[3] as TransmissionType;
+          DC content = rt[4] as DC;
+
           getTemplate(rt[0] as Guid)
             ..then((tmp) {
               //print("New template ");
-
-              var d = rt[3] as DC;
 
               // ClassId, ResourceAge, ResourceLink, Content
               if (resource == null) {
                 Warehouse.put(id.toString(), dr, this, null, tmp)
                   ..then((ok) {
-                    Codec.parsePropertyValueArray(d, 0, d.length, this)
-                        .then((ar) {
-                      //print("attached");
-                      dr.internal_attach(ar);
+                    Codec.parse(content, 0, this, transmissionType)
+                        .reply
+                        .then((results) {
+                      var pvs = <PropertyValue>[];
+                      var ar = results as List;
+
+                      for (var i = 0; i < ar.length; i += 3)
+                        pvs.add(new PropertyValue(
+                            ar[i + 2], ar[i] as int, ar[i + 1] as DateTime));
+
+                      dr.internal_attach(pvs);
+
                       _resourceRequests.remove(id);
                       reply.trigger(dr);
-                    });
+                    })
+                      ..error((ex) => reply.triggerError(ex));
                   })
                   ..error((ex) => reply.triggerError(ex));
               } else {
-                Codec.parsePropertyValueArray(d, 0, d.length, this).then((ar) {
+                Codec.parse(content, 0, this, transmissionType)
+                    .reply
+                    .then((results) {
                   //print("attached");
-                  if (ar != null) dr.internal_attach(ar);
+                  if (results != null) {
+                    var pvs = <PropertyValue>[];
+
+                    var ar = results as List;
+                    for (var i = 0; i < ar.length; i += 3)
+                      pvs.add(new PropertyValue(
+                          ar[i + 2], ar[i] as int, ar[i + 1] as DateTime));
+
+                    dr.internal_attach(pvs);
+                  }
+
                   _resourceRequests.remove(id);
                   reply.trigger(dr);
-                });
+                })
+                  ..error((ex) => reply.triggerError(ex));
               }
             })
             ..error((ex) {
@@ -2445,10 +2446,13 @@ class DistributedConnection extends NetworkConnection with IStore {
       ..addUint32(resource.instance?.id as int)
       ..done().then<dynamic>((ar) {
         if (ar != null) {
-          var d = ar[0] as DC;
-          Codec.parseResourceArray(d, 0, d.length, this).then((resources) {
-            rt.trigger(resources);
-          }).error((ex) => rt.triggerError(ex));
+          TransmissionType dataType = ar[0] as TransmissionType;
+          DC data = ar[1] as DC;
+
+          Codec.parse(data, 0, this, dataType).reply.then((resources) {
+            rt.trigger(resources as List<IResource?>);
+          })
+            ..error((ex) => rt.triggerError(ex));
         } else {
           rt.triggerError(Exception("Null response"));
         }
@@ -2464,11 +2468,12 @@ class DistributedConnection extends NetworkConnection with IStore {
       ..addUint32((resource.instance as Instance).id)
       ..done().then<dynamic>((ar) {
         if (ar != null) {
-          var d = ar[0] as DC;
-          Codec.parseResourceArray(d, 0, d.length, this)
-              .then<dynamic>((resources) {
-            rt.trigger(resources);
-          }).error((ex) => rt.triggerError(ex));
+          TransmissionType dataType = ar[0] as TransmissionType;
+          DC data = ar[1] as DC;
+          Codec.parse(data, 0, this, dataType).reply.then((resources) {
+            rt.trigger(resources as List<IResource>);
+          })
+            ..error((ex) => rt.triggerError(ex));
         } else {
           rt.triggerError(Exception("Null response"));
         }
@@ -2501,7 +2506,8 @@ class DistributedConnection extends NetworkConnection with IStore {
     return rt;
   }
 
-  AsyncReply<bool> setAttributes(IResource resource, Structure attributes,
+  AsyncReply<bool> setAttributes(
+      IResource resource, Map<String, dynamic> attributes,
       [bool clearAttributes = false]) {
     var rt = new AsyncReply<bool>();
 
@@ -2509,7 +2515,7 @@ class DistributedConnection extends NetworkConnection with IStore {
         ? IIPPacketAction.UpdateAllAttributes
         : IIPPacketAction.UpdateAttributes)
       ..addUint32(resource.instance?.id as int)
-      ..addDC(Codec.composeStructure(attributes, this, true, true, true))
+      ..addDC(Codec.compose(attributes, this))
       ..done()
           .then<dynamic>((ar) => rt.trigger(true))
           .error((ex) => rt.triggerError(ex));
@@ -2517,9 +2523,9 @@ class DistributedConnection extends NetworkConnection with IStore {
     return rt;
   }
 
-  AsyncReply<Structure> getAttributes(IResource resource,
+  AsyncReply<Map<String, dynamic>> getAttributes(IResource resource,
       [List<String>? attributes = null]) {
-    var rt = new AsyncReply<Structure>();
+    var rt = new AsyncReply<Map<String, dynamic>>();
 
     if (attributes == null) {
       (sendRequest(IIPPacketAction.GetAllAttributes)
@@ -2527,17 +2533,18 @@ class DistributedConnection extends NetworkConnection with IStore {
           .done()
         ..then((ar) {
           if (ar != null) {
-            var d = ar[0] as DC;
-            Codec.parseStructure(d, 0, d.length, this)
-              ..then((st) {
-                resource.instance?.setAttributes(st);
-                rt.trigger(st);
-              })
+            TransmissionType dataType = ar[0] as TransmissionType;
+            DC data = ar[1] as DC;
+
+            Codec.parse(data, 0, this, dataType).reply.then((st) {
+              resource.instance?.setAttributes(st as Map<String, dynamic>);
+              rt.trigger(st as Map<String, dynamic>);
+            })
               ..error((ex) => rt.triggerError(ex));
           } else {
             rt.triggerError(Exception("Null response"));
           }
-        });
+        })..error((ex) => rt.triggerError(ex));;
     } else {
       var attrs = DC.stringArrayToBytes(attributes);
       (sendRequest(IIPPacketAction.GetAttributes)
@@ -2547,18 +2554,20 @@ class DistributedConnection extends NetworkConnection with IStore {
           .done()
         ..then((ar) {
           if (ar != null) {
-            var d = ar[0] as DC;
-            Codec.parseStructure(d, 0, d.length, this)
-              ..then((st) {
-                resource.instance?.setAttributes(st);
+            TransmissionType dataType = ar[0] as TransmissionType;
+            DC data = ar[1] as DC;
 
-                rt.trigger(st);
+            Codec.parse(data, 0, this, dataType).reply
+              ..then((st) {
+                resource.instance?.setAttributes(st as Map<String, dynamic>);
+
+                rt.trigger(st as Map<String, dynamic>);
               })
               ..error((ex) => rt.triggerError(ex));
           } else {
             rt.triggerError(Exception("Null response"));
           }
-        });
+        })..error((ex) => rt.triggerError(ex));;
     }
 
     return rt;
@@ -2591,7 +2600,8 @@ class DistributedConnection extends NetworkConnection with IStore {
           if (rt != null) {
             var content = rt[0] as DC;
 
-            Codec.parseHistory(content, 0, content.length, resource, this)
+            DataDeserializer.historyParser(
+                    content, 0, content.length, resource, this)
                 .then((history) => reply.trigger(history));
           } else {
             reply.triggerError(Exception("Null response"));
@@ -2616,12 +2626,14 @@ class DistributedConnection extends NetworkConnection with IStore {
     sendRequest(IIPPacketAction.QueryLink)
       ..addUint16(str.length)
       ..addDC(str)
-      ..done().then<dynamic>((args) {
-        if (args != null) {
-          var content = args[0] as DC;
+      ..done().then<dynamic>((ar) {
+        if (ar != null) {
+          TransmissionType dataType = ar[0] as TransmissionType;
+          DC data = ar[1] as DC;
 
-          Codec.parseResourceArray(content, 0, content.length, this)
-              .then((resources) => reply.trigger(resources));
+          Codec.parse(data, 0, this, dataType).reply.then((resources) =>
+              reply.trigger((resources as List).cast<IResource?>()))
+            ..error((ex) => reply.triggerError(ex));
         } else {
           reply.triggerError(Exception("Null response"));
         }
@@ -2644,17 +2656,17 @@ class DistributedConnection extends NetworkConnection with IStore {
       IResource parent,
       String className,
       List parameters,
-      Structure attributes,
-      Structure values) {
+      Map<String, dynamic> attributes,
+      Map<String, dynamic> values) {
     var reply = new AsyncReply<DistributedResource?>();
     var pkt = BinaryList()
       ..addUint32((store.instance as Instance).id)
       ..addUint32((parent.instance as Instance).id)
       ..addUint8(className.length)
       ..addString(className)
-      ..addDC(Codec.composeVarArray(parameters, this, true))
-      ..addDC(Codec.composeStructure(attributes, this, true, true, true))
-      ..addDC(Codec.composeStructure(values, this));
+      ..addDC(Codec.compose(parameters, this))
+      ..addDC(Codec.compose(attributes, this))
+      ..addDC(Codec.compose(values, this));
 
     pkt.insertInt32(8, pkt.length);
 
@@ -2663,7 +2675,7 @@ class DistributedConnection extends NetworkConnection with IStore {
         if (args != null) {
           var rid = args[0];
 
-          fetch(rid).then((r) {
+          fetch(rid as int).then((r) {
             reply.trigger(r);
           });
         } else {
@@ -2682,37 +2694,47 @@ class DistributedConnection extends NetworkConnection with IStore {
       ..done();
   }
 
-  void _instance_PropertyModified(IResource resource, String name, newValue) {
-    var pt = resource.instance?.template.getPropertyTemplateByName(name);
+  void _instance_PropertyModified(PropertyModificationInfo info) {
+    //var pt = resource.instance?.template.getPropertyTemplateByName(name);
 
-    if (pt == null) return;
+    //if (pt == null) return;
 
     sendEvent(IIPPacketEvent.PropertyUpdated)
-      ..addUint32(resource.instance?.id as int)
-      ..addUint8(pt.index)
-      ..addDC(Codec.compose(newValue, this))
+      ..addUint32(info.resource.instance?.id as int)
+      ..addUint8(info.propertyTemplate.index)
+      ..addDC(Codec.compose(info.value, this))
       ..done();
   }
 
   //        private void Instance_EventOccurred(IResource resource, string name, string[] users, DistributedConnection[] connections, object[] args)
 
-  void _instance_EventOccurred(IResource resource, issuer,
-      List<Session>? receivers, String name, dynamic args) {
-    var et = resource.instance?.template.getEventTemplateByName(name);
+  void _instance_EventOccurred(EventOccurredInfo info) {
+    //IResource resource, issuer,
+    //List<Session>? receivers, String name, dynamic args) {
+    //var et = resource.instance?.template.getEventTemplateByName(name);
 
-    if (et == null) return;
+    //if (et == null) return;
 
-    if (receivers != null) if (!receivers.contains(this.session)) return;
+    if (info.eventTemplate.listenable) {
+      // check the client requested listen
+      if (_subscriptions[info.resource] == null) return;
 
-    if (resource.instance?.applicable(
-            _session as Session, ActionType.ReceiveEvent, et, issuer) ==
+      if (!_subscriptions[info.resource]!.contains(info.eventTemplate.index))
+        return;
+    }
+
+    if (info.receivers != null &&
+        this._session != null) if (!info.receivers!(this._session!)) return;
+
+    if (info.resource.instance?.applicable(_session as Session,
+            ActionType.ReceiveEvent, info.eventTemplate, info.issuer) ==
         Ruling.Denied) return;
 
     // compose the packet
     sendEvent(IIPPacketEvent.EventOccurred)
-      ..addUint32((resource.instance as Instance).id)
-      ..addUint8(et.index)
-      ..addDC(Codec.compose(args, this, true))
+      ..addUint32((info.resource.instance as Instance).id)
+      ..addUint8(info.eventTemplate.index)
+      ..addDC(Codec.compose(info.value, this))
       ..done();
   }
 

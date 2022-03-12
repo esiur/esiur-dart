@@ -71,7 +71,7 @@ class WSocket extends ISocket {
       if (_state == SocketState.Closed || _state == SocketState.Terminated)
         return;
 
-      var dc = new DC.fromList(data);
+      var dc = new DC.fromList(data as List<int>);
       receiveNetworkBuffer.write(dc, 0, dc.length);
       receiver?.networkReceive(this, receiveNetworkBuffer);
     } catch (ex) {

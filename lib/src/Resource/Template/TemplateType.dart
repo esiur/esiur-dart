@@ -3,4 +3,5 @@ enum TemplateType {
   Resource,
   Record,
   Wrapper,
+  Enum
 }

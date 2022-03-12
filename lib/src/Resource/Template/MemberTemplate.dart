@@ -1,30 +1,18 @@
-
 import 'MemberType.dart';
 import '../../Data/DC.dart';
 import 'TypeTemplate.dart';
 
-class MemberTemplate
-{
-    
-    int get index => _index;
-    String get name => _name;
-    MemberType get type => _type;
+class MemberTemplate {
+  final TypeTemplate template;
+  final String name;
+  final int index;
+  final bool inherited;
 
-    TypeTemplate _template;
-    String _name;
-    MemberType _type;
-    int _index;
+  MemberTemplate(this.template, this.index, this.name, this.inherited) {}
 
-    TypeTemplate get template => _template;
+  String get fullname => template.className + "." + name;
 
-    MemberTemplate(this._template, this._type, this._index, this._name)
-    {
-    }
-
-    String get fullname => _template.className + "." + _name;
-
-    DC compose()
-    {
-        return DC.stringToBytes(_name);
-    }
+  DC compose() {
+    return DC.stringToBytes(name);
+  }
 }

@@ -1,7 +1,6 @@
 import 'dart:core';
 
 import '../Data/DC.dart';
-import '../Data/Structure.dart';
 import '../Data/AutoList.dart';
 import './IStore.dart';
 import './IResource.dart';
@@ -12,6 +11,7 @@ import '../Core/IEventHandler.dart';
 import '../Security/Permissions/Ruling.dart';
 import '../Security/Permissions/IPermissionsManager.dart';
 import '../Security/Permissions/ActionType.dart';
+import 'EventOccurredInfo.dart';
 import 'Template/TypeTemplate.dart';
 import './Template/PropertyTemplate.dart';
 import './Template/FunctionTemplate.dart';
@@ -23,7 +23,6 @@ import '../Data/PropertyValue.dart';
 import 'Warehouse.dart';
 
 import '../Core/PropertyModificationInfo.dart';
-
 
 class Instance extends IEventHandler {
   String _name;
@@ -64,8 +63,8 @@ class Instance extends IEventHandler {
     return true;
   }
 
-  Structure getAttributes([List<String>? attributes = null]) {
-    var st = new Structure();
+  Map<String, dynamic> getAttributes([List<String>? attributes = null]) {
+    var st = Map<String, dynamic>();
 
     if (attributes == null) {
       var clone = this.attributes.keys.toList();
@@ -77,10 +76,10 @@ class Instance extends IEventHandler {
       if (attr == "name")
         st["name"] = _name;
       else if (attr == "managers") {
-        var mngrs = <Structure>[];
+        var mngrs = <Map<String, dynamic>>[];
 
         for (var i = 0; i < _managers.length; i++) {
-          var mst = new Structure();
+          var mst = Map<String, dynamic>();
           mst["type"] = _managers[i].runtimeType;
           mst["settings"] = _managers[i].settings;
 
@@ -103,7 +102,8 @@ class Instance extends IEventHandler {
     return st;
   }
 
-  bool setAttributes(Structure attributes, [bool clearAttributes = false]) {
+  bool setAttributes(Map<String, dynamic> attributes,
+      [bool clearAttributes = false]) {
     try {
       if (clearAttributes) _attributes.clear();
 
@@ -256,7 +256,7 @@ class Instance extends IEventHandler {
   /// </summary>
   int get age => _instanceAge;
   // this must be internal
-  set age(value) => _instanceAge = value;
+  set age(int value) => _instanceAge = value;
 
   /// <summary>
   /// Last modification date.
@@ -381,18 +381,19 @@ class Instance extends IEventHandler {
     _ages[pt.index] = _instanceAge;
     _modificationDates[pt.index] = now;
 
-    if (pt.storage == StorageMode.NonVolatile) {
-      _store?.modify(_resource, pt.name, value, _ages[pt.index], now);
-    } else if (pt.storage == StorageMode.Recordable) {
+    if (pt.recordable) {
       _store?.record(_resource, pt.name, value, _ages[pt.index], now);
+    } else {
+      _store?.modify(_resource, pt.name, value, _ages[pt.index], now);
     }
 
-    emitArgs("resourceModified", [_resource, pt.name, value]);
+    var pmInfo = PropertyModificationInfo(_resource, pt, value, _instanceAge);
+
+    emitArgs("PropertyModified", [pmInfo]);
     //_resource.emitArgs("modified", [pt.name, value]);
     _resource.emitArgs(":${pt.name}", [value]);
 
-    _resource.emitProperty(
-        PropertyModificationInfo(_resource, pt, value, _instanceAge));
+    _resource.emitProperty(pmInfo);
   }
 
   /// <summary>
@@ -409,10 +410,11 @@ class Instance extends IEventHandler {
     }
   }
 
-  emitResourceEvent(
-      issuer, List<Session>? receivers, String name, dynamic args) {
-    emitArgs(
-        "resourceEventOccurred", [_resource, issuer, receivers, name, args]);
+  emitResourceEvent(issuer, bool Function(Session)? receivers,
+      EventTemplate eventTemplate, dynamic value) {
+    emitArgs("EventOccurred", [
+      EventOccurredInfo(_resource, eventTemplate, value, issuer, receivers)
+    ]);
   }
 
   /// <summary>

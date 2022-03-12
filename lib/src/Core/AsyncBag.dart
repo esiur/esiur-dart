@@ -1,25 +1,15 @@
 import 'AsyncReply.dart';
 import '../Resource/Warehouse.dart';
 
-// class ReplyIndex<T> {
-//   int index;
-//   AsyncReply<T> reply;
-//   T
-// }
-
 class AsyncBag<T> extends AsyncReply<List<T>> {
   List<AsyncReply<T>> _replies = <AsyncReply<T>>[];
-
-  //List<T?> _results = <T>[];
 
   int _count = 0;
   bool _sealedBag = false;
 
   Type? arrayType;
 
-  seal() {
-    //print("SEALED");
-
+  void seal() {
     if (_sealedBag) return;
     _sealedBag = true;
 

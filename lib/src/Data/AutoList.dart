@@ -1,3 +1,6 @@
+ 
+import '../Core/IEventHandler.dart';
+
 import '../Core/IDestructible.dart';
 import 'Codec.dart';
 import 'dart:collection';
@@ -8,7 +11,7 @@ class AutoList<T, ST> extends IDestructible with IterableMixin<T> {
   ST? _state;
   late bool _removableList;
 
-  sort(int Function(T, T)? compare) {
+  void sort(int Function(T, T)? compare) {
     _list.sort(compare);
   }
 
@@ -38,36 +41,17 @@ class AutoList<T, ST> extends IDestructible with IterableMixin<T> {
     register("cleared");
   }
 
-  /// <summary>
-  /// Synchronization lock of the list
-  /// </summary>
-  //public object SyncRoot
-  //{
-  //    get
-  //    {
-  //        return syncRoot;
-  //    }
-  //}
-
-  /// <summary>
-  /// First item in the list
-  /// </summary>
-  //T first()
-  //{
-  //    return _list.first;
-  //}
-
-  operator [](index) {
+  T operator [](int index) {
     return _list[index];
   }
 
-  operator []=(index, value) {
+  void operator []=(int index, T value) {
     var oldValue = _list[index];
 
     if (_removableList) {
       if (oldValue != null)
         (oldValue as IDestructible).off("destroy", _itemDestroyed);
-      if (value != null) value.on("destroy", _itemDestroyed);
+      if (value != null) (value as IEventHandler).on("destroy", _itemDestroyed);
     }
 
     //lock (syncRoot)
@@ -79,7 +63,7 @@ class AutoList<T, ST> extends IDestructible with IterableMixin<T> {
   /// <summary>
   /// Add item to the list
   /// </summary>
-  add(T value) {
+  void add(T value) {
     if (_removableList) if (value != null)
       (value as IDestructible).on("destroy", _itemDestroyed);
 
@@ -92,18 +76,18 @@ class AutoList<T, ST> extends IDestructible with IterableMixin<T> {
   /// <summary>
   /// Add an array of items to the list
   /// </summary>
-  addRange(List<T> values) {
+  void addRange(List<T> values) {
     values.forEach((x) => add(x));
   }
 
-  _itemDestroyed(T sender) {
+  void _itemDestroyed(T sender) {
     remove(sender);
   }
 
   /// <summary>
   /// Clear the list
   /// </summary>
-  clear() {
+  void clear() {
     if (_removableList)
       _list.forEach((x) => (x as IDestructible).off("destroy", _itemDestroyed));
 
@@ -117,7 +101,7 @@ class AutoList<T, ST> extends IDestructible with IterableMixin<T> {
   /// Remove an item from the list
   /// <param name="value">Item to remove</param>
   /// </summary>
-  remove(T value) {
+  void remove(T value) {
     if (!_list.contains(value)) return;
 
     if (_removableList) if (value != null)
@@ -145,7 +129,7 @@ class AutoList<T, ST> extends IDestructible with IterableMixin<T> {
   /// Check if any item of the given array is in the list
   /// </summary>
   /// <param name="values">Array of items</param>
-  containsAny(values) {
+ bool containsAny(dynamic values) {
     if (values is List<T>) {
       for (var v in values) {
         if (_list.contains(v)) return true;

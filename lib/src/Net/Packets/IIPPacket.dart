@@ -21,6 +21,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
+import '../../Data/TransmissionType.dart';
+
 import '../../Data/DC.dart';
 import '../../Data/Guid.dart';
 
@@ -29,7 +31,6 @@ import 'IIPPacketCommand.dart';
 import 'IIPPacketEvent.dart';
 import 'IIPPacketReport.dart';
 import '../../Data/Codec.dart';
-import '../../Data/DataType.dart';
 
 class IIPPacket {
   int report = 0;
@@ -53,7 +54,7 @@ class IIPPacket {
   int storeId = 0;
 
   int resourceAge = 0;
-  DC content = DC(0);
+  //DC content = DC(0);
   int errorCode = 0;
   String errorMessage = "";
   String className = "";
@@ -68,6 +69,9 @@ class IIPPacket {
   DateTime toDate = DateTime(2000);
   int fromAge = 0;
   int toAge = 0;
+  String resourceName = "";
+
+  TransmissionType? dataType;
 
   int _dataLengthNeeded = 0;
   int _originalOffset = 0;
@@ -137,7 +141,7 @@ class IIPPacket {
 
         if (_notEnough(offset, ends, cl)) return -_dataLengthNeeded;
 
-        content = data.clip(offset, cl);
+        resourceName = data.getString(offset, cl);
 
         offset += cl;
       } else if (event == IIPPacketEvent.PropertyUpdated ||
@@ -146,25 +150,12 @@ class IIPPacket {
 
         methodIndex = data[offset++];
 
-        var dt = data[offset++];
-        var size = DataType.size(dt);
+        var parsed = TransmissionType.parse(data, offset, ends);
 
-        if (size < 0) {
-          if (_notEnough(offset, ends, 4)) return -_dataLengthNeeded;
+        if (parsed.type == null) return -parsed.size;
 
-          var cl = data.getUint32(offset);
-          offset += 4;
-
-          if (_notEnough(offset, ends, cl)) return -_dataLengthNeeded;
-
-          content = data.clip(offset - 5, cl + 5);
-          offset += cl;
-        } else {
-          if (_notEnough(offset, ends, size)) return -_dataLengthNeeded;
-
-          content = data.clip(offset - 1, size + 1);
-          offset += size;
-        }
+        dataType = parsed.type;
+        offset += parsed.size;
       }
       // else if (event == IIPPacketEvent.EventOccurred)
       // {
@@ -192,7 +183,8 @@ class IIPPacket {
 
         if (_notEnough(offset, ends, cl)) return -_dataLengthNeeded;
 
-        content = data.clip(offset, cl);
+        //@TODO: fix this
+        //content = data.clip(offset, cl);
 
         offset += cl;
       }
@@ -228,7 +220,8 @@ class IIPPacket {
 
         if (_notEnough(offset, ends, cl)) return -_dataLengthNeeded;
 
-        content = data.clip(offset, cl);
+        //@TODO: fix this
+        //content = data.clip(offset, cl);
       } else if (action == IIPPacketAction.DeleteResource) {
         if (_notEnough(offset, ends, 4)) return -_dataLengthNeeded;
 
@@ -252,7 +245,7 @@ class IIPPacket {
 
         if (_notEnough(offset, ends, cl)) return -_dataLengthNeeded;
 
-        content = data.clip(offset, cl);
+        resourceName = data.getString(offset, cl);
         offset += cl;
       } else if (action == IIPPacketAction.TemplateFromClassName) {
         if (_notEnough(offset, ends, 1)) return -_dataLengthNeeded;
@@ -301,22 +294,20 @@ class IIPPacket {
 
         toDate = data.getDateTime(offset);
         offset += 8;
-      } else if (action == IIPPacketAction.InvokeFunctionArrayArguments ||
-          action == IIPPacketAction.InvokeFunctionNamedArguments) {
-        if (_notEnough(offset, ends, 9)) return -_dataLengthNeeded;
+      } else if (action == IIPPacketAction.InvokeFunction) {
+        if (_notEnough(offset, ends, 6)) return -_dataLengthNeeded;
 
         resourceId = data.getUint32(offset);
         offset += 4;
 
         methodIndex = data[offset++];
 
-        var cl = data.getUint32(offset);
-        offset += 4;
+        var parsed = TransmissionType.parse(data, offset, ends);
 
-        if (_notEnough(offset, ends, cl)) return -_dataLengthNeeded;
+        if (parsed.type == null) return -parsed.size;
 
-        content = data.clip(offset, cl);
-        offset += cl;
+        dataType = parsed.type;
+        offset += parsed.size;
       } else if (action == IIPPacketAction.Listen ||
           action == IIPPacketAction.Unlisten) {
         if (_notEnough(offset, ends, 5)) return -_dataLengthNeeded;
@@ -358,26 +349,12 @@ class IIPPacket {
         offset += 4;
 
         methodIndex = data[offset++];
+        var parsed = TransmissionType.parse(data, offset, ends);
 
-        var dt = data[offset++];
-        var size = DataType.size(dt);
+        if (parsed.type == null) return -parsed.size;
 
-        if (size < 0) {
-          if (_notEnough(offset, ends, 4)) return -_dataLengthNeeded;
-
-          var cl = data.getUint32(offset);
-          offset += 4;
-
-          if (_notEnough(offset, ends, cl)) return -_dataLengthNeeded;
-
-          content = data.clip(offset - 5, cl + 5);
-          offset += cl;
-        } else {
-          if (_notEnough(offset, ends, size)) return -_dataLengthNeeded;
-
-          content = data.clip(offset - 1, size + 1);
-          offset += size;
-        }
+        dataType = parsed.type;
+        offset += parsed.size;
       }
       // Attributes
       else if (action == IIPPacketAction.UpdateAllAttributes ||
@@ -393,7 +370,8 @@ class IIPPacket {
 
         if (_notEnough(offset, ends, cl)) return -_dataLengthNeeded;
 
-        content = data.clip(offset, cl);
+        //@TODO: fix this
+        //content = data.clip(offset, cl);
         offset += cl;
       }
     } else if (command == IIPPacketCommand.Reply) {
@@ -415,15 +393,12 @@ class IIPPacket {
         resourceLink = data.getString(offset, cl);
         offset += cl;
 
-        if (_notEnough(offset, ends, 4)) return -_dataLengthNeeded;
+        var parsed = TransmissionType.parse(data, offset, ends);
 
-        cl = data.getUint32(offset);
-        offset += 4;
+        if (parsed.type == null) return -parsed.size;
 
-        if (_notEnough(offset, ends, cl)) return -_dataLengthNeeded;
-
-        content = data.clip(offset, cl);
-        offset += cl;
+        dataType = parsed.type;
+        offset += parsed.size;
       } else if (action == IIPPacketAction.DetachResource) {
         // nothing to do
       } else if (action == IIPPacketAction.CreateResource) {
@@ -450,41 +425,26 @@ class IIPPacket {
           ||
           action == IIPPacketAction.GetAllAttributes ||
           action == IIPPacketAction.GetAttributes) {
-        if (_notEnough(offset, ends, 4)) return -_dataLengthNeeded;
+        if (_notEnough(offset, ends, 1)) return -_dataLengthNeeded;
 
-        var cl = data.getUint32(offset);
-        offset += 4;
+        var parsed = TransmissionType.parse(data, offset, ends);
 
-        if (_notEnough(offset, ends, cl)) return -_dataLengthNeeded;
+        if (parsed.type == null) return -parsed.size;
 
-        content = data.clip(offset, cl);
-        offset += cl;
-      } else if (action == IIPPacketAction.InvokeFunctionArrayArguments ||
-          action == IIPPacketAction.InvokeFunctionNamedArguments)
+        dataType = parsed.type;
+        offset += parsed.size;
+      } else if (action == IIPPacketAction.InvokeFunction)
       //|| action == IIPPacketAction.GetProperty
       //|| action == IIPPacketAction.GetPropertyIfModified)
       {
         if (_notEnough(offset, ends, 1)) return -_dataLengthNeeded;
 
-        var dt = data[offset++];
-        var size = DataType.size(dt);
+        var parsed = TransmissionType.parse(data, offset, ends);
 
-        if (size < 0) {
-          if (_notEnough(offset, ends, 4)) return -_dataLengthNeeded;
+        if (parsed.type == null) return -parsed.size;
 
-          var cl = data.getUint32(offset);
-          offset += 4;
-
-          if (_notEnough(offset, ends, cl)) return -_dataLengthNeeded;
-
-          content = data.clip(offset - 5, cl + 5);
-          offset += cl;
-        } else {
-          if (_notEnough(offset, ends, size)) return -_dataLengthNeeded;
-
-          content = data.clip(offset - 1, size + 1);
-          offset += size;
-        }
+        dataType = parsed.type;
+        offset += parsed.size;
       } else if (action == IIPPacketAction.SetProperty ||
           action == IIPPacketAction.Listen ||
           action == IIPPacketAction.Unlisten) {
@@ -521,25 +481,12 @@ class IIPPacket {
       } else if (report == IIPPacketReport.ChunkStream) {
         if (_notEnough(offset, ends, 1)) return -_dataLengthNeeded;
 
-        var dt = data[offset++];
-        var size = DataType.size(dt);
+        var parsed = TransmissionType.parse(data, offset, ends);
 
-        if (size < 0) {
-          if (_notEnough(offset, ends, 4)) return -_dataLengthNeeded;
+        if (parsed.type == null) return -parsed.size;
 
-          var cl = data.getUint32(offset);
-          offset += 4;
-
-          if (_notEnough(offset, ends, cl)) return -_dataLengthNeeded;
-
-          content = data.clip(offset - 5, cl + 5);
-          offset += cl;
-        } else {
-          if (_notEnough(offset, ends, size)) return -_dataLengthNeeded;
-
-          content = data.clip(offset - 1, size + 1);
-          offset += size;
-        }
+        dataType = parsed.type;
+        offset += parsed.size;
       }
     }
 
