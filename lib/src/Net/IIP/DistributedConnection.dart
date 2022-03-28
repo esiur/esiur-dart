@@ -461,7 +461,7 @@ class DistributedConnection extends NetworkConnection with IStore {
   String? link(IResource resource) {
     if (resource is DistributedResource) {
       if (resource.instance?.store == this)
-        return (this.instance?.name ?? "") + "/" + resource.id.toString();
+        return (this.instance?.name ?? "") + "/" + resource.distributedResourceInstanceId.toString();
     }
 
     return null;
@@ -995,7 +995,8 @@ class DistributedConnection extends NetworkConnection with IStore {
   /// <returns></returns>
   AsyncReply<bool> put(IResource resource) {
     if (Codec.isLocalResource(resource, this))
-      _resources.add((resource as DistributedResource).id as int, resource);
+      _resources.add(
+          (resource as DistributedResource).distributedResourceInstanceId as int, resource);
     // else .. put it in the server....
     return AsyncReply.ready(true);
   }
@@ -2347,7 +2348,7 @@ class DistributedConnection extends NetworkConnection with IStore {
         return AsyncReply<DistributedResource>.ready(resource);
       else
         return request;
-    } else if (resource != null && !resource.suspended)
+    } else if (resource != null && !resource.distributedResourceSuspended)
       return new AsyncReply<DistributedResource>.ready(resource);
 
     var reply = new AsyncReply<DistributedResource>();
@@ -2544,7 +2545,9 @@ class DistributedConnection extends NetworkConnection with IStore {
           } else {
             rt.triggerError(Exception("Null response"));
           }
-        })..error((ex) => rt.triggerError(ex));;
+        })
+        ..error((ex) => rt.triggerError(ex));
+      ;
     } else {
       var attrs = DC.stringArrayToBytes(attributes);
       (sendRequest(IIPPacketAction.GetAttributes)
@@ -2567,7 +2570,9 @@ class DistributedConnection extends NetworkConnection with IStore {
           } else {
             rt.triggerError(Exception("Null response"));
           }
-        })..error((ex) => rt.triggerError(ex));;
+        })
+        ..error((ex) => rt.triggerError(ex));
+      ;
     }
 
     return rt;
@@ -2585,7 +2590,7 @@ class DistributedConnection extends NetworkConnection with IStore {
     if (resource is DistributedResource) {
       var dr = resource as DistributedResource;
 
-      if (dr.connection != this)
+      if (dr.distributedResourceConnection != this)
         return new AsyncReply<
             KeyList<PropertyTemplate, List<PropertyValue>>?>.ready(null);
 
@@ -2593,7 +2598,7 @@ class DistributedConnection extends NetworkConnection with IStore {
           new AsyncReply<KeyList<PropertyTemplate, List<PropertyValue>>>();
 
       sendRequest(IIPPacketAction.ResourceHistory)
-        ..addUint32(dr.id as int)
+        ..addUint32(dr.distributedResourceInstanceId as int)
         ..addDateTime(fromDate)
         ..addDateTime(toDate)
         ..done().then<dynamic>((rt) {

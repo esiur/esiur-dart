@@ -1,6 +1,6 @@
 name: esiur
 description: Distributed Object Framework.
-version: 2.0.0
+version: 2.0.2
 #author: Ahmed Zamil <ahmed@esiur.com>
 homepage: https://github.com/esiur/esiur-dart
 
@@ -13,7 +13,7 @@ dependencies:
   args: ^2.3.0
   pubspec_parse: ^1.2.0
   web_socket_channel: ^2.1.0
-  collection: ^1.16.0
+  collection: ^1.15.0
 
 dev_dependencies:
   test: 

@@ -1,4 +1,3 @@
- 
 import 'IEnum.dart';
 import '../Resource/Template/TemplateType.dart';
 import 'IRecord.dart';
@@ -35,7 +34,7 @@ class RepresentationTypeIdentifier {
       Record = 0x15,
       List = 0x16,
       Map = 0x17,
-      Enum = 0x18,
+      Enum = 0x44,
       TypedResource = 0x45, // Followed by UUID
       TypedRecord = 0x46, // Followed by UUID
       TypedList = 0x48, // Followed by element type

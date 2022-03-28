@@ -353,7 +353,7 @@ class Codec {
       IResource resource, DistributedConnection? connection) {
     if (connection == null) return false;
     if (resource is DistributedResource) {
-      if (resource.connection == connection) return true;
+      if (resource.distributedResourceConnection == connection) return true;
     }
     return false;
   }

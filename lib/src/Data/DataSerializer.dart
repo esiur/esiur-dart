@@ -306,7 +306,7 @@ class DataSerializer {
     var rt = new DC(4);
 
     if (Codec.isLocalResource(resource, connection)) {
-      rt.setUint32(0, (resource as DistributedResource).id ?? 0);
+      rt.setUint32(0, (resource as DistributedResource).distributedResourceInstanceId ?? 0);
       return DataSerializerComposeResults(
           TransmissionTypeIdentifier.ResourceLocal, rt);
     } else {

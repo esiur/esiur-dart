@@ -63,21 +63,21 @@ class DistributedResource extends IResource {
   /// <summary>
   /// Connection responsible for the distributed resource.
   /// </summary>
-  DistributedConnection? get connection => _connection;
+  DistributedConnection? get distributedResourceConnection => _connection;
 
   /// <summary>
   /// Resource link
   /// </summary>
-  String? get link => _link;
+  String? get distributedResourceLink => _link;
 
   /// <summary>
   /// Instance Id given by the other end.
   /// </summary>
-  int? get id => _instanceId;
+  int? get distributedResourceInstanceId => _instanceId;
 
   //bool get destroyed => _destroyed;
 
-  bool get suspended => _suspended;
+  bool get distributedResourceSuspended => _suspended;
   bool _suspended = true;
 
   AsyncReply<bool> trigger(ResourceTrigger trigger) => AsyncReply.ready(true);
@@ -227,7 +227,7 @@ class DistributedResource extends IResource {
       return AsyncReply().triggerError(new AsyncException(
           ErrorType.Management, ExceptionCode.NotListenable.index, ""));
 
-    return connection?.sendUnlistenRequest(_instanceId as int, et.index)
+    return _connection?.sendUnlistenRequest(_instanceId as int, et.index)
         as AsyncReply;
   }
 
