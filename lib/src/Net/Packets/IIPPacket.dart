@@ -397,6 +397,13 @@ class IIPPacket {
 
         if (parsed.type == null) return -parsed.size;
 
+        //print("Not enough ${parsed.size}");
+
+        // } else {
+        //   print(
+        //       "attach parsed ${parsed.size} ${cl} ${data.length} ${ends} ${offset}");
+        // }
+
         dataType = parsed.type;
         offset += parsed.size;
       } else if (action == IIPPacketAction.DetachResource) {

@@ -1,5 +1,5 @@
 import 'dart:core';
- 
+
 import 'IEnum.dart';
 
 import '../Core/Tuple.dart';
@@ -23,136 +23,136 @@ class PropertyValueParserResults {
 }
 
 class DataDeserializer {
-  static AsyncReply nullParser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply nullParser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     return AsyncReply.ready(null);
   }
 
-  static AsyncReply booleanTrueParser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply booleanTrueParser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     return new AsyncReply<bool>.ready(true);
   }
 
-  static AsyncReply booleanFalseParser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply booleanFalseParser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     return new AsyncReply<bool>.ready(false);
   }
 
-  static AsyncReply notModifiedParser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply notModifiedParser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     return new AsyncReply<NotModified>.ready(NotModified());
   }
 
-  static AsyncReply byteParser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply byteParser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     return new AsyncReply<int>.ready(data[offset]);
   }
 
-  static AsyncReply sByteParser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply sByteParser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     return new AsyncReply<int>.ready(
         data[offset] > 127 ? data[offset] - 256 : data[offset]);
   }
 
-  static AsyncReply char16Parser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply char16Parser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     return AsyncReply<String>.ready(data.getChar(offset));
   }
 
-  static AsyncReply char8Parser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply char8Parser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     return new AsyncReply<String>.ready(String.fromCharCode(data[offset]));
   }
 
-  static AsyncReply int16Parser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply int16Parser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     return AsyncReply<int>.ready(data.getInt16(offset));
   }
 
-  static AsyncReply uInt16Parser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply uInt16Parser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     return AsyncReply<int>.ready(data.getUint16(offset));
   }
 
-  static AsyncReply int32Parser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply int32Parser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     return AsyncReply<int>.ready(data.getInt32(offset));
   }
 
-  static AsyncReply uInt32Parser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply uInt32Parser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     return AsyncReply<int>.ready(data.getUint32(offset));
   }
 
-  static AsyncReply float32Parser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply float32Parser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     return AsyncReply<double>.ready(data.getFloat32(offset));
   }
 
-  static AsyncReply float64Parser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply float64Parser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     return AsyncReply<double>.ready(data.getFloat64(offset));
   }
 
-  static AsyncReply float128Parser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply float128Parser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     // @TODO
     return AsyncReply<double>.ready(data.getFloat64(offset));
   }
 
-  static AsyncReply int128Parser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply int128Parser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     // @TODO
     return AsyncReply<int>.ready(data.getInt64(offset));
   }
 
-  static AsyncReply uInt128Parser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply uInt128Parser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     return AsyncReply<int>.ready(data.getUint64(offset));
   }
 
-  static AsyncReply int64Parser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply int64Parser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     return AsyncReply<int>.ready(data.getInt64(offset));
   }
 
-  static AsyncReply uInt64Parser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply uInt64Parser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     return AsyncReply<int>.ready(data.getUint64(offset));
   }
 
-  static AsyncReply dateTimeParser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply dateTimeParser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     return AsyncReply<DateTime>.ready(data.getDateTime(offset));
   }
 
-  static AsyncReply resourceParser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply resourceParser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     if (connection != null) {
       var id = data.getUint32(offset);
-      return connection.fetch(id);
+      return connection.fetch(id, requestSequence);
     }
     throw Exception("Can't parse resource with no connection");
   }
 
-  static AsyncReply localResourceParser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply localResourceParser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     var id = data.getUint32(offset);
     return Warehouse.getById(id);
   }
 
-  static AsyncReply rawDataParser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply rawDataParser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     return new AsyncReply<DC>.ready(data.clip(offset, length));
   }
 
-  static AsyncReply stringParser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply stringParser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     return new AsyncReply<String>.ready(data.getString(offset, length));
   }
 
-  static AsyncReply recordParser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply recordParser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     var reply = new AsyncReply<IRecord>();
 
     var classId = data.getGuid(offset);
@@ -161,61 +161,54 @@ class DataDeserializer {
 
     var template = Warehouse.getTemplateByClassId(classId, TemplateType.Record);
 
+    var initRecord = (TypeTemplate template) =>
+        listParser(data, offset, length, connection, requestSequence).then((r) {
+          var ar = r as List;
+          IRecord record;
+
+          if (template.definedType != null) {
+            record = Warehouse.createInstance(template.definedType!) as IRecord;
+          } else {
+            record = Record();
+          }
+
+          var kv = Map<String, dynamic>();
+
+          for (var i = 0; i < template.properties.length; i++)
+            kv[template.properties[i].name] = ar[i];
+
+          record.deserialize(kv);
+
+          reply.trigger(record);
+        });
+
     if (template != null) {
-      listParser(data, offset, length, connection).then((r) {
-        var ar = r as List;
-        IRecord record;
-
-        if (template.definedType != null) {
-          record = Warehouse.createInstance(template.definedType!) as IRecord;
-        } else {
-          record = Record();
-        }
-
-        var kv = Map<String, dynamic>();
-
-        for (var i = 0; i < template.properties.length; i++)
-          kv[template.properties[i].name] = ar[i];
-
-        record.deserialize(kv);
-
-        reply.trigger(record);
-      });
+      initRecord(template);
     } else {
       if (connection == null)
         throw Exception("Can't parse record with no connection");
 
       connection.getTemplate(classId).then((tmp) {
         if (tmp == null)
-          reply.triggerError(Exception("Couldn't fetch record template."));
-
-        listParser(data, offset, length, connection).then((r) {
-          var ar = r as List;
-
-          var record = new Record();
-
-          var kv = Map<String, dynamic>();
-
-          for (var i = 0; i < tmp!.properties.length; i++)
-            kv[tmp.properties[i].name] = ar[i];
-
-          record.deserialize(kv);
-
-          reply.trigger(record);
-        });
+          reply.triggerError(AsyncException(
+              ErrorType.Management,
+              ExceptionCode.TemplateNotFound.index,
+              "Template not found for record."));
+        else
+          initRecord(tmp);
       }).error((x) => reply.triggerError(x));
     }
 
     return reply;
   }
 
-  static AsyncReply constantParser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply constantParser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     throw Exception("NotImplementedException");
   }
 
-  static AsyncReply enumParser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply enumParser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     var classId = data.getGuid(offset);
     offset += 16;
     var index = data[offset++];
@@ -258,12 +251,12 @@ class DataDeserializer {
     }
   }
 
-  static AsyncReply recordListParser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply recordListParser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     var rt = new AsyncBag();
 
     while (length > 0) {
-      var parsed = Codec.parse(data, offset, connection);
+      var parsed = Codec.parse(data, offset, connection, requestSequence);
 
       rt.add(parsed.reply);
 
@@ -278,12 +271,12 @@ class DataDeserializer {
     return rt;
   }
 
-  static AsyncReply resourceListParser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply resourceListParser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     var rt = new AsyncBag();
 
     while (length > 0) {
-      var parsed = Codec.parse(data, offset, connection);
+      var parsed = Codec.parse(data, offset, connection, requestSequence);
 
       rt.add(parsed.reply);
 
@@ -298,12 +291,12 @@ class DataDeserializer {
     return rt;
   }
 
-  static AsyncBag listParser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncBag listParser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     var rt = new AsyncBag();
 
     while (length > 0) {
-      var parsed = Codec.parse(data, offset, connection);
+      var parsed = Codec.parse(data, offset, connection, requestSequence);
 
       rt.add(parsed.reply);
 
@@ -318,8 +311,8 @@ class DataDeserializer {
     return rt;
   }
 
-  static AsyncReply typedMapParser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply typedMapParser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     // get key type
     var keyRep = RepresentationType.parse(data, offset);
     offset += keyRep.size;
@@ -329,15 +322,13 @@ class DataDeserializer {
     offset += valueRep.size;
     length -= valueRep.size;
 
-
-
     var map = Map();
     var rt = new AsyncReply();
 
     var results = new AsyncBag();
 
     while (length > 0) {
-      var parsed = Codec.parse(data, offset, connection);
+      var parsed = Codec.parse(data, offset, connection, requestSequence);
 
       results.add(parsed.reply);
 
@@ -359,8 +350,8 @@ class DataDeserializer {
     return rt;
   }
 
-  static AsyncReply tupleParser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply tupleParser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     var results = new AsyncBag();
     var rt = new AsyncReply();
 
@@ -377,7 +368,7 @@ class DataDeserializer {
     }
 
     while (length > 0) {
-      var parsed = Codec.parse(data, offset, connection);
+      var parsed = Codec.parse(data, offset, connection, requestSequence);
 
       results.add(parsed.reply);
 
@@ -397,8 +388,8 @@ class DataDeserializer {
     return rt;
   }
 
-  static AsyncReply typedListParser(
-      DC data, int offset, int length, DistributedConnection? connection) {
+  static AsyncReply typedListParser(DC data, int offset, int length,
+      DistributedConnection? connection, List<int>? requestSequence) {
     var rt = new AsyncBag();
 
     // get the type
@@ -412,7 +403,7 @@ class DataDeserializer {
     rt.arrayType = runtimeType;
 
     while (length > 0) {
-      var parsed = Codec.parse(data, offset, connection);
+      var parsed = Codec.parse(data, offset, connection, requestSequence);
 
       rt.add(parsed.reply);
 
@@ -431,11 +422,12 @@ class DataDeserializer {
       DC data,
       int offset,
       int length,
-      DistributedConnection? connection) //, bool ageIncluded = true)
+      DistributedConnection? connection,
+      List<int>? requestSequence) //, bool ageIncluded = true)
   {
     var rt = new AsyncBag<PropertyValue>();
 
-    listParser(data, offset, length, connection).then((x) {
+    listParser(data, offset, length, connection, requestSequence).then((x) {
       var pvs = <PropertyValue>[];
 
       for (var i = 0; i < x.length; i += 3)
@@ -447,8 +439,11 @@ class DataDeserializer {
     return rt;
   }
 
-  static PropertyValueParserResults propertyValueParser(DC data, int offset,
-      DistributedConnection? connection) //, bool ageIncluded = true)
+  static PropertyValueParserResults propertyValueParser(
+      DC data,
+      int offset,
+      DistributedConnection? connection,
+      List<int>? requestSequence) //, bool ageIncluded = true)
   {
     var reply = new AsyncReply<PropertyValue>();
 
@@ -458,7 +453,7 @@ class DataDeserializer {
     DateTime date = data.getDateTime(offset);
     offset += 8;
 
-    var parsed = Codec.parse(data, offset, connection);
+    var parsed = Codec.parse(data, offset, connection, requestSequence);
 
     parsed.reply.then((value) {
       reply.trigger(new PropertyValue(value, age, date));
@@ -469,7 +464,7 @@ class DataDeserializer {
 
   static AsyncReply<KeyList<PropertyTemplate, List<PropertyValue>>>
       historyParser(DC data, int offset, int length, IResource resource,
-          DistributedConnection? connection) {
+          DistributedConnection? connection, List<int>? requestSequence) {
     throw Exception("Not implemented");
     // @TODO
     // var list = new KeyList<PropertyTemplate, List<PropertyValue>>();

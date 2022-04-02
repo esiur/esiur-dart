@@ -45,6 +45,8 @@ import '../Packets/IIPPacketAction.dart';
 
 import '../../Resource/Template/EventTemplate.dart';
 
+ 
+
 class DistributedResource extends IResource {
   int? _instanceId;
   DistributedConnection? _connection;
@@ -105,7 +107,7 @@ class DistributedResource extends IResource {
   /// <summary>
   /// Resource is attached when all its properties are received.
   /// </summary>
-  bool get attached => _attached;
+  bool get distributedResourceAttached => _attached;
 
   // public DistributedResourceStack Stack
   //{

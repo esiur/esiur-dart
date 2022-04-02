@@ -68,6 +68,7 @@ class Warehouse {
     rt.add(TemplateType.Resource, new KeyList<Guid, TypeTemplate>());
     rt.add(TemplateType.Record, new KeyList<Guid, TypeTemplate>());
     rt.add(TemplateType.Wrapper, new KeyList<Guid, TypeTemplate>());
+    rt.add(TemplateType.Enum, new KeyList<Guid, TypeTemplate>());
 
     return rt;
   }

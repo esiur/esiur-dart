@@ -69,6 +69,11 @@ class TransmissionType {
       this.offset, this.contentLength,
       [this.exponent = 0]);
 
+  @override
+  String toString() {
+    return "Id: ${identifier}, Index: ${index}, Class: ${classType}, Offset: ${offset}, ContentLength: ${contentLength}, Exp: $exponent";
+  }
+
   static DC compose(int identifier, DC data) {
     if (data.length == 0) return DC.fromList([identifier]);
 
@@ -168,7 +173,7 @@ class TransmissionType {
       int cl = (1 << (exp - 1));
 
       if (ends - offset < cl)
-        return TransmissionTypeParseResults(ends - offset - cl, null);
+        return TransmissionTypeParseResults(cl - (ends - offset), null);
 
       return TransmissionTypeParseResults(
           1 + cl, new TransmissionType(h, cls, h & 0x7, offset, cl, exp));
@@ -176,11 +181,14 @@ class TransmissionType {
       int cll = (h >> 3) & 0x7;
 
       if (ends - offset < cll)
-        return TransmissionTypeParseResults(ends - offset - cll, null);
+        return TransmissionTypeParseResults(cll - (ends - offset), null);
 
       int cl = 0;
 
       for (var i = 0; i < cll; i++) cl = cl << 8 | data[offset++];
+
+      if (ends - offset < cl)
+        return TransmissionTypeParseResults(cl - (ends - offset), null);
 
       return TransmissionTypeParseResults(
           1 + cl + cll, TransmissionType((h & 0xC7), cls, h & 0x7, offset, cl));

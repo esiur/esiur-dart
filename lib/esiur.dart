@@ -1,4 +1,3 @@
-
 // Resource
 export 'src/Resource/Warehouse.dart';
 export 'src/Resource/Instance.dart';
@@ -34,10 +33,11 @@ export 'src/Core/IEventHandler.dart';
 export 'src/Core/Tuple.dart';
 // -----------------------------------------------------------------
 // Data
+export 'src/Data/RepresentationType.dart';
+export 'src/Data/TransmissionType.dart';
 export 'src/Data/AutoList.dart';
 export 'src/Data/BinaryList.dart';
 export 'src/Data/Codec.dart';
-export 'src/Data/RepresentationType.dart';
 export 'src/Data/DC.dart';
 export 'src/Data/Guid.dart';
 export 'src/Data/KeyList.dart';

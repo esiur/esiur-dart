@@ -65,8 +65,8 @@ import 'TransmissionType.dart';
 //   Type get valueType => VT;
 // }
 
-typedef Parser = AsyncReply Function(
-    DC data, int offset, int length, DistributedConnection? connection);
+typedef Parser = AsyncReply Function(DC data, int offset, int length,
+    DistributedConnection? connection, List<int>? requestSequence);
 typedef Composer = DataSerializerComposeResults Function(
     dynamic value, DistributedConnection? connection);
 
@@ -150,16 +150,20 @@ class Codec {
   /// <param name="connection">DistributedConnection is required in case a structure in the array holds items at the other end.</param>
   /// <param name="dataType">DataType, in case the data is not prepended with DataType</param>
   /// <returns>Value</returns>
-  static CodecParseResults parse(
-      DC data, int offset, DistributedConnection? connection,
+  static CodecParseResults parse(DC data, int offset,
+      DistributedConnection? connection, List<int>? requestSequence,
       [TransmissionType? dataType = null]) {
     int len = 0;
+
+    //print("Parse ${offset} ${dataType} ${requestSequence}");
 
     if (dataType == null) {
       var parsedDataTyped = TransmissionType.parse(data, offset, data.length);
       len = parsedDataTyped.size;
       dataType = parsedDataTyped.type;
       offset = dataType?.offset ?? 0;
+
+      //print("Parse TT ${len} ${parsedDataTyped.type} ${dataType?.offset}");
     } else
       len = dataType.contentLength;
 
@@ -168,18 +172,22 @@ class Codec {
         return CodecParseResults(
             len,
             fixedParsers[dataType.exponent][dataType.index](
-                data, dataType.offset, dataType.contentLength, connection));
+                data,
+                dataType.offset,
+                dataType.contentLength,
+                connection,
+                requestSequence));
       } else if (dataType.classType == TransmissionTypeClass.Dynamic) {
         return CodecParseResults(
             len,
-            dynamicParsers[dataType.index](
-                data, dataType.offset, dataType.contentLength, connection));
+            dynamicParsers[dataType.index](data, dataType.offset,
+                dataType.contentLength, connection, requestSequence));
       } else //if (tt.Class == TransmissionTypeClass.Typed)
       {
         return CodecParseResults(
             len,
-            typedParsers[dataType.index](
-                data, dataType.offset, dataType.contentLength, connection));
+            typedParsers[dataType.index](data, dataType.offset,
+                dataType.contentLength, connection, requestSequence));
       }
     }
 

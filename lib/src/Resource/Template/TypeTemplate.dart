@@ -627,7 +627,7 @@ class TypeTemplate {
 
         offset += dt.size;
 
-        var parsed = Codec.parse(data, offset, null);
+        var parsed = Codec.parse(data, offset, null, null);
 
         offset += parsed.size;
 
