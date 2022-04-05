@@ -63,36 +63,41 @@ class AsyncReply<T> implements Future<T> {
   }
 
   AsyncReply<R> then<R>(FutureOr<R> onValue(T value), {Function? onError}) {
+    if (onError != null) {}
+
     _callbacks.add(onValue);
 
     if (onError != null) {
       _errorCallbacks.add(onError);
+      //print("On ERROR $onError ${this.hashCode}");
+
     }
 
     if (_resultReady) onValue(result as T);
 
-//    if (R == Null)
-    //    return null;
-    //else
-    //if (R == T)
-     return AsyncReply<R>();
+    //if (R == Null)
+    return AsyncReply<R>();
+    //else if (R == T) return (AsyncReply<R>)this;
   }
 
-  AsyncReply<T> whenComplete(FutureOr action()) {
+  @override
+  Future<T> whenComplete(FutureOr action()) {
     return this;
-    //_callbacks.add(action);
   }
+
+  // AsyncReply<T> whenComplete(FutureOr action()) {
+  //   return this;
+  //   //_callbacks.add(action);
+  // }
 
   Stream<T> asStream() {
     return Stream.empty();
     //return null;
   }
 
-//  Future<T> catchError(Function onError, {bool test(Object error)?});
-
-  AsyncReply<T> catchError(Function onError, {bool test(Object error)?}) {
-    ///return this.error(onError);
-
+  @override
+  AsyncReply<T> catchError(Function onError,
+      {bool Function(Object error)? test}) {
     _errorCallbacks.add(onError);
 
     if (_exception != null) {
@@ -152,9 +157,6 @@ class AsyncReply<T> implements Future<T> {
     else
       _exception = AsyncException.toAsyncException(exception);
 
-    ///lock (callbacksLock)
-    //{
-
     if (this._errorCallbacks.length == 0)
       throw _exception as AsyncException;
     else
@@ -167,6 +169,10 @@ class AsyncReply<T> implements Future<T> {
           x();
         } else if (x is Function(Object, StackTrace)) {
           x(_exception as Object, StackTrace.current);
+        } else if (x is Function(AsyncException)) {
+          x(_exception!);
+        } else {
+          throw Exception("Unknown error handler $x");
         }
         //x(_exception as AsyncException);
       });

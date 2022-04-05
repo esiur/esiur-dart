@@ -454,20 +454,24 @@ class Warehouse {
       _resources[(resource.instance as Instance).id] = resource;
 
       if (_warehouseIsOpen) {
-        resource.trigger(ResourceTrigger.Initialize).then<dynamic>((value) {
-          if (resource is IStore)
-            resource.trigger(ResourceTrigger.Open).then<dynamic>((value) {
+        resource.trigger(ResourceTrigger.Initialize)
+          ..then((value) {
+            if (resource is IStore)
+              resource.trigger(ResourceTrigger.Open)
+                ..then((value) {
+                  rt.trigger(resource);
+                })
+                ..error((ex) {
+                  Warehouse.remove(resource);
+                  rt.triggerError(ex);
+                });
+            else
               rt.trigger(resource);
-            }).error((ex) {
-              Warehouse.remove(resource);
-              rt.triggerError(ex);
-            });
-          else
-            rt.trigger(resource);
-        }).error((ex) {
-          Warehouse.remove(resource);
-          rt.triggerError(ex);
-        });
+          })
+          ..error((ex) {
+            Warehouse.remove(resource);
+            rt.triggerError(ex);
+          });
       }
     };
 
@@ -475,15 +479,17 @@ class Warehouse {
       _stores.add(resource);
       initResource();
     } else {
-      store?.put(resource).then<dynamic>((value) {
-        if (value)
-          initResource();
-        else
-          rt.trigger(null);
-      }).error((ex) {
-        Warehouse.remove(resource);
-        rt.triggerError(ex);
-      });
+      store?.put(resource)
+        ?..then((value) {
+          if (value)
+            initResource();
+          else
+            rt.trigger(null);
+        })
+        ..error((ex) {
+          Warehouse.remove(resource);
+          rt.triggerError(ex);
+        });
     }
 
     // return new name

@@ -442,9 +442,9 @@ class TemplateGenerator {
 
       rt.writeln("var rt = AsyncReply<$rtTypeName>();");
       rt.writeln("internal_invoke(${f.index}, args)");
-      rt.writeln(".then<dynamic>((x) => rt.trigger(x))");
-      rt.writeln(".error((x) => rt.triggerError(x))");
-      rt.writeln(".chunk((x) => rt.triggerChunk(x));");
+      rt.writeln("..then((x) => rt.trigger(x))");
+      rt.writeln("..error((x) => rt.triggerError(x))");
+      rt.writeln("..chunk((x) => rt.triggerChunk(x));");
       rt.writeln("return rt; }");
     });
 

@@ -260,6 +260,7 @@ class DistributedConnection extends NetworkConnection with IStore {
       throw AsyncException(ErrorType.Exception, 0, "Connection in progress");
 
     _openReply = new AsyncReply<bool>();
+    //print("_openReply hash ${_openReply.hashCode}");
 
     if (hostname != null) {
       _session =
@@ -288,12 +289,14 @@ class DistributedConnection extends NetworkConnection with IStore {
     if (_hostname == null) throw Exception("Host not specified.");
 
     if (socket != null) {
-      socket.connect(_hostname as String, _port).then<dynamic>((x) {
-        assign(socket as ISocket);
-      }).error((x) {
-        _openReply?.triggerError(x);
-        _openReply = null;
-      });
+      socket.connect(_hostname as String, _port)
+        ..then((x) {
+          assign(socket as ISocket);
+        })
+        ..error((x) {
+          _openReply?.triggerError(x);
+          _openReply = null;
+        });
     }
 
     return _openReply as AsyncReply<bool>;
@@ -1566,16 +1569,17 @@ class DistributedConnection extends NetworkConnection with IStore {
                   null; //Activator.CreateInstance(type, args) as IResource;
 
               Warehouse.put<IResource>(
-                      name, resource as IResource, store, parent)
-                  .then<dynamic>((ok) {
-                sendReply(IIPPacketAction.CreateResource, callback)
-                  ..addUint32((resource.instance as Instance).id)
-                  ..done();
-              }).error((ex) {
-                // send some error
-                sendError(ErrorType.Management, callback,
-                    ExceptionCode.AddToStoreFailed.index);
-              });
+                  name, resource as IResource, store, parent)
+                ..then((ok) {
+                  sendReply(IIPPacketAction.CreateResource, callback)
+                    ..addUint32((resource.instance as Instance).id)
+                    ..done();
+                })
+                ..error((ex) {
+                  // send some error
+                  sendError(ErrorType.Management, callback,
+                      ExceptionCode.AddToStoreFailed.index);
+                });
             });
           });
         });
@@ -2185,11 +2189,13 @@ class DistributedConnection extends NetworkConnection with IStore {
           Codec.parse(data, 0, this, null, dataType).reply.then((value) {
             if (r is DistributedResource) {
               // propagation
-              (r as DistributedResource).set(index, value).then<dynamic>((x) {
-                sendReply(IIPPacketAction.SetProperty, callback).done();
-              }).error((x) {
-                sendError(x.type, callback, x.code, x.message);
-              });
+              (r as DistributedResource).set(index, value)
+                ..then((x) {
+                  sendReply(IIPPacketAction.SetProperty, callback).done();
+                })
+                ..error((x) {
+                  sendError(x.type, callback, x.code, x.message);
+                });
             } else {
               /*
 #if NETSTANDARD1_5
@@ -2473,9 +2479,10 @@ class DistributedConnection extends NetworkConnection with IStore {
   AsyncReply<List<IResource?>> getChildren(IResource resource) {
     var rt = new AsyncReply<List<IResource?>>();
 
-    sendRequest(IIPPacketAction.ResourceChildren)
-      ..addUint32(resource.instance?.id as int)
-      ..done().then<dynamic>((ar) {
+    (sendRequest(IIPPacketAction.ResourceChildren)
+          ..addUint32(resource.instance?.id as int))
+        .done()
+      ..then((ar) {
         if (ar != null) {
           TransmissionType dataType = ar[0] as TransmissionType;
           DC data = ar[1] as DC;
@@ -2487,7 +2494,7 @@ class DistributedConnection extends NetworkConnection with IStore {
         } else {
           rt.triggerError(Exception("Null response"));
         }
-      });
+      }).error((ex) => rt.triggerError(ex));
 
     return rt;
   }
@@ -2496,9 +2503,10 @@ class DistributedConnection extends NetworkConnection with IStore {
   AsyncReply<List<IResource?>> getParents(IResource resource) {
     var rt = new AsyncReply<List<IResource?>>();
 
-    sendRequest(IIPPacketAction.ResourceParents)
-      ..addUint32((resource.instance as Instance).id)
-      ..done().then<dynamic>((ar) {
+    (sendRequest(IIPPacketAction.ResourceParents)
+          ..addUint32((resource.instance as Instance).id))
+        .done()
+      ..then((ar) {
         if (ar != null) {
           TransmissionType dataType = ar[0] as TransmissionType;
           DC data = ar[1] as DC;
@@ -2509,7 +2517,8 @@ class DistributedConnection extends NetworkConnection with IStore {
         } else {
           rt.triggerError(Exception("Null response"));
         }
-      });
+      })
+      ..error((ex) => rt.triggerError(ex));
 
     return rt;
   }
@@ -2531,7 +2540,7 @@ class DistributedConnection extends NetworkConnection with IStore {
             ..addInt32(attrs.length)
             ..addDC(attrs))
           .done()
-        ..then<dynamic>((ar) => rt.trigger(true))
+        ..then((ar) => rt.trigger(true))
         ..error((ex) => rt.triggerError(ex));
     }
 
@@ -2543,14 +2552,14 @@ class DistributedConnection extends NetworkConnection with IStore {
       [bool clearAttributes = false]) {
     var rt = new AsyncReply<bool>();
 
-    sendRequest(clearAttributes
-        ? IIPPacketAction.UpdateAllAttributes
-        : IIPPacketAction.UpdateAttributes)
-      ..addUint32(resource.instance?.id as int)
-      ..addDC(Codec.compose(attributes, this))
-      ..done()
-          .then<dynamic>((ar) => rt.trigger(true))
-          .error((ex) => rt.triggerError(ex));
+    (sendRequest(clearAttributes
+            ? IIPPacketAction.UpdateAllAttributes
+            : IIPPacketAction.UpdateAttributes)
+          ..addUint32(resource.instance?.id as int)
+          ..addDC(Codec.compose(attributes, this)))
+        .done()
+      ..then((ar) => rt.trigger(true))
+      ..error((ex) => rt.triggerError(ex));
 
     return rt;
   }
@@ -2629,11 +2638,12 @@ class DistributedConnection extends NetworkConnection with IStore {
       var reply =
           new AsyncReply<KeyList<PropertyTemplate, List<PropertyValue>>>();
 
-      sendRequest(IIPPacketAction.ResourceHistory)
-        ..addUint32(dr.distributedResourceInstanceId as int)
-        ..addDateTime(fromDate)
-        ..addDateTime(toDate)
-        ..done().then<dynamic>((rt) {
+      (sendRequest(IIPPacketAction.ResourceHistory)
+            ..addUint32(dr.distributedResourceInstanceId as int)
+            ..addDateTime(fromDate)
+            ..addDateTime(toDate))
+          .done()
+        ..then((rt) {
           if (rt != null) {
             var content = rt[0] as DC;
 
@@ -2643,7 +2653,8 @@ class DistributedConnection extends NetworkConnection with IStore {
           } else {
             reply.triggerError(Exception("Null response"));
           }
-        }).error((ex) => reply.triggerError(ex));
+        })
+        ..error((ex) => reply.triggerError(ex));
 
       return reply;
     } else
@@ -2661,10 +2672,11 @@ class DistributedConnection extends NetworkConnection with IStore {
     var str = DC.stringToBytes(path);
     var reply = new AsyncReply<List<IResource?>>();
 
-    sendRequest(IIPPacketAction.QueryLink)
-      ..addUint16(str.length)
-      ..addDC(str)
-      ..done().then<dynamic>((ar) {
+    (sendRequest(IIPPacketAction.QueryLink)
+          ..addUint16(str.length)
+          ..addDC(str))
+        .done()
+      ..then((ar) {
         if (ar != null) {
           TransmissionType dataType = ar[0] as TransmissionType;
           DC data = ar[1] as DC;
@@ -2675,7 +2687,8 @@ class DistributedConnection extends NetworkConnection with IStore {
         } else {
           reply.triggerError(Exception("Null response"));
         }
-      }).error((ex) => reply.triggerError(ex));
+      })
+      ..error((ex) => reply.triggerError(ex));
 
     return reply;
   }
