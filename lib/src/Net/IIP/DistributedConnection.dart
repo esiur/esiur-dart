@@ -2413,7 +2413,7 @@ class DistributedConnection extends NetworkConnection with IStore {
         DC content = rt[4] as DC;
 
         var initResource = (ok) {
-          print("parse req ${id}");
+          //print("parse req ${id}");
 
           Codec.parse(content, 0, this, newSequence, transmissionType)
               .reply
