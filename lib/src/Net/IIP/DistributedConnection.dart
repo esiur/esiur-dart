@@ -333,6 +333,7 @@ class DistributedConnection extends NetworkConnection with IStore {
       }
 
       bag.seal();
+
       await bag;
 
       return true;
