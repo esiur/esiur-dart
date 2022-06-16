@@ -8,19 +8,19 @@ import 'TypeTemplate.dart';
 
 class ConstantTemplate extends MemberTemplate {
   final dynamic value;
-  final String? expansion;
+  final String? annotation;
   final RepresentationType valueType;
 
   ConstantTemplate(TypeTemplate template, int index, String name,
-      bool inherited, this.valueType, this.value, this.expansion)
+      bool inherited, this.valueType, this.value, this.annotation)
       : super(template, index, name, inherited) {}
 
   DC compose() {
     var name = super.compose();
     var hdr = inherited ? 0x80 : 0;
 
-    if (expansion != null) {
-      var exp = DC.stringToBytes(expansion!);
+    if (annotation != null) {
+      var exp = DC.stringToBytes(annotation!);
       hdr |= 0x70;
       return (BinaryList()
             ..addUint8(hdr)

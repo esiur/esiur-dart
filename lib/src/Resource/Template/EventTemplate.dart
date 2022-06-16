@@ -6,7 +6,7 @@ import 'MemberType.dart';
 import '../../Data/RepresentationType.dart';
 
 class EventTemplate extends MemberTemplate {
-  final String? expansion;
+  final String? annotation;
   final bool listenable;
   final RepresentationType argumentType;
 
@@ -17,8 +17,8 @@ class EventTemplate extends MemberTemplate {
 
     if (listenable) hdr |= 0x8;
 
-    if (expansion != null) {
-      var exp = DC.stringToBytes(expansion as String);
+    if (annotation != null) {
+      var exp = DC.stringToBytes(annotation as String);
       hdr |= 0x50;
       return (BinaryList()
             ..addUint8(hdr)
@@ -41,6 +41,6 @@ class EventTemplate extends MemberTemplate {
 
   EventTemplate(TypeTemplate template, int index, String name, bool inherited,
       this.argumentType,
-      [this.expansion = null, this.listenable = false])
+      [this.annotation = null, this.listenable = false])
       : super(template, index, name, inherited) {}
 }

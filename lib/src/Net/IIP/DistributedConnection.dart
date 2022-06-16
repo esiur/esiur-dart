@@ -22,6 +22,8 @@ SOFTWARE.
 
 */
 
+import 'package:collection/collection.dart';
+
 import '../../Data/IntType.dart';
 
 import '../../Data/DataDeserializer.dart';
@@ -126,7 +128,10 @@ class DistributedConnection extends NetworkConnection with IStore {
 
   KeyList<Guid, AsyncReply<TypeTemplate?>> _templateRequests =
       new KeyList<Guid, AsyncReply<TypeTemplate?>>();
-  //KeyList<String, AsyncReply<IResource>> _pathRequests = new KeyList<String, AsyncReply<IResource>>();
+
+  KeyList<String, AsyncReply<TypeTemplate?>> _templateByNameRequests =
+      new KeyList<String, AsyncReply<TypeTemplate?>>();
+
   Map<Guid, TypeTemplate> _templates = new Map<Guid, TypeTemplate>();
   KeyList<int, AsyncReply<dynamic>> _requests =
       new KeyList<int, AsyncReply<dynamic>>();
@@ -2253,6 +2258,39 @@ class DistributedConnection extends NetworkConnection with IStore {
             ExceptionCode.ResourceNotFound.index);
       }
     });
+  }
+
+  AsyncReply<TypeTemplate?> getTemplateByClassName(String className) {
+    var template =
+        _templates.values.firstWhereOrNull((x) => x.className == className);
+    if (template != null) return AsyncReply<TypeTemplate>.ready(template);
+
+    if (_templateByNameRequests.containsKey(className))
+      return _templateByNameRequests[className] as AsyncReply<TypeTemplate?>;
+
+    var reply = new AsyncReply<TypeTemplate?>();
+    _templateByNameRequests.add(className, reply);
+
+    var classNameBytes = DC.stringToBytes(className);
+
+    (sendRequest(IIPPacketAction.TemplateFromClassName)
+          ..addUint8(classNameBytes.length)
+          ..addDC(classNameBytes))
+        .done()
+      ..then((rt) {
+        _templateByNameRequests.remove(className);
+        if (rt != null) {
+          _templates[(rt[0] as TypeTemplate).classId] = rt[0] as TypeTemplate;
+          Warehouse.putTemplate(rt[0] as TypeTemplate);
+          reply.trigger(rt[0]);
+        } else
+          reply.triggerError(Exception("Null response"));
+      })
+      ..error((ex) {
+        reply.triggerError(ex);
+      });
+
+    return reply;
   }
 
   /// <summary>

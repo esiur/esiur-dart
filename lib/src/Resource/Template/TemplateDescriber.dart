@@ -1,4 +1,3 @@
- 
 class TemplateDescriber {
   final List<Prop>? properties;
   final List<Evt>? events;
@@ -8,6 +7,7 @@ class TemplateDescriber {
   final String nameSpace;
   final int version;
   final Type? parent;
+  final String? annotation;
 
   const TemplateDescriber(this.nameSpace,
       {this.parent,
@@ -15,7 +15,8 @@ class TemplateDescriber {
       this.functions,
       this.events,
       this.constants,
-      this.version = 0});
+      this.version = 0,
+      this.annotation = null});
 }
 
 // class Property<T> {

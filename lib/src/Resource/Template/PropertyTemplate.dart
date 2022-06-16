@@ -13,9 +13,9 @@ class PropertyTemplate extends MemberTemplate {
 
   bool recordable;
 
-  String? readExpansion;
+  String? readAnnotation;
 
-  String? writeExpansion;
+  String? writeAnnotation;
 
   DC compose() {
     var name = super.compose();
@@ -23,9 +23,9 @@ class PropertyTemplate extends MemberTemplate {
 
     if (inherited) pv |= 0x80;
 
-    if (writeExpansion != null && readExpansion != null) {
-      var rexp = DC.stringToBytes(readExpansion as String);
-      var wexp = DC.stringToBytes(writeExpansion as String);
+    if (writeAnnotation != null && readAnnotation != null) {
+      var rexp = DC.stringToBytes(readAnnotation as String);
+      var wexp = DC.stringToBytes(writeAnnotation as String);
       return (BinaryList()
             ..addUint8(0x38 | pv)
             ..addUint8(name.length)
@@ -36,8 +36,8 @@ class PropertyTemplate extends MemberTemplate {
             ..addInt32(rexp.length)
             ..addDC(rexp))
           .toDC();
-    } else if (writeExpansion != null) {
-      var wexp = DC.stringToBytes(writeExpansion as String);
+    } else if (writeAnnotation != null) {
+      var wexp = DC.stringToBytes(writeAnnotation as String);
       return (BinaryList()
             ..addUint8(0x30 | pv)
             ..addUint8(name.length)
@@ -46,8 +46,8 @@ class PropertyTemplate extends MemberTemplate {
             ..addInt32(wexp.length)
             ..addDC(wexp))
           .toDC();
-    } else if (readExpansion != null) {
-      var rexp = DC.stringToBytes(readExpansion as String);
+    } else if (readAnnotation != null) {
+      var rexp = DC.stringToBytes(readAnnotation as String);
       return (BinaryList()
             ..addUint8(0x28 | pv)
             ..addUint8(name.length)
@@ -67,8 +67,8 @@ class PropertyTemplate extends MemberTemplate {
 
   PropertyTemplate(TypeTemplate template, int index, String name,
       bool inherited, this.valueType,
-      [this.readExpansion = null,
-      this.writeExpansion = null,
+      [this.readAnnotation = null,
+      this.writeAnnotation = null,
       this.recordable = false])
       : super(template, index, name, inherited) {}
 }

@@ -12,6 +12,56 @@ class TemplateGenerator {
 //  static RegExp urlRegex = RegExp("^(?:([\S]*)://([^/]*)/?)");
   static final _urlRegex = RegExp(r'^(?:([^\s|:]*):\/\/([^\/]*)\/?(.*))');
 
+  static String toLiteral(String? input) {
+    if (input == null) return "null";
+
+    String literal = "";
+
+    literal += "\"";
+
+    input.runes.forEach((int code) {
+      var c = String.fromCharCode(code);
+      switch (c) {
+        case '\"':
+          literal += "\\\"";
+          break;
+        case '\\':
+          literal += "\\\\";
+          break;
+        case '\0':
+          literal += "\\0";
+          break;
+        case '\a':
+          literal += "\\a";
+          break;
+        case '\b':
+          literal += "\\b";
+          break;
+        case '\f':
+          literal += "\\f";
+          break;
+        case '\n':
+          literal += "\\n";
+          break;
+        case '\r':
+          literal += "\\r";
+          break;
+        case '\t':
+          literal += "\\t";
+          break;
+        case '\v':
+          literal += "\\v";
+          break;
+        default:
+          literal += c;
+          break;
+      }
+    });
+
+    literal += "\"";
+    return literal;
+  }
+
   static String generateRecord(
       TypeTemplate template, List<TypeTemplate> templates) {
     var className = template.className.split('.').last;
@@ -64,15 +114,15 @@ class TemplateGenerator {
     var descProps = template.properties //.where((p) => !p.inherited)
         .map((p) {
       var ptTypeName = getTypeName(template, p.valueType, templates);
-      return "Prop('${p.name}', getTypeOf<${ptTypeName}>(), ${_escape(p.readExpansion)}, ${_escape(p.writeExpansion)})";
+      return "Prop('${p.name}', getTypeOf<${ptTypeName}>(), ${_escape(p.readAnnotation)}, ${_escape(p.writeAnnotation)})";
     }).join(', ');
 
     if (parentName != null)
       rt.writeln("""@override
-               TemplateDescriber get template => TemplateDescriber('${template.className}', parent: ${parentName}, properties: [${descProps}]);""");
+               TemplateDescriber get template => TemplateDescriber('${template.className}', parent: ${parentName}, properties: [${descProps}], annotation: ${toLiteral(template.annotation)});""");
     else
       rt.writeln("""@override
-               TemplateDescriber get template => TemplateDescriber('${template.className}', properties: [${descProps}]);""");
+               TemplateDescriber get template => TemplateDescriber('${template.className}', properties: [${descProps}], annotation: ${toLiteral(template.annotation)});""");
 
     rt.writeln("\r\n}");
 
@@ -353,11 +403,11 @@ class TemplateGenerator {
     // add template
     var descConsts = template.constants.map((p) {
       var ctTypeName = getTypeName(template, p.valueType, templates);
-      return "Const('${p.name}', getTypeOf<${ctTypeName}>(), ${p.value}, ${_escape(p.expansion)})";
+      return "Const('${p.name}', getTypeOf<${ctTypeName}>(), ${p.value}, ${_escape(p.annotation)})";
     }).join(', ');
 
     rt.writeln("""@override
-               TemplateDescriber get template => TemplateDescriber('${template.className}', constants: [${descConsts}]);""");
+               TemplateDescriber get template => TemplateDescriber('${template.className}', constants: [${descConsts}], annotation: ${toLiteral(template.annotation)});""");
 
     rt.writeln("\r\n}");
 
@@ -469,7 +519,7 @@ class TemplateGenerator {
     var descProps = template.properties //.where((p) => !p.inherited)
         .map((p) {
       var ptTypeName = getTypeName(template, p.valueType, templates);
-      return "Prop('${p.name}', getTypeOf<${ptTypeName}>(), ${_escape(p.readExpansion)}, ${_escape(p.writeExpansion)})";
+      return "Prop('${p.name}', getTypeOf<${ptTypeName}>(), ${_escape(p.readAnnotation)}, ${_escape(p.writeAnnotation)})";
     }).join(', ');
 
     var descFuncs = template.functions //.where((f) => !f.inherited)
@@ -481,22 +531,22 @@ class TemplateGenerator {
         return "Arg('${a.name}', getTypeOf<${atTypeName}>(), ${a.optional})";
       }).join(', ');
 
-      return "Func('${f.name}', getTypeOf<${ftTypeName}>(), [${args}], ${_escape(f.expansion)})";
+      return "Func('${f.name}', getTypeOf<${ftTypeName}>(), [${args}], ${_escape(f.annotation)})";
     }).join(', ');
 
     var descEvents = template.events
         //.where((e) => !e.inherited)
         .map((e) {
       var etTypeName = getTypeName(template, e.argumentType, templates);
-      return "Evt('${e.name}', getTypeOf<${etTypeName}>(), ${e.listenable}, ${_escape(e.expansion)})";
+      return "Evt('${e.name}', getTypeOf<${etTypeName}>(), ${e.listenable}, ${_escape(e.annotation)})";
     }).join(', ');
 
     if (parentName != null)
       rt.writeln(
-          "TemplateDescriber get template => TemplateDescriber('${template.className}', parent: ${parentName}, properties: [${descProps}], functions: [${descFuncs}], events: [$descEvents]);");
+          "TemplateDescriber get template => TemplateDescriber('${template.className}', parent: ${parentName}, properties: [${descProps}], functions: [${descFuncs}], events: [$descEvents], annotation: ${toLiteral(template.annotation)});");
     else
       rt.writeln(
-          "TemplateDescriber get template => TemplateDescriber('${template.className}', properties: [${descProps}], functions: [${descFuncs}], events: [$descEvents]);");
+          "TemplateDescriber get template => TemplateDescriber('${template.className}', properties: [${descProps}], functions: [${descFuncs}], events: [$descEvents], annotation: ${toLiteral(template.annotation)});");
 
     rt.writeln("\r\n}");
 

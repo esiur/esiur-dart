@@ -7,7 +7,7 @@ import 'ArgumentTemplate.dart';
 import '../../Data/RepresentationType.dart';
 
 class FunctionTemplate extends MemberTemplate {
-  String? expansion;
+  String? annotation;
   // bool isVoid;
 
   List<ArgumentTemplate> arguments;
@@ -24,8 +24,8 @@ class FunctionTemplate extends MemberTemplate {
 
     for (var i = 0; i < arguments.length; i++) bl.addDC(arguments[i].compose());
 
-    if (expansion != null) {
-      var exp = DC.stringToBytes(expansion as String);
+    if (annotation != null) {
+      var exp = DC.stringToBytes(annotation as String);
       bl
         ..addInt32(exp.length)
         ..addDC(exp);
@@ -38,6 +38,6 @@ class FunctionTemplate extends MemberTemplate {
 
   FunctionTemplate(TypeTemplate template, int index, String name,
       bool inherited, this.arguments, this.returnType,
-      [this.expansion = null])
+      [this.annotation = null])
       : super(template, index, name, inherited) {}
 }
