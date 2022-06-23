@@ -305,7 +305,6 @@ class TypeTemplate {
     _className = data.getString(offset + 1, data[offset]);
     offset += data[offset] + 1;
 
-    //print(" annotation : ${_className} ${hasAnnotation}");
 
     if (hasParent) {
       _parentId = data.getGuid(offset);
@@ -318,7 +317,6 @@ class TypeTemplate {
       _annotation = data.getString(offset, len);
       offset += len;
 
-      //print("Has annotation ${_annotation}");
     }
 
     _version = data.getInt32(offset);
