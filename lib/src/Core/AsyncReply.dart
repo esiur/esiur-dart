@@ -31,6 +31,8 @@ class AsyncReply<T> implements Future<T> {
 
   late T _result;
 
+  late StackTrace _stackTrace;
+
   List<Function> _errorCallbacks = <Function>[];
 
   List<Function(ProgressType, int, int)> _progressCallbacks =
@@ -63,17 +65,25 @@ class AsyncReply<T> implements Future<T> {
   }
 
   AsyncReply<R> then<R>(FutureOr<R> onValue(T value), {Function? onError}) {
-    if (onError != null) {}
+    _stackTrace = StackTrace.current;
 
     _callbacks.add(onValue);
 
     if (onError != null) {
       _errorCallbacks.add(onError);
-      //print("On ERROR $onError ${this.hashCode}");
-
     }
 
-    if (_resultReady) onValue(result as T);
+    if (_resultReady) {
+      if (_exception != null) {
+        if (onError != null) {
+          onError(_exception, _stackTrace);
+        } else {
+          throw _exception as AsyncException;
+        }
+      } else {
+        onValue(result as T);
+      }
+    }
 
     //if (R == Null)
     return AsyncReply<R>();
@@ -102,13 +112,13 @@ class AsyncReply<T> implements Future<T> {
 
     if (_exception != null) {
       if (onError is Function(dynamic, dynamic)) {
-        onError(_exception, null);
+        onError(_exception, _stackTrace);
       } else if (onError is Function(dynamic)) {
         onError(_exception);
       } else if (onError is Function()) {
         onError();
       } else if (onError is Function(Object, StackTrace)) {
-        onError(_exception as Object, StackTrace.current);
+        onError(_exception as Object, _stackTrace);
       }
     }
 
@@ -162,13 +172,13 @@ class AsyncReply<T> implements Future<T> {
     else
       _errorCallbacks.forEach((x) {
         if (x is Function(dynamic, dynamic)) {
-          x(_exception, null);
+          x(_exception, _stackTrace);
         } else if (x is Function(dynamic)) {
           x(_exception);
         } else if (x is Function()) {
           x();
         } else if (x is Function(Object, StackTrace)) {
-          x(_exception as Object, StackTrace.current);
+          x(_exception as Object, _stackTrace);
         } else if (x is Function(AsyncException)) {
           x(_exception!);
         } else {
@@ -198,9 +208,12 @@ class AsyncReply<T> implements Future<T> {
   }
 
   AsyncReply.ready(T result) {
+    _stackTrace = StackTrace.current;
     _resultReady = true;
     _result = result;
   }
 
-  AsyncReply() {}
+  AsyncReply() {
+    _stackTrace = StackTrace.current;
+  }
 }
