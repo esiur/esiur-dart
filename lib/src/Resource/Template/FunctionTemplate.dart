@@ -2,7 +2,6 @@ import 'MemberTemplate.dart';
 import '../../Data/DC.dart';
 import '../../Data/BinaryList.dart';
 import 'TypeTemplate.dart';
-import 'MemberType.dart';
 import 'ArgumentTemplate.dart';
 import '../../Data/RepresentationType.dart';
 
@@ -12,6 +11,7 @@ class FunctionTemplate extends MemberTemplate {
 
   List<ArgumentTemplate> arguments;
   RepresentationType returnType;
+  bool isStatic;
 
   DC compose() {
     var name = super.compose();
@@ -29,15 +29,15 @@ class FunctionTemplate extends MemberTemplate {
       bl
         ..addInt32(exp.length)
         ..addDC(exp);
-      bl.insertUint8(0, inherited ? 0x90 : 0x10);
+      bl.insertUint8(0, (inherited ? 0x90 : 0x10) | (isStatic ? 0x4 : 0));
     } else
-      bl.insertUint8(0, inherited ? 0x80 : 0x0);
+      bl.insertUint8(0, (inherited ? 0x80 : 0x0) | (isStatic ? 0x4 : 0));
 
     return bl.toDC();
   }
 
   FunctionTemplate(TypeTemplate template, int index, String name,
-      bool inherited, this.arguments, this.returnType,
+      bool inherited, this.isStatic, this.arguments, this.returnType,
       [this.annotation = null])
       : super(template, index, name, inherited) {}
 }

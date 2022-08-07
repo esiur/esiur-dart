@@ -305,7 +305,6 @@ class TypeTemplate {
     _className = data.getString(offset + 1, data[offset]);
     offset += data[offset] + 1;
 
-
     if (hasParent) {
       _parentId = data.getGuid(offset);
       offset += 16;
@@ -316,7 +315,6 @@ class TypeTemplate {
       offset += 2;
       _annotation = data.getString(offset, len);
       offset += len;
-
     }
 
     _version = data.getInt32(offset);
@@ -337,6 +335,8 @@ class TypeTemplate {
       if (type == 0) // function
       {
         String? annotation = null;
+        var isStatic = ((data[offset] & 0x4) == 0x4);
+
         var hasAnnotation = ((data[offset++] & 0x10) == 0x10);
 
         var name = data.getString(offset + 1, data[offset]);
@@ -364,7 +364,7 @@ class TypeTemplate {
         }
 
         var ft = new FunctionTemplate(this, functionIndex++, name, inherited,
-            arguments, dt.type, annotation);
+            isStatic, arguments, dt.type, annotation);
 
         _functions.add(ft);
       } else if (type == 1) // property

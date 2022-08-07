@@ -73,6 +73,11 @@ class IIPPacket {
 
   TransmissionType? dataType;
 
+  DateTime currentTime = DateTime(2000);
+  int interval = 0;
+  int jitter = 0;
+  String procedure = "";
+
   int _dataLengthNeeded = 0;
   int _originalOffset = 0;
 
@@ -373,6 +378,44 @@ class IIPPacket {
         //@TODO: fix this
         //content = data.clip(offset, cl);
         offset += cl;
+      } else if (action == IIPPacketAction.KeepAlive) {
+        if (_notEnough(offset, ends, 12)) return -_dataLengthNeeded;
+
+        currentTime = data.getDateTime(offset);
+        offset += 8;
+        interval = data.getUint32(offset);
+        offset += 4;
+      } else if (action == IIPPacketAction.ProcedureCall) {
+        if (_notEnough(offset, ends, 2)) return -_dataLengthNeeded;
+
+        var cl = data.getUint16(offset);
+        offset += 2;
+
+        if (_notEnough(offset, ends, cl)) return -_dataLengthNeeded;
+
+        procedure = data.getString(offset, cl);
+        offset += cl;
+
+        if (_notEnough(offset, ends, 1)) return -_dataLengthNeeded;
+
+        var parsed = TransmissionType.parse(data, offset, ends);
+
+        if (dataType == null) return -parsed.size;
+
+        offset += parsed.size;
+      } else if (action == IIPPacketAction.StaticCall) {
+        if (_notEnough(offset, ends, 18)) return -_dataLengthNeeded;
+
+        classId = data.getGuid(offset);
+        offset += 16;
+
+        methodIndex = data[offset++];
+
+        var parsed = TransmissionType.parse(data, offset, ends);
+
+        if (dataType == null) return -parsed.size;
+
+        offset += parsed.size;
       }
     } else if (command == IIPPacketCommand.Reply) {
       if (action == IIPPacketAction.AttachResource ||
@@ -397,22 +440,12 @@ class IIPPacket {
 
         if (parsed.type == null) return -parsed.size;
 
-        //print("Not enough ${parsed.size}");
-
-        // } else {
-        //   print(
-        //       "attach parsed ${parsed.size} ${cl} ${data.length} ${ends} ${offset}");
-        // }
-
         dataType = parsed.type;
         offset += parsed.size;
       } else if (action == IIPPacketAction.DetachResource) {
         // nothing to do
       } else if (action == IIPPacketAction.CreateResource) {
         if (_notEnough(offset, ends, 20)) return -_dataLengthNeeded;
-
-        //ClassId = data.GetGuid(offset);
-        //offset += 16;
 
         resourceId = data.getUint32(offset);
         offset += 4;
@@ -440,10 +473,9 @@ class IIPPacket {
 
         dataType = parsed.type;
         offset += parsed.size;
-      } else if (action == IIPPacketAction.InvokeFunction)
-      //|| action == IIPPacketAction.GetProperty
-      //|| action == IIPPacketAction.GetPropertyIfModified)
-      {
+      } else if (action == IIPPacketAction.InvokeFunction ||
+          action == IIPPacketAction.ProcedureCall ||
+          action == IIPPacketAction.StaticCall) {
         if (_notEnough(offset, ends, 1)) return -_dataLengthNeeded;
 
         var parsed = TransmissionType.parse(data, offset, ends);
@@ -456,6 +488,13 @@ class IIPPacket {
           action == IIPPacketAction.Listen ||
           action == IIPPacketAction.Unlisten) {
         // nothing to do
+      } else if (action == IIPPacketAction.KeepAlive) {
+        if (_notEnough(offset, ends, 12)) return -_dataLengthNeeded;
+
+        currentTime = data.getDateTime(offset);
+        offset += 8;
+        jitter = data.getUint32(offset);
+        offset += 4;
       }
     } else if (command == IIPPacketCommand.Report) {
       if (report == IIPPacketReport.ManagementError) {

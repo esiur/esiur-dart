@@ -468,16 +468,30 @@ class TemplateGenerator {
       var positionalArgs = f.arguments.where((x) => !x.optional);
       var optionalArgs = f.arguments.where((x) => x.optional);
 
-      rt.write("AsyncReply<$rtTypeName> ${f.name}(");
-
-      if (positionalArgs.length > 0)
+      if (f.isStatic) {
         rt.write(
-            "${positionalArgs.map((a) => getTypeName(template, a.type, templates) + " " + a.name).join(',')}");
+            "AsyncReply<$rtTypeName> ${f.name}(DistributedConnection connection");
 
-      if (optionalArgs.length > 0) {
-        if (positionalArgs.length > 0) rt.write(",");
-        rt.write(
-            "[${optionalArgs.map((a) => getTypeName(template, a.type.toNullable(), templates) + " " + a.name).join(',')}]");
+        if (positionalArgs.length > 0)
+          rt.write(
+              ", ${positionalArgs.map((a) => getTypeName(template, a.type, templates) + " " + a.name).join(',')}");
+
+        if (optionalArgs.length > 0) {
+          rt.write(
+              ", [${optionalArgs.map((a) => getTypeName(template, a.type.toNullable(), templates) + " " + a.name).join(',')}]");
+        }
+      } else {
+        rt.write("AsyncReply<$rtTypeName> ${f.name}(");
+
+        if (positionalArgs.length > 0)
+          rt.write(
+              "${positionalArgs.map((a) => getTypeName(template, a.type, templates) + " " + a.name).join(',')}");
+
+        if (optionalArgs.length > 0) {
+          if (positionalArgs.length > 0) rt.write(",");
+          rt.write(
+              "[${optionalArgs.map((a) => getTypeName(template, a.type.toNullable(), templates) + " " + a.name).join(',')}]");
+        }
       }
 
       rt.writeln(") {");
@@ -491,11 +505,17 @@ class TemplateGenerator {
       });
 
       rt.writeln("var rt = AsyncReply<$rtTypeName>();");
-      rt.writeln("internal_invoke(${f.index}, args)");
+      if (f.isStatic) {
+        rt.writeln(
+            'connection.staticCall(Guid.parse("${template.classId.toString()}"), ${f.index}, args)');
+      } else {
+        rt.writeln("internal_invoke(${f.index}, args)");
+      }
       rt.writeln("..then((x) => rt.trigger(x))");
       rt.writeln("..error((x) => rt.triggerError(x))");
       rt.writeln("..chunk((x) => rt.triggerChunk(x));");
       rt.writeln("return rt; }");
+      
     });
 
     template.properties.where((p) => !p.inherited).forEach((p) {

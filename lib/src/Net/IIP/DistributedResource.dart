@@ -23,6 +23,7 @@ SOFTWARE.
 */
 
 import 'dart:async';
+import 'dart:ffi';
 
 import '../../Data/IntType.dart';
 
@@ -44,8 +45,6 @@ import './DistributedConnection.dart';
 import '../Packets/IIPPacketAction.dart';
 
 import '../../Resource/Template/EventTemplate.dart';
-
- 
 
 class DistributedResource extends IResource {
   int? _instanceId;
@@ -255,8 +254,17 @@ class DistributedResource extends IResource {
     if (index >= ins.template.functions.length)
       throw new Exception("Function index is incorrect");
 
-    return _connection?.sendInvoke(_instanceId as int, index, args)
-        as AsyncReply;
+    // return _connection?.sendInvoke(_instanceId as int, index, args)
+    //     as AsyncReply;
+
+    var ft = ins.template.getFunctionTemplateByIndex(index);
+
+    if (ft == null) throw new Exception("Function template not found.");
+
+    if (ft.isStatic)
+      return _connection?.staticCall(ins.template.classId, index, args);
+    else
+      return _connection?.sendInvoke(_instanceId as Int, index, args);
   }
 
   operator [](String index) {

@@ -33,4 +33,9 @@ class IIPPacketAction {
   static const int GetAttributes = 0x1B;
   static const int UpdateAttributes = 0x1C;
   static const int ClearAttributes = 0x1D;
+
+  // Static
+  static const int KeepAlive = 0x20;
+  static const int ProcedureCall = 0x21;
+  static const int StaticCall = 0x22;
 }

@@ -126,6 +126,10 @@ class AsyncReply<T> implements Future<T> {
   }
 
   AsyncReply<T> timeout(Duration timeLimit, {FutureOr<T?> onTimeout()?}) {
+    Future.delayed(timeLimit, () {
+      if (!_resultReady && _exception == null) onTimeout?.call();
+    });
+
     return this;
   }
 
