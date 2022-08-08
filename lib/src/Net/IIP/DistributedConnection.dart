@@ -145,8 +145,10 @@ class DistributedConnection extends NetworkConnection with IStore {
 
   DateTime? _lastKeepAliveSent;
   DateTime? _lastKeepAliveReceived;
-  int jitter;
+  int jitter = 0;
   int keepAliveTime = 10;
+
+  DistributedServer? server;
 
   /// <summary>
   /// Local username to authenticate ourselves.
@@ -341,9 +343,13 @@ class DistributedConnection extends NetworkConnection with IStore {
 
     
 
+    if (server != null){
     // @TODO: check if we need this with reconnect
-    // _resources.values.forEach((x) => x.suspend());
-    //_unsubscribeAll();
+      _resources.values.forEach((x) => x.suspend());
+      _unsubscribeAll();
+      Warehouse.remove(this);
+    }
+
 
   }
 
@@ -743,11 +749,11 @@ class DistributedConnection extends NetworkConnection with IStore {
                 break;
 
             case IIPPacketAction.ProcedureCall:
-                iipRequestProcedureCall(packet.callbackId, packet.procedure, (TransmissionType)packet.dataType, msg);
+                iipRequestProcedureCall(packet.callbackId, packet.procedure, packet.dataType as TransmissionType, msg);
                 break;
 
             case IIPPacketAction.StaticCall:
-                iipRequestStaticCall(packet.callbackId, packet.classId, packet.methodIndex, (TransmissionType)packet.dataType, msg);
+                iipRequestStaticCall(packet.callbackId, packet.classId, packet.methodIndex, packet.dataType as TransmissionType, msg);
                 break;
 
 
@@ -851,7 +857,7 @@ class DistributedConnection extends NetworkConnection with IStore {
               break;
 
             case IIPPacketAction.KeepAlive:
-              iipReply(packet.callbackId, packet.currentTime, packet.jitter);
+              iipReply(packet.callbackId, [packet.currentTime, packet.jitter]);
               break;
           }
         } else if (packet.command == IIPPacketCommand.Report) {
@@ -1444,7 +1450,7 @@ class DistributedConnection extends NetworkConnection with IStore {
           return;
         }
 
-        _unsubscrive(r);
+        _unsubscribe(r);
 
         var link = DC.stringToBytes(r.instance?.link ?? "");
 
@@ -1527,7 +1533,7 @@ class DistributedConnection extends NetworkConnection with IStore {
   }
 
 void _unsubscribeAll(){
-  _subscriptions.forEach((resource, value) => {
+  _subscriptions.forEach((resource, value) {
     resource.instance?.off("resourceEventOccurred", _instance_EventOccurred);
     resource.instance?.off("resourceModified", _instance_PropertyModified);
     resource.instance?.off("resourceDestroyed", _instance_ResourceDestroyed);
@@ -2110,7 +2116,7 @@ void _unsubscribeAll(){
         // });
     }
 
-    void IIPRequestStaticCall(int callback, Guid classId, int index, TransmissionType transmissionType, DC content)
+    void iipRequestStaticCall(int callback, Guid classId, int index, TransmissionType transmissionType, DC content)
     {
         var template = Warehouse.getTemplateByClassId(classId);
 
@@ -2973,7 +2979,7 @@ void _unsubscribeAll(){
 
   _instance_ResourceDestroyed(IResource resource) {
     // compose the packet
-    _unsubscrive(resource);
+    _unsubscribe(resource);
     sendEvent(IIPPacketEvent.ResourceDestroyed)
       ..addUint32((resource.instance as Instance).id)
       ..done();

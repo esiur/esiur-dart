@@ -24,6 +24,7 @@ SOFTWARE.
 
 import 'dart:async';
 import 'dart:ffi';
+import 'dart:io';
 
 import '../../Data/IntType.dart';
 
@@ -244,15 +245,17 @@ class DistributedResource extends IResource {
   }
 
   AsyncReply<dynamic> internal_invoke(int index, Map<UInt8, dynamic> args) {
-    if (_destroyed) throw new Exception("Trying to access destroyed object");
+    if (_destroyed) throw new Exception("Trying to access a destroyed object");
 
-    if (_suspended) throw new Exception("Trying to access suspended object");
+    if (_suspended) throw new Exception("Trying to access a suspended object.");
     if (instance == null) throw Exception("Object not initialized.");
+
+    if (_connection == null) throw new Exception("No connection.");
 
     var ins = instance as Instance;
 
     if (index >= ins.template.functions.length)
-      throw new Exception("Function index is incorrect");
+      throw new Exception("Function index is incorrect.");
 
     // return _connection?.sendInvoke(_instanceId as int, index, args)
     //     as AsyncReply;
@@ -262,9 +265,9 @@ class DistributedResource extends IResource {
     if (ft == null) throw new Exception("Function template not found.");
 
     if (ft.isStatic)
-      return _connection?.staticCall(ins.template.classId, index, args);
+      return _connection!.staticCall(ins.template.classId, index, args);
     else
-      return _connection?.sendInvoke(_instanceId as Int, index, args);
+      return _connection!.sendInvoke(_instanceId as int, index, args);
   }
 
   operator [](String index) {

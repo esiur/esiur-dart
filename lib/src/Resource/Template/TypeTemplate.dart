@@ -221,6 +221,7 @@ class TypeTemplate {
             i,
             fi.name,
             false,
+            fi.isStatic,
             args,
             RepresentationType.fromType(fi.returnType) ??
                 RepresentationType.Void,

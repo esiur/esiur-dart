@@ -86,9 +86,9 @@ class Func {
   final List<Arg> argsType;
   //final bool isNullable;
   final String? annotation;
-
+  final bool isStatic;
   const Func(this.name, this.returnType, this.argsType,
-      [this.annotation = null]);
+      [this.annotation = null, this.isStatic = false]);
 }
 
 class Arg {
