@@ -348,11 +348,11 @@ class TemplateGenerator {
         var className = _translateClassName(tmp.className);
         if (tmp.type == TemplateType.Resource ||
             tmp.type == TemplateType.Wrapper) {
-          return "Warehouse.defineType<${className}>(() => ${className}(), RepresentationType(RepresentationTypeIdentifier.TypedResource, false, Guid.fromString('${tmp.classId.toString()}')));\r\n";
+          return "Warehouse.defineType<${className}>(() => ${className}(), RepresentationType(RepresentationTypeIdentifier.TypedResource, false, Guid.parse('${tmp.classId.toString()}')));\r\n";
         } else if (tmp.type == TemplateType.Record) {
-          return "Warehouse.defineType<${className}>(() => ${className}(), RepresentationType(RepresentationTypeIdentifier.TypedRecord, false, Guid.fromString('${tmp.classId.toString()}')));\r\n";
+          return "Warehouse.defineType<${className}>(() => ${className}(), RepresentationType(RepresentationTypeIdentifier.TypedRecord, false, Guid.parse('${tmp.classId.toString()}')));\r\n";
         } else if (tmp.type == TemplateType.Enum) {
-          return "Warehouse.defineType<${className}>(() => ${className}(), RepresentationType(RepresentationTypeIdentifier.Enum, false, Guid.fromString('${tmp.classId.toString()}')));\r\n";
+          return "Warehouse.defineType<${className}>(() => ${className}(), RepresentationType(RepresentationTypeIdentifier.Enum, false, Guid.parse('${tmp.classId.toString()}')));\r\n";
         }
       }).join("\r\n");
 
@@ -470,7 +470,7 @@ class TemplateGenerator {
 
       if (f.isStatic) {
         rt.write(
-            "AsyncReply<$rtTypeName> ${f.name}(DistributedConnection connection");
+            "static AsyncReply<$rtTypeName> ${f.name}(DistributedConnection connection");
 
         if (positionalArgs.length > 0)
           rt.write(
@@ -515,7 +515,6 @@ class TemplateGenerator {
       rt.writeln("..error((x) => rt.triggerError(x))");
       rt.writeln("..chunk((x) => rt.triggerChunk(x));");
       rt.writeln("return rt; }");
-      
     });
 
     template.properties.where((p) => !p.inherited).forEach((p) {

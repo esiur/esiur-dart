@@ -70,10 +70,18 @@ class DC with IterableMixin<int> {
   }
 
   DC.fromHex(String hex, [String separator = ' ']) {
-    var list =
-        hex.split(separator).map((e) => int.parse(e, radix: 16)).toList();
-    _data = Uint8List.fromList(list);
-    _dv = ByteData.view(_data.buffer);
+    if (separator == '') {
+      var list = <int>[];
+      for (var i = 0; i < hex.length; i += 2)
+        list.add(int.parse(hex.substring(i, i + 2), radix: 16));
+      _data = Uint8List.fromList(list);
+      _dv = ByteData.view(_data.buffer);
+    } else {
+      var list =
+          hex.split(separator).map((e) => int.parse(e, radix: 16)).toList();
+      _data = Uint8List.fromList(list);
+      _dv = ByteData.view(_data.buffer);
+    }
   }
 
   int operator [](int index) => _data[index];
@@ -83,11 +91,7 @@ class DC with IterableMixin<int> {
   Iterator<int> get iterator => _data.iterator;
 
   static DC hexToBytes(String value) {
-    // convert hex to Uint8Array
-    var rt = new DC(value.length ~/ 2);
-    for (var i = 0; i < rt.length; i++)
-      rt[i] = int.parse(value.substring(i * 2, 2), radix: 16);
-    return rt;
+    return DC.fromHex(value, '');
   }
 
   static DC boolToBytes(bool value) {
@@ -234,9 +238,11 @@ class DC with IterableMixin<int> {
     return rt;
   }
 
-  static DC dateTimeArrayToBytes(List<DateTime> value, [Endian endian = Endian.little]) {
+  static DC dateTimeArrayToBytes(List<DateTime> value,
+      [Endian endian = Endian.little]) {
     var rt = new DC(value.length * 8);
-    for (var i = 0; i < value.length; i++) rt.setDateTime(i * 8, value[i], endian);
+    for (var i = 0; i < value.length; i++)
+      rt.setDateTime(i * 8, value[i], endian);
     return rt;
   }
 
@@ -484,7 +490,7 @@ class DC with IterableMixin<int> {
   }
 
   int getUint64(int offset, [Endian endian = Endian.little]) {
-     if (kIsWeb) {
+    if (kIsWeb) {
       if (endian == Endian.big) {
         var bi = BigInt.from(0);
 
@@ -596,7 +602,8 @@ class DC with IterableMixin<int> {
     }
   }
 
-  void setDateTime(int offset, DateTime value, [Endian endian = Endian.little]) {
+  void setDateTime(int offset, DateTime value,
+      [Endian endian = Endian.little]) {
     // Unix Epoch
     var ticks = UNIX_EPOCH + (value.millisecondsSinceEpoch * 10000);
     this.setUint64(offset, ticks, endian);

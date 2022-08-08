@@ -5,7 +5,7 @@ class Guid {
 
   Guid(this._data) {}
 
-  Guid.fromString(String data) {
+  Guid.parse(String data) {
     _data = DC.fromHex(data, '');
   }
 
