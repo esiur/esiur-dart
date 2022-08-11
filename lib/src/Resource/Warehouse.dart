@@ -22,6 +22,7 @@ SOFTWARE.
 
 */
 
+ 
 import '../Data/IntType.dart';
 
 import '../Data/TransmissionType.dart';
@@ -55,7 +56,8 @@ import '../Net/IIP/DistributedConnection.dart';
 // Centeral Resource Issuer
 class Warehouse {
   static AutoList<IStore, Instance> _stores = AutoList<IStore, Instance>();
-  static Map<int, IResource> _resources = new Map<int, IResource>();
+  static Map<int, WeakReference<IResource>> _resources =
+      new Map<int, WeakReference<IResource>>();
   static int resourceCounter = 0;
 
   static KeyList<TemplateType, KeyList<Guid, TypeTemplate>> _templates =
@@ -100,7 +102,7 @@ class Warehouse {
   /// <returns></returns>
   static AsyncReply<IResource?> getById(int id) {
     if (_resources.containsKey(id))
-      return new AsyncReply<IResource?>.ready(_resources[id]);
+      return new AsyncReply<IResource?>.ready(_resources[id]?.target);
     else
       return new AsyncReply<IResource?>.ready(null);
   }
@@ -155,15 +157,19 @@ class Warehouse {
   static AsyncReply<bool> close() {
     var bag = new AsyncBag<bool>();
 
-    for (var resource in _resources.values)
-      if (!(resource is IStore))
-        bag.add(resource.trigger(ResourceTrigger.Terminate));
+    for (var resource in _resources.values) {
+      var r = resource.target;
+      if ((r != null) && !(r is IStore))
+        bag.add(r.trigger(ResourceTrigger.Terminate));
+    }
 
     for (var s in _stores) bag.add(s.trigger(ResourceTrigger.Terminate));
 
-    for (var resource in _resources.values)
-      if (!(resource is IStore))
-        bag.add(resource.trigger(ResourceTrigger.SystemTerminated));
+    for (var resource in _resources.values) {
+      var r = resource.target;
+      if ((r != null) && !(resource is IStore))
+        bag.add(r.trigger(ResourceTrigger.SystemTerminated));
+    }
 
     for (var store in _stores)
       bag.add(store.trigger(ResourceTrigger.SystemTerminated));
@@ -451,7 +457,7 @@ class Warehouse {
     var initResource = () {
       if (resource.instance == null) return;
 
-      _resources[(resource.instance as Instance).id] = resource;
+      _resources[(resource.instance as Instance).id] = WeakReference(resource);
 
       if (_warehouseIsOpen) {
         resource.trigger(ResourceTrigger.Initialize)
@@ -644,8 +650,15 @@ class Warehouse {
       _stores.remove(resource);
 
       // remove all objects associated with the store
-      var toBeRemoved =
-          _resources.values.where((x) => x.instance?.store == resource);
+      //var toBeRemoved =
+      //  _resources.values.where((x) => x.target?.instance?.store == resource);
+
+      var toBeRemoved = <IResource>[];
+      for (var wr in _resources.values) {
+        var r = wr.target;
+        if (r != null && r.instance?.store == resource) toBeRemoved.add(r);
+      }
+
       for (var o in toBeRemoved) remove(o);
 
       // StoreDisconnected?.Invoke(resource as IStore);

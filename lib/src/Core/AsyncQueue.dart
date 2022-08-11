@@ -12,7 +12,7 @@ class AsyncQueue<T> extends AsyncReply<T?> {
     _list.add(reply);
 
     //super._resultReady = false;
-    super.setResultReady(false);
+    super.ready = false; // setResultReady(false);
 
     reply.then(processQueue);
   }
@@ -35,7 +35,7 @@ class AsyncQueue<T> extends AsyncReply<T?> {
         break;
 
     //super._resultReady = (_list.length == 0);
-    super.setResultReady(_list.length == 0);
+    super.ready = _list.length == 0; // .setResultReady(_list.length == 0);
   }
 
   AsyncQueue() {}

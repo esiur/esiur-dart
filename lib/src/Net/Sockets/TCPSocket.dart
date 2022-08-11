@@ -153,6 +153,8 @@ class TCPSocket extends ISocket {
   }
 
   void close() {
+    if (state == SocketState.Closed) return;
+
     if (state != SocketState.Closed && state != SocketState.Terminated)
       _state = SocketState.Closed;
 

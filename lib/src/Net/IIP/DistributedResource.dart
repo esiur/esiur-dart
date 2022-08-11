@@ -76,6 +76,7 @@ class DistributedResource extends IResource {
   /// Instance Id given by the other end.
   /// </summary>
   int? get distributedResourceInstanceId => _instanceId;
+  set distributedResourceInstanceId(value) => _instanceId = value;
 
   //bool get destroyed => _destroyed;
 
@@ -90,7 +91,7 @@ class DistributedResource extends IResource {
   void destroy() {
     _destroyed = true;
     _attached = false;
-    _connection?.sendDetachRequest(_instanceId as int);
+    _connection?.detachResource(_instanceId as int);
     emitArgs("destroy", [this]);
   }
 
@@ -194,8 +195,8 @@ class DistributedResource extends IResource {
   }
 
   AsyncReply<dynamic> listen(event) {
-    if (_destroyed) throw new Exception("Trying to access destroyed object");
-    if (_suspended) throw new Exception("Trying to access suspended object");
+    if (_destroyed) throw new Exception("Trying to access a destroyed object.");
+    if (_suspended) throw new Exception("Trying to access a suspended object.");
 
     EventTemplate? et = event is EventTemplate
         ? event
@@ -214,8 +215,8 @@ class DistributedResource extends IResource {
   }
 
   AsyncReply<dynamic> unlisten(event) {
-    if (_destroyed) throw new Exception("Trying to access destroyed object");
-    if (_suspended) throw new Exception("Trying to access suspended object");
+    if (_destroyed) throw new Exception("Trying to access a destroyed object.");
+    if (_suspended) throw new Exception("Trying to access a suspended object.");
 
     EventTemplate? et = event is EventTemplate
         ? event
@@ -245,7 +246,7 @@ class DistributedResource extends IResource {
   }
 
   AsyncReply<dynamic> internal_invoke(int index, Map<UInt8, dynamic> args) {
-    if (_destroyed) throw new Exception("Trying to access a destroyed object");
+    if (_destroyed) throw new Exception("Trying to access a destroyed object.");
 
     if (_suspended) throw new Exception("Trying to access a suspended object.");
     if (instance == null) throw Exception("Object not initialized.");
@@ -290,6 +291,10 @@ class DistributedResource extends IResource {
 
   @override //overring noSuchMethod
   noSuchMethod(Invocation invocation) {
+    if (_destroyed) throw new Exception("Trying to access a destroyed object.");
+
+    if (_suspended) throw new Exception("Trying to access a suspended object.");
+
     var memberName = _getMemberName(invocation.memberName);
 
     if (invocation.isMethod) {
@@ -365,6 +370,10 @@ class DistributedResource extends IResource {
   /// <param name="value">Value</param>
   /// <returns>Indicator when the property is set.</returns>
   AsyncReply<dynamic> set(int index, dynamic value) {
+    if (_destroyed) throw new Exception("Trying to access a destroyed object.");
+
+    if (_suspended) throw new Exception("Trying to access a suspended object.");
+
     if (index >= _properties.length)
       throw Exception("Property with index `${index}` not found.");
 

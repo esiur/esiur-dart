@@ -100,7 +100,6 @@ class NetworkConnection extends IDestructible with INetworkReceiver<ISocket> {
       if (_sock != null) _sock?.close();
     } catch (ex) {
       //Global.Log("NetworkConenction:Close", LogType.Error, ex.ToString());
-
     }
   }
 

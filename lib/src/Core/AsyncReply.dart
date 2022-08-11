@@ -23,6 +23,8 @@ SOFTWARE.
 */
 import 'dart:async';
 import 'dart:core';
+import 'package:esiur/esiur.dart';
+
 import 'AsyncException.dart';
 import 'ProgressType.dart';
 
@@ -55,9 +57,9 @@ class AsyncReply<T> implements Future<T> {
     return _result;
   }
 
-  void setResultReady(bool val) {
-    _resultReady = val;
-  }
+  // void setResultReady(bool val) {
+  //   _resultReady = val;
+  // }
 
   AsyncReply<T> next(Function(T) callback) {
     then(callback);
@@ -127,7 +129,11 @@ class AsyncReply<T> implements Future<T> {
 
   AsyncReply<T> timeout(Duration timeLimit, {FutureOr<T?> onTimeout()?}) {
     Future.delayed(timeLimit, () {
-      if (!_resultReady && _exception == null) onTimeout?.call();
+      if (!_resultReady && _exception == null) {
+        triggerError(AsyncException(ErrorType.Management,
+            ExceptionCode.Timeout.index, "Execution timeout expired"));
+        onTimeout?.call();
+      }
     });
 
     return this;
@@ -152,6 +158,7 @@ class AsyncReply<T> implements Future<T> {
 
   AsyncReply<T> trigger(T result) {
     if (_resultReady) return this;
+    if (_exception != null) return this;
 
     _result = result;
     _resultReady = true;

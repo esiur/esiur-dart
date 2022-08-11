@@ -122,8 +122,13 @@ class DistributedConnection extends NetworkConnection with IStore {
 
   bool _ready = false, _readyToEstablish = false;
 
-  KeyList<int, DistributedResource> _resources =
+  KeyList<int, WeakReference<DistributedResource>> _attachedResources =
+      new KeyList<int, WeakReference<DistributedResource>>();
+
+  KeyList<int, DistributedResource> _neededResources =
       new KeyList<int, DistributedResource>();
+  KeyList<int, WeakReference<DistributedResource>> _suspendedResources =
+      new KeyList<int, WeakReference<DistributedResource>>();
 
   KeyList<int, AsyncReply<DistributedResource>> _resourceRequests =
       new KeyList<int, AsyncReply<DistributedResource>>();
@@ -285,6 +290,7 @@ class DistributedConnection extends NetworkConnection with IStore {
       _session?.localAuthentication.domain = domain;
       _session?.localAuthentication.username = username;
       _localPasswordOrToken = passwordOrToken;
+      _invalidCredentials = false;
     }
 
     if (_session == null)
@@ -302,19 +308,29 @@ class DistributedConnection extends NetworkConnection with IStore {
 
     if (_hostname == null) throw Exception("Host not specified.");
 
-    if (socket != null) {
-      socket.connect(_hostname as String, _port)
-        ..then((x) {
-          assign(socket as ISocket);
-        })
-        ..error((x) {
-          _openReply?.triggerError(x);
-          _openReply = null;
-        });
-    }
+    _connectSocket(socket);
 
     return _openReply as AsyncReply<bool>;
   }
+
+  _connectSocket(ISocket socket) {
+    socket.connect(_hostname as String, _port)
+      ..then((x) {
+        assign(socket);
+      })
+      ..error((x) {
+        if (autoReconnect) {
+          print("Reconnecting socket...");
+          Future.delayed(Duration(seconds: 5), () => _connectSocket(socket));
+        } else {
+          _openReply?.triggerError(x);
+          _openReply = null;
+        }
+      });
+  }
+
+  bool autoReconnect = false;
+  bool _invalidCredentials = false;
 
   @override
   void disconnected() {
@@ -322,55 +338,119 @@ class DistributedConnection extends NetworkConnection with IStore {
     _ready = false;
     _readyToEstablish = false;
 
-    _requests.values.forEach((x) { try { 
-              x.triggerError(AsyncException(ErrorType.Management, 0, "Connection closed"));
-            } catch (ex){ }
-          });
+    print("Disconnected ..");
 
-    _resourceRequests.values.forEach((x) { try { 
-              x.triggerError(AsyncException(ErrorType.Management, 0, "Connection closed"));
-            } catch (ex){ }
-          });
+    _keepAliveTimer?.cancel();
+    _keepAliveTimer = null;
 
-    _templateRequests.values.forEach((x) { try { 
-              x.triggerError(AsyncException(ErrorType.Management, 0, "Connection closed"));
-            } catch (ex){ }
-          });
+    _requests.values.forEach((x) {
+      try {
+        x.triggerError(
+            AsyncException(ErrorType.Management, 0, "Connection closed"));
+      } catch (ex) {}
+    });
+
+    _resourceRequests.values.forEach((x) {
+      try {
+        x.triggerError(
+            AsyncException(ErrorType.Management, 0, "Connection closed"));
+      } catch (ex) {}
+    });
+
+    _templateRequests.values.forEach((x) {
+      try {
+        x.triggerError(
+            AsyncException(ErrorType.Management, 0, "Connection closed"));
+      } catch (ex) {}
+    });
 
     _requests.clear();
     _resourceRequests.clear();
     _templateRequests.clear();
 
-    
-
-    if (server != null){
-    // @TODO: check if we need this with reconnect
-      _resources.values.forEach((x) => x.suspend());
-      _unsubscribeAll();
-      Warehouse.remove(this);
+    for (var x in _attachedResources.values) {
+      var r = x.target;
+      if (r != null) {
+        r.suspend();
+        _suspendedResources[r.distributedResourceInstanceId ?? 0] = x;
+      }
     }
 
+    if (server != null) {
+      _suspendedResources.clear();
 
+      _unsubscribeAll();
+      Warehouse.remove(this);
+
+      // @TODO: implement this
+      // if (ready)
+      //   _server.membership?.Logout(session);
+
+    } else if (autoReconnect && !_invalidCredentials) {
+      Future.delayed(Duration(seconds: 5), reconnect);
+    } else {
+      _suspendedResources.clear();
+    }
+
+    _attachedResources.clear();
+    _ready = false;
   }
 
   Future<bool> reconnect() async {
-    if (await connect()) {
-      var bag = AsyncBag();
+    try {
+      if (!await connect()) return false;
 
-      for (var i = 0; i < _resources.keys.length; i++) {
-        var index = _resources.keys.elementAt(i);
-        // print("Re $i ${_resources[index].instance.template.className}");
-        bag.add(fetch(index, null));
+      try {
+        var toBeRestored = <DistributedResource>[];
+
+        _suspendedResources.forEach((key, value) {
+          var r = value.target;
+          if (r != null) toBeRestored.add(r);
+        });
+
+        for (var r in toBeRestored) {
+          var link = DC.stringToBytes(r.distributedResourceLink ?? "");
+
+          print("Restoring " + (r.distributedResourceLink ?? ""));
+
+          try {
+            var ar = await (sendRequest(IIPPacketAction.QueryLink)
+                  ..addUint16(link.length)
+                  ..addDC(link))
+                .done();
+
+            var dataType = ar?[0] as TransmissionType;
+            var data = ar?[1] as DC;
+
+            if (dataType.identifier ==
+                TransmissionTypeIdentifier.ResourceList) {
+              // parse them as int
+              var id = data.getUint32(8);
+              if (id != r.distributedResourceInstanceId)
+                r.distributedResourceInstanceId = id;
+
+              _neededResources[id] = r;
+              _suspendedResources.remove(id);
+
+              await fetch(id, null);
+            }
+          } catch (ex) {
+            if (ex is AsyncException &&
+                ex.code == ExceptionCode.ResourceNotFound) {
+              // skip this resource
+            } else {
+              break;
+            }
+          }
+        }
+      } catch (ex) {
+        print(ex);
       }
-
-      bag.seal();
-
-      await bag;
-
-      return true;
+    } catch (ex) {
+      return false;
     }
 
-    return false;
+    return true;
   }
 
   /// <summary>
@@ -526,8 +606,6 @@ class DistributedConnection extends NetworkConnection with IStore {
     //     Timer(Duration(seconds: KeepAliveInterval), _keepAliveTimer_Elapsed);
   }
 
-
-
   void _keepAliveTimer_Elapsed() {
     if (!isConnected) return;
 
@@ -541,23 +619,25 @@ class DistributedConnection extends NetworkConnection with IStore {
 
     _lastKeepAliveSent = now;
 
-    sendRequest(IIPPacketAction.KeepAlive)
-      ..addDateTime(now)
-      ..addUint32(interval)
-      ..done().then((x) {
+    //print("keep alive sent");
+
+    (sendRequest(IIPPacketAction.KeepAlive)
+          ..addDateTime(now)
+          ..addUint32(interval))
+        .done()
+      ..then((x) {
         jitter = x?[1];
 
         _keepAliveTimer = Timer(
             Duration(seconds: KeepAliveInterval), _keepAliveTimer_Elapsed);
 
-        print("Keep Alive Received ${jitter}");
-      }).error((ex) {
+        //print("Keep Alive Received ${jitter}");
+      })
+      ..error((ex) {
         _keepAliveTimer?.cancel();
         close();
-      }).timeout(Duration(microseconds: keepAliveTime), onTimeout: () {
-        _keepAliveTimer?.cancel();
-        close();
-      });
+      })
+      ..timeout(Duration(seconds: keepAliveTime));
   }
 
   int processPacket(
@@ -743,20 +823,20 @@ class DistributedConnection extends NetworkConnection with IStore {
               //    packet.callbackId, packet.resourceId, packet.content, false);
               break;
 
-
-          case IIPPacketAction.KeepAlive:
-                iipRequestKeepAlive(packet.callbackId, packet.currentTime, packet.interval);
-                break;
+            case IIPPacketAction.KeepAlive:
+              iipRequestKeepAlive(
+                  packet.callbackId, packet.currentTime, packet.interval);
+              break;
 
             case IIPPacketAction.ProcedureCall:
-                iipRequestProcedureCall(packet.callbackId, packet.procedure, packet.dataType as TransmissionType, msg);
-                break;
+              iipRequestProcedureCall(packet.callbackId, packet.procedure,
+                  packet.dataType as TransmissionType, msg);
+              break;
 
             case IIPPacketAction.StaticCall:
-                iipRequestStaticCall(packet.callbackId, packet.classId, packet.methodIndex, packet.dataType as TransmissionType, msg);
-                break;
-
-
+              iipRequestStaticCall(packet.callbackId, packet.classId,
+                  packet.methodIndex, packet.dataType as TransmissionType, msg);
+              break;
           }
         } else if (packet.command == IIPPacketCommand.Reply) {
           switch (packet.action) {
@@ -823,7 +903,6 @@ class DistributedConnection extends NetworkConnection with IStore {
             case IIPPacketAction.InvokeFunction:
             case IIPPacketAction.StaticCall:
             case IIPPacketAction.ProcedureCall:
-
               iipReplyInvoke(packet.callbackId,
                   packet.dataType ?? TransmissionType.Null, msg);
               break;
@@ -1038,10 +1117,11 @@ class DistributedConnection extends NetworkConnection with IStore {
               emitArgs("ready", []);
 
               // start perodic keep alive timer
-              _keepAliveTimer = Timer(Duration(seconds: KeepAliveInterval), _keepAliveTimer_Elapsed);
-              
+              _keepAliveTimer = Timer(Duration(seconds: KeepAliveInterval),
+                  _keepAliveTimer_Elapsed);
             }
           } else if (_authPacket.command == IIPAuthPacketCommand.Error) {
+            _invalidCredentials = true;
             var ex = AsyncException(ErrorType.Management, _authPacket.errorCode,
                 _authPacket.errorMessage);
             _openReply?.triggerError(ex);
@@ -1096,7 +1176,7 @@ class DistributedConnection extends NetworkConnection with IStore {
   /// <returns></returns>
   AsyncReply<bool> put(IResource resource) {
     if (Codec.isLocalResource(resource, this))
-      _resources.add(
+      _neededResources.add(
           (resource as DistributedResource).distributedResourceInstanceId
               as int,
           resource);
@@ -1190,7 +1270,21 @@ class DistributedConnection extends NetworkConnection with IStore {
     return reply;
   }
 
-  AsyncReply<dynamic>? sendDetachRequest(int instanceId) {
+  void detachResource(int instanceId) async {
+    try {
+      if (_attachedResources.containsKey(instanceId))
+        _attachedResources.remove(instanceId);
+
+      if (_suspendedResources.containsKey(instanceId))
+        _suspendedResources.remove(instanceId);
+
+      await _sendDetachRequest(instanceId);
+    } catch (ex) {
+      // do nothing
+    }
+  }
+
+  AsyncReply<dynamic>? _sendDetachRequest(int instanceId) {
     try {
       return (sendRequest(IIPPacketAction.DetachResource)
             ..addUint32(instanceId))
@@ -1277,11 +1371,16 @@ class DistributedConnection extends NetworkConnection with IStore {
   void iipEventResourceReassigned(int resourceId, int newResourceId) {}
 
   void iipEventResourceDestroyed(int resourceId) {
-    if (_resources.contains(resourceId)) {
-      var r = _resources[resourceId];
-      _resources.remove(resourceId);
-      r?.destroy();
+    var r = _attachedResources[resourceId]?.target;
+    if (r != null) {
+      r.destroy();
+      return;
+    } else if (_neededResources.contains(resourceId)) {
+      // @TODO: handle this mess
+      _neededResources.remove(resourceId);
     }
+
+    _attachedResources.remove(resourceId);
   }
 
   // @TODO: Check for deadlocks
@@ -1532,17 +1631,15 @@ class DistributedConnection extends NetworkConnection with IStore {
     _subscriptions.remove(resource);
   }
 
-void _unsubscribeAll(){
-  _subscriptions.forEach((resource, value) {
-    resource.instance?.off("resourceEventOccurred", _instance_EventOccurred);
-    resource.instance?.off("resourceModified", _instance_PropertyModified);
-    resource.instance?.off("resourceDestroyed", _instance_ResourceDestroyed);
-    
-  });
+  void _unsubscribeAll() {
+    _subscriptions.forEach((resource, value) {
+      resource.instance?.off("resourceEventOccurred", _instance_EventOccurred);
+      resource.instance?.off("resourceModified", _instance_PropertyModified);
+      resource.instance?.off("resourceDestroyed", _instance_ResourceDestroyed);
+    });
 
-  _subscriptions.clear();
-}
-
+    _subscriptions.clear();
+  }
 
   void iipRequestReattachResource(
       int callback, int resourceId, int resourceAge) {
@@ -2071,104 +2168,103 @@ void _unsubscribeAll(){
     });
   }
 
+  void iipRequestProcedureCall(int callback, String procedureCall,
+      TransmissionType transmissionType, DC content) {
+    // server not implemented
+    sendError(
+        ErrorType.Management, callback, ExceptionCode.GeneralFailure.index);
 
-    void iipRequestProcedureCall(int callback, String procedureCall, TransmissionType transmissionType, DC content)
-    {
-        // server not implemented
-        sendError(ErrorType.Management, callback, ExceptionCode.GeneralFailure.index);
+    // if (server == null)
+    // {
+    //     sendError(ErrorType.Management, callback, ExceptionCode.GeneralFailure.index);
+    //     return;
+    // }
 
-        // if (server == null)
-        // {
-        //     sendError(ErrorType.Management, callback, ExceptionCode.GeneralFailure.index);
-        //     return;
-        // }
+    // var call = Server.Calls[procedureCall];
 
-        // var call = Server.Calls[procedureCall];
+    // if (call == null)
+    // {
+    //     sendError(ErrorType.Management, callback, ExceptionCode.MethodNotFound.index);
+    //     return;
+    // }
 
-        // if (call == null)
-        // {
-        //     sendError(ErrorType.Management, callback, ExceptionCode.MethodNotFound.index);
-        //     return;
-        // }
+    // var (_, parsed) = Codec.Parse(content, 0, this, null, transmissionType);
 
-        // var (_, parsed) = Codec.Parse(content, 0, this, null, transmissionType);
+    // parsed.Then(results =>
+    // {
+    //     var arguments = (Map<byte, object>)results;// (object[])results;
 
-        // parsed.Then(results =>
-        // {
-        //     var arguments = (Map<byte, object>)results;// (object[])results;
+    //     // un hold the socket to send data immediately
+    //     this.Socket.Unhold();
 
-        //     // un hold the socket to send data immediately
-        //     this.Socket.Unhold();
+    //     // @TODO: Make managers for procedure calls
+    //     //if (r.Instance.Applicable(session, ActionType.Execute, ft) == Ruling.Denied)
+    //     //{
+    //     //    SendError(ErrorType.Management, callback,
+    //     //        (ushort)ExceptionCode.InvokeDenied);
+    //     //    return;
+    //     //}
 
-        //     // @TODO: Make managers for procedure calls
-        //     //if (r.Instance.Applicable(session, ActionType.Execute, ft) == Ruling.Denied)
-        //     //{
-        //     //    SendError(ErrorType.Management, callback,
-        //     //        (ushort)ExceptionCode.InvokeDenied);
-        //     //    return;
-        //     //}
+    //     InvokeFunction(call.Method, callback, arguments, IIPPacket.IIPPacketAction.ProcedureCall, call.Target);
 
-        //     InvokeFunction(call.Method, callback, arguments, IIPPacket.IIPPacketAction.ProcedureCall, call.Target);
+    // }).Error(x =>
+    // {
+    //     SendError(ErrorType.Management, callback, (ushort)ExceptionCode.ParseError);
+    // });
+  }
 
-        // }).Error(x =>
-        // {
-        //     SendError(ErrorType.Management, callback, (ushort)ExceptionCode.ParseError);
-        // });
+  void iipRequestStaticCall(int callback, Guid classId, int index,
+      TransmissionType transmissionType, DC content) {
+    var template = Warehouse.getTemplateByClassId(classId);
+
+    if (template == null) {
+      sendError(
+          ErrorType.Management, callback, ExceptionCode.TemplateNotFound.index);
+      return;
     }
 
-    void iipRequestStaticCall(int callback, Guid classId, int index, TransmissionType transmissionType, DC content)
-    {
-        var template = Warehouse.getTemplateByClassId(classId);
+    var ft = template.getFunctionTemplateByIndex(index);
 
-        if (template == null)
-        {
-            sendError(ErrorType.Management, callback, ExceptionCode.TemplateNotFound.index);
-            return;
-        }
-
-        var ft = template.getFunctionTemplateByIndex(index);
-
-        if (ft == null)
-        {
-            // no function at this index
-            sendError(ErrorType.Management, callback, ExceptionCode.MethodNotFound.index);
-            return;
-        }
-
-        // var parsed = Codec.parse(content, 0, this, null, transmissionType);
-
-        // parsed.then((results)
-        // {
-        //     var arguments = (Map<byte, object>)results; 
-
-        //     // un hold the socket to send data immediately
-        //     socket?.unhold();
-
-        //     var fi = ft.methodInfo;
-
-        //     if (fi == null)
-        //     {
-        //         // ft found, fi not found, this should never happen
-        //         sendError(ErrorType.Management, callback, (ushort)ExceptionCode.MethodNotFound);
-        //         return;
-        //     }
-
-        //     // @TODO: Make managers for static calls
-        //     //if (r.Instance.Applicable(session, ActionType.Execute, ft) == Ruling.Denied)
-        //     //{
-        //     //    SendError(ErrorType.Management, callback,
-        //     //        (ushort)ExceptionCode.InvokeDenied);
-        //     //    return;
-        //     //}
-
-        //     InvokeFunction(fi, callback, arguments, IIPPacket.IIPPacketAction.StaticCall, null);
-
-        // }).Error(x =>
-        // {
-        //     SendError(ErrorType.Management, callback, (ushort)ExceptionCode.ParseError);
-        // });
+    if (ft == null) {
+      // no function at this index
+      sendError(
+          ErrorType.Management, callback, ExceptionCode.MethodNotFound.index);
+      return;
     }
 
+    // var parsed = Codec.parse(content, 0, this, null, transmissionType);
+
+    // parsed.then((results)
+    // {
+    //     var arguments = (Map<byte, object>)results;
+
+    //     // un hold the socket to send data immediately
+    //     socket?.unhold();
+
+    //     var fi = ft.methodInfo;
+
+    //     if (fi == null)
+    //     {
+    //         // ft found, fi not found, this should never happen
+    //         sendError(ErrorType.Management, callback, (ushort)ExceptionCode.MethodNotFound);
+    //         return;
+    //     }
+
+    //     // @TODO: Make managers for static calls
+    //     //if (r.Instance.Applicable(session, ActionType.Execute, ft) == Ruling.Denied)
+    //     //{
+    //     //    SendError(ErrorType.Management, callback,
+    //     //        (ushort)ExceptionCode.InvokeDenied);
+    //     //    return;
+    //     //}
+
+    //     InvokeFunction(fi, callback, arguments, IIPPacket.IIPPacketAction.StaticCall, null);
+
+    // }).Error(x =>
+    // {
+    //     SendError(ErrorType.Management, callback, (ushort)ExceptionCode.ParseError);
+    // });
+  }
 
   void iipRequestResourceAttribute(int callback, int resourceId) {}
 
@@ -2404,14 +2500,7 @@ void _unsubscribeAll(){
                   sendError(x.type, callback, x.code, x.message);
                 });
             } else {
-              /*
-#if NETSTANDARD1_5
-                              var pi = r.GetType().GetTypeInfo().GetProperty(pt.Name);
-#else
-                              var pi = r.GetType().GetProperty(pt.Name);
-#endif*/
-
-              var pi = null; // pt.Info;
+              var pi = null;
 
               if (pi != null) {
                 if (r.instance?.applicable(_session as Session,
@@ -2549,16 +2638,16 @@ void _unsubscribeAll(){
     return rt;
   }
 
-  /// <summary>
-  /// Retrive a resource by its instance Id.
-  /// </summary>
-  /// <param name="iid">Instance Id</param>
-  /// <returns>Resource</returns>
-  AsyncReply<IResource?> retrieve(int iid) {
-    for (var r in _resources.values)
-      if (r.instance?.id == iid) return new AsyncReply<IResource>.ready(r);
-    return new AsyncReply<IResource?>.ready(null);
-  }
+  // /// <summary>
+  // /// Retrive a resource by its instance Id.
+  // /// </summary>
+  // /// <param name="iid">Instance Id</param>
+  // /// <returns>Resource</returns>
+  // AsyncReply<IResource?> retrieve(int iid) {
+  //   for (var r in _resources.values)
+  //     if (r.instance?.id == iid) return new AsyncReply<IResource>.ready(r);
+  //   return new AsyncReply<IResource?>.ready(null);
+  // }
 
   AsyncReply<List<TypeTemplate>> getLinkTemplates(String link) {
     var reply = new AsyncReply<List<TypeTemplate>>();
@@ -2603,7 +2692,13 @@ void _unsubscribeAll(){
   /// <param name="id">Resource Id</param>Guid classId
   /// <returns>DistributedResource</returns>
   AsyncReply<DistributedResource> fetch(int id, List<int>? requestSequence) {
-    var resource = _resources[id];
+    var resource = _attachedResources[id]?.target;
+
+    if (resource != null)
+      return AsyncReply<DistributedResource>.ready(resource);
+
+    resource = _neededResources[id];
+
     var request = _resourceRequests[id];
 
     //print("fetch $id");
@@ -2612,8 +2707,11 @@ void _unsubscribeAll(){
       if (resource != null && (requestSequence?.contains(id) ?? false))
         return AsyncReply<DistributedResource>.ready(resource);
       return request;
-    } else if (resource != null && !resource.distributedResourceSuspended)
+    } else if (resource != null && !resource.distributedResourceSuspended) {
+      // @REVIEW: this should never happen
+      print("DCON: Resource not moved to attached.");
       return new AsyncReply<DistributedResource>.ready(resource);
+    }
 
     var reply = new AsyncReply<DistributedResource>();
     _resourceRequests.add(id, reply);
@@ -2652,8 +2750,10 @@ void _unsubscribeAll(){
             dr = new DistributedResource();
             dr.internal_init(this, id, rt[1] as int, rt[2] as String);
           }
-        } else
+        } else {
           dr = resource;
+          template = resource.instance?.template;
+        }
 
         TransmissionType transmissionType = rt[3] as TransmissionType;
         DC content = rt[4] as DC;
@@ -2674,8 +2774,12 @@ void _unsubscribeAll(){
                   ar[i + 2], ar[i] as int, ar[i + 1] as DateTime));
 
             dr.internal_attach(pvs);
-
             _resourceRequests.remove(id);
+
+            // move from needed to attached.
+            _neededResources.remove(id);
+            _attachedResources[id] = WeakReference<DistributedResource>(dr);
+
             reply.trigger(dr);
           })
             ..error((ex) => reply.triggerError(ex));
@@ -3042,78 +3146,77 @@ void _unsubscribeAll(){
   TemplateDescriber get template =>
       TemplateDescriber("Esiur.Net.IIP.DistributedConnection");
 
+  AsyncReply<dynamic> staticCall(
+      Guid classId, int index, Map<UInt8, dynamic> parameters) {
+    var pb = Codec.compose(parameters, this);
 
+    var reply = AsyncReply<dynamic>();
+    var c = _callbackCounter++;
+    _requests.add(c, reply);
 
-  AsyncReply<dynamic> staticCall(Guid classId, int index, Map<UInt8, dynamic> parameters)
-  {
-      var pb = Codec.compose(parameters, this);
-
-      var reply = AsyncReply<dynamic>();
-      var c = _callbackCounter++;
-      _requests.add(c, reply);
-
-
-      sendParams()..addUint8((0x40 | IIPPacketAction.StaticCall))
+    sendParams()
+      ..addUint8((0x40 | IIPPacketAction.StaticCall))
       ..addUint32(c)
       ..addGuid(classId)
       ..addUint8(index)
       ..addDC(pb)
       ..done();
 
-      return reply;
+    return reply;
   }
 
-    // AsyncReply<dynamic> Call(String procedureCall, params object[] parameters)
-    // {
-    //     var args = new Map<byte, object>();
-    //     for (byte i = 0; i < parameters.Length; i++)
-    //         args.Add(i, parameters[i]);
-    //     return Call(procedureCall, args);
-    // }
+  AsyncReply<dynamic> call(String procedureCall, [List? parameters = null]) {
+    if (parameters == null) {
+      return callArgs(procedureCall, Map<UInt8, dynamic>());
+    } else {
+      var map = Map<UInt8, dynamic>();
+      parameters.forEachIndexed((index, element) {
+        map[UInt8(index)] = element;
+      });
+      return callArgs(procedureCall, map);
+    }
+  }
 
-    AsyncReply<dynamic> call(String procedureCall, Map<UInt8, dynamic> parameters)
-    {
-        var pb = Codec.compose(parameters, this);
+  AsyncReply<dynamic> callArgs(
+      String procedureCall, Map<UInt8, dynamic> parameters) {
+    var pb = Codec.compose(parameters, this);
 
-        var reply = new AsyncReply<dynamic>();
-        var c = _callbackCounter++;
-        _requests.add(c, reply);
+    var reply = new AsyncReply<dynamic>();
+    var c = _callbackCounter++;
+    _requests.add(c, reply);
 
-        var callName = DC.stringToBytes(procedureCall);
+    var callName = DC.stringToBytes(procedureCall);
 
-        sendParams()..addUint8(0x40 | IIPPacketAction.ProcedureCall)
-        ..addUint32(c)
-        ..addUint16(callName.length)
-        ..addDC(callName)
-        ..addDC(pb)
-        ..done();
+    sendParams()
+      ..addUint8(0x40 | IIPPacketAction.ProcedureCall)
+      ..addUint32(c)
+      ..addUint16(callName.length)
+      ..addDC(callName)
+      ..addDC(pb)
+      ..done();
 
-        return reply;
+    return reply;
+  }
+
+  void iipRequestKeepAlive(int callbackId, DateTime peerTime, int interval) {
+    int jitter = 0;
+
+    var now = DateTime.now().toUtc();
+
+    if (_lastKeepAliveReceived != null) {
+      var diff = now.difference(_lastKeepAliveReceived!).inMicroseconds;
+      //Console.WriteLine("Diff " + diff + " " + interval);
+
+      jitter = (diff - interval).abs();
     }
 
-    void iipRequestKeepAlive(int callbackId, DateTime peerTime, int interval)
-    {
+    sendParams()
+      ..addUint8(0x80 | IIPPacketAction.KeepAlive)
+      ..addUint32(callbackId)
+      ..addDateTime(now)
+      ..addUint32(jitter)
+      ..done();
 
-        int jitter = 0;
-
-        var now = DateTime.now().toUtc();
-
-        if (_lastKeepAliveReceived != null)
-        {
-            var diff = now.difference(_lastKeepAliveReceived!).inMicroseconds;
-            //Console.WriteLine("Diff " + diff + " " + interval);
-
-            jitter =(diff -interval).abs();
-        }
-
-        sendParams()
-            ..addUint8(0x80 | IIPPacketAction.KeepAlive)
-            ..addUint32(callbackId)
-            ..addDateTime(now)
-            ..addUint32(jitter)
-            ..done();
-
-        _lastKeepAliveReceived = now;
-    }
-
+    _lastKeepAliveReceived = now;
+  }
 }

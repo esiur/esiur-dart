@@ -33,7 +33,7 @@ import '../Data/PropertyValue.dart';
 // new
 abstract class IStore implements IResource {
   AsyncReply<IResource?> get(String path);
-  AsyncReply<IResource?> retrieve(int iid);
+  // AsyncReply<IResource?> retrieve(int iid);
   AsyncReply<bool> put(IResource resource);
   String? link(IResource resource);
   bool record(IResource resource, String propertyName, dynamic value, int? age,
