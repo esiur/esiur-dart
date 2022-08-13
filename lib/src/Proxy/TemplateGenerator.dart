@@ -507,7 +507,7 @@ class TemplateGenerator {
       rt.writeln("var rt = AsyncReply<$rtTypeName>();");
       if (f.isStatic) {
         rt.writeln(
-            'connection.staticCall(Guid.parse("${template.classId.toString()}"), ${f.index}, args)');
+            "connection.staticCall(Guid.parse('${template.classId.toString()}'), ${f.index}, args)");
       } else {
         rt.writeln("internal_invoke(${f.index}, args)");
       }

@@ -23,9 +23,10 @@ SOFTWARE.
 */
 import 'dart:async';
 import 'dart:core';
-import 'package:esiur/esiur.dart';
 
 import 'AsyncException.dart';
+import 'ErrorType.dart';
+import 'ExceptionCode.dart';
 import 'ProgressType.dart';
 
 class AsyncReply<T> implements Future<T> {

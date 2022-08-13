@@ -152,6 +152,7 @@ class DistributedConnection extends NetworkConnection with IStore {
   DateTime? _lastKeepAliveReceived;
   int jitter = 0;
   int keepAliveTime = 10;
+  int reconnectInterval = 5;
 
   DistributedServer? server;
 
@@ -190,7 +191,7 @@ class DistributedConnection extends NetworkConnection with IStore {
   /// Send data to the other end as parameters
   /// </summary>
   /// <param name="values">Values will be converted to bytes then sent.</param>
-  SendList sendParams([AsyncReply<List<dynamic>?>? reply = null]) {
+  SendList _sendParams([AsyncReply<List<dynamic>?>? reply = null]) {
     return new SendList(this, reply);
   }
 
@@ -321,7 +322,8 @@ class DistributedConnection extends NetworkConnection with IStore {
       ..error((x) {
         if (autoReconnect) {
           print("Reconnecting socket...");
-          Future.delayed(Duration(seconds: 5), () => _connectSocket(socket));
+          Future.delayed(Duration(seconds: reconnectInterval),
+              () => _connectSocket(socket));
         } else {
           _openReply?.triggerError(x);
           _openReply = null;
@@ -338,7 +340,7 @@ class DistributedConnection extends NetworkConnection with IStore {
     _ready = false;
     _readyToEstablish = false;
 
-    print("Disconnected ..");
+    //print("Disconnected ..");
 
     _keepAliveTimer?.cancel();
     _keepAliveTimer = null;
@@ -387,7 +389,7 @@ class DistributedConnection extends NetworkConnection with IStore {
       //   _server.membership?.Logout(session);
 
     } else if (autoReconnect && !_invalidCredentials) {
-      Future.delayed(Duration(seconds: 5), reconnect);
+      Future.delayed(Duration(seconds: reconnectInterval), reconnect);
     } else {
       _suspendedResources.clear();
     }
@@ -411,7 +413,7 @@ class DistributedConnection extends NetworkConnection with IStore {
         for (var r in toBeRestored) {
           var link = DC.stringToBytes(r.distributedResourceLink ?? "");
 
-          print("Restoring " + (r.distributedResourceLink ?? ""));
+          //print("Restoring " + (r.distributedResourceLink ?? ""));
 
           try {
             var ar = await (sendRequest(IIPPacketAction.QueryLink)
@@ -472,7 +474,7 @@ class DistributedConnection extends NetworkConnection with IStore {
 
       var un = DC.stringToBytes(_session?.localAuthentication.username ?? "");
 
-      sendParams()
+      _sendParams()
         ..addUint8(0x60)
         ..addUint8(dmn.length)
         ..addDC(dmn)
@@ -482,7 +484,7 @@ class DistributedConnection extends NetworkConnection with IStore {
         ..done(); //, dmn, localNonce, (byte)un.Length, un);
     } else if (_session?.localAuthentication.method ==
         AuthenticationMethod.Token) {
-      sendParams()
+      _sendParams()
         ..addUint8(0x70)
         ..addUint8(dmn.length)
         ..addDC(dmn)
@@ -492,7 +494,7 @@ class DistributedConnection extends NetworkConnection with IStore {
 
     } else if (_session?.localAuthentication.method ==
         AuthenticationMethod.None) {
-      sendParams()
+      _sendParams()
         ..addUint8(0x40)
         ..addUint8(dmn.length)
         ..addDC(dmn)
@@ -606,7 +608,7 @@ class DistributedConnection extends NetworkConnection with IStore {
     //     Timer(Duration(seconds: KeepAliveInterval), _keepAliveTimer_Elapsed);
   }
 
-  void _keepAliveTimer_Elapsed() {
+  void _keepAliveTimerElapsed() {
     if (!isConnected) return;
 
     _keepAliveTimer?.cancel();
@@ -628,10 +630,25 @@ class DistributedConnection extends NetworkConnection with IStore {
       ..then((x) {
         jitter = x?[1];
 
-        _keepAliveTimer = Timer(
-            Duration(seconds: KeepAliveInterval), _keepAliveTimer_Elapsed);
+        _keepAliveTimer =
+            Timer(Duration(seconds: KeepAliveInterval), _keepAliveTimerElapsed);
 
         //print("Keep Alive Received ${jitter}");
+
+        // Run GC
+        var toBeRemoved = [];
+        _attachedResources.forEach((key, value) {
+          var r = value.target;
+          if (r == null) toBeRemoved.add(key);
+        });
+
+        if (toBeRemoved.length > 0)
+          print("GC " + toBeRemoved.length.toString());
+
+        toBeRemoved.forEach((id) {
+          _sendDetachRequest(id);
+          _attachedResources.remove(id);
+        });
       })
       ..error((ex) {
         _keepAliveTimer?.cancel();
@@ -1039,7 +1056,7 @@ class DistributedConnection extends NetworkConnection with IStore {
                 for (var i = 0; i < 32; i++) sid[i] = r.nextInt(255);
                 _session?.id = sid;
 
-                sendParams()
+                _sendParams()
                   ..addUint8(0x28)
                   ..addDC(sid)
                   ..done();
@@ -1059,7 +1076,7 @@ class DistributedConnection extends NetworkConnection with IStore {
             AuthenticationType.Client) {
           if (_authPacket.command == IIPAuthPacketCommand.Acknowledge) {
             if (_authPacket.remoteMethod == AuthenticationMethod.None) {
-              sendParams()
+              _sendParams()
                 ..addUint8(0x20)
                 ..addUint16(0)
                 ..done();
@@ -1075,7 +1092,7 @@ class DistributedConnection extends NetworkConnection with IStore {
                     ..addDC(_remoteNonce as DC))
                   .toDC());
 
-              sendParams()
+              _sendParams()
                 ..addUint8(0)
                 ..addDC(localHash)
                 ..done();
@@ -1092,12 +1109,12 @@ class DistributedConnection extends NetworkConnection with IStore {
 
               if (remoteHash.sequenceEqual(_authPacket.hash)) {
                 // send establish request
-                sendParams()
+                _sendParams()
                   ..addUint8(0x20)
                   ..addUint16(0)
                   ..done();
               } else {
-                sendParams()
+                _sendParams()
                   ..addUint8(0xc0)
                   ..addUint8(ExceptionCode.ChallengeFailed.index)
                   ..addUint16(16)
@@ -1117,8 +1134,8 @@ class DistributedConnection extends NetworkConnection with IStore {
               emitArgs("ready", []);
 
               // start perodic keep alive timer
-              _keepAliveTimer = Timer(Duration(seconds: KeepAliveInterval),
-                  _keepAliveTimer_Elapsed);
+              _keepAliveTimer = Timer(
+                  Duration(seconds: KeepAliveInterval), _keepAliveTimerElapsed);
             }
           } else if (_authPacket.command == IIPAuthPacketCommand.Error) {
             _invalidCredentials = true;
@@ -1207,21 +1224,21 @@ class DistributedConnection extends NetworkConnection with IStore {
     var c = _callbackCounter++; // avoid thread racing
     _requests.add(c, reply);
 
-    return (sendParams(reply)
+    return (_sendParams(reply)
       ..addUint8(0x40 | action)
       ..addUint32(c));
   }
 
   //int _maxcallerid = 0;
 
-  SendList sendReply(int action, int callbackId) {
-    return (sendParams()
+  SendList _sendReply(int action, int callbackId) {
+    return (_sendParams()
       ..addUint8((0x80 | action))
       ..addUint32(callbackId));
   }
 
   SendList sendEvent(int evt) {
-    return (sendParams()..addUint8((evt)));
+    return (_sendParams()..addUint8((evt)));
   }
 
   AsyncReply<dynamic> sendListenRequest(int instanceId, int index) {
@@ -1229,7 +1246,7 @@ class DistributedConnection extends NetworkConnection with IStore {
     var c = _callbackCounter++;
     _requests.add(c, reply);
 
-    sendParams()
+    _sendParams()
       ..addUint8(0x40 | IIPPacketAction.Listen)
       ..addUint32(c)
       ..addUint32(instanceId)
@@ -1243,7 +1260,7 @@ class DistributedConnection extends NetworkConnection with IStore {
     var c = _callbackCounter++;
     _requests.add(c, reply);
 
-    sendParams()
+    _sendParams()
       ..addUint8(0x40 | IIPPacketAction.Unlisten)
       ..addUint32(c)
       ..addUint32(instanceId)
@@ -1260,7 +1277,7 @@ class DistributedConnection extends NetworkConnection with IStore {
     var c = _callbackCounter++;
     _requests.add(c, reply);
 
-    sendParams()
+    _sendParams()
       ..addUint8(0x40 | IIPPacketAction.InvokeFunction)
       ..addUint32(c)
       ..addUint32(instanceId)
@@ -1294,17 +1311,17 @@ class DistributedConnection extends NetworkConnection with IStore {
     }
   }
 
-  void sendError(ErrorType type, int callbackId, int errorCode,
+  void _sendError(ErrorType type, int callbackId, int errorCode,
       [String? errorMessage]) {
     var msg = DC.stringToBytes(errorMessage ?? "");
     if (type == ErrorType.Management)
-      sendParams()
+      _sendParams()
         ..addUint8(0xC0 | IIPPacketReport.ManagementError)
         ..addUint32(callbackId)
         ..addUint16(errorCode)
         ..done();
     else if (type == ErrorType.Exception)
-      sendParams()
+      _sendParams()
         ..addUint8(0xC0 | IIPPacketReport.ExecutionError)
         ..addUint32(callbackId)
         ..addUint16(errorCode)
@@ -1314,7 +1331,7 @@ class DistributedConnection extends NetworkConnection with IStore {
   }
 
   void sendProgress(int callbackId, int value, int max) {
-    sendParams()
+    _sendParams()
       ..addUint8(0xC0 | IIPPacketReport.ProgressReport)
       ..addUint32(callbackId)
       ..addInt32(value)
@@ -1325,7 +1342,7 @@ class DistributedConnection extends NetworkConnection with IStore {
 
   void sendChunk(int callbackId, dynamic chunk) {
     var c = Codec.compose(chunk, this);
-    sendParams()
+    _sendParams()
       ..addUint8(0xC0 | IIPPacketReport.ChunkStream)
       ..addUint32(callbackId)
       ..addDC(c)
@@ -1545,7 +1562,7 @@ class DistributedConnection extends NetworkConnection with IStore {
         if (r.instance
                 ?.applicable(_session as Session, ActionType.Attach, null) ==
             Ruling.Denied) {
-          sendError(ErrorType.Management, callback, 6);
+          _sendError(ErrorType.Management, callback, 6);
           return;
         }
 
@@ -1555,7 +1572,7 @@ class DistributedConnection extends NetworkConnection with IStore {
 
         if (r is DistributedResource) {
           // reply ok
-          sendReply(IIPPacketAction.AttachResource, callback)
+          _sendReply(IIPPacketAction.AttachResource, callback)
             ..addGuid(r.instance?.template.classId as Guid)
             ..addUint64(r.instance?.age as int)
             ..addUint16(link.length)
@@ -1567,7 +1584,7 @@ class DistributedConnection extends NetworkConnection with IStore {
             ..done();
         } else {
           // reply ok
-          sendReply(IIPPacketAction.AttachResource, callback)
+          _sendReply(IIPPacketAction.AttachResource, callback)
             ..addGuid((r.instance as Instance).template.classId)
             ..addUint64((r.instance as Instance).age)
             ..addUint16(link.length)
@@ -1583,7 +1600,7 @@ class DistributedConnection extends NetworkConnection with IStore {
       } else {
         // reply failed
         //SendParams(0x80, r.instance.id, r.instance.Age, r.instance.serialize(false, this));
-        sendError(ErrorType.Management, callback,
+        _sendError(ErrorType.Management, callback,
             ExceptionCode.ResourceNotFound.index);
       }
     });
@@ -1649,13 +1666,13 @@ class DistributedConnection extends NetworkConnection with IStore {
         _subscribe(r);
 
         // reply ok
-        sendReply(IIPPacketAction.ReattachResource, callback)
+        _sendReply(IIPPacketAction.ReattachResource, callback)
           ..addUint64((r.instance as Instance).age)
           ..addDC(Codec.compose((r.instance as Instance).serialize(), this))
           ..done();
       } else {
         // reply failed
-        sendError(ErrorType.Management, callback,
+        _sendError(ErrorType.Management, callback,
             ExceptionCode.ResourceNotFound.index);
       }
     });
@@ -1666,10 +1683,10 @@ class DistributedConnection extends NetworkConnection with IStore {
       if (res != null) {
         _unsubscribe(res);
         // reply ok
-        sendReply(IIPPacketAction.DetachResource, callback).done();
+        _sendReply(IIPPacketAction.DetachResource, callback).done();
       } else {
         // reply failed
-        sendError(ErrorType.Management, callback,
+        _sendError(ErrorType.Management, callback,
             ExceptionCode.ResourceNotFound.index);
       }
     });
@@ -1680,13 +1697,13 @@ class DistributedConnection extends NetworkConnection with IStore {
       int callback, int storeId, int parentId, DC content) {
     Warehouse.getById(storeId).then((store) {
       if (store == null) {
-        sendError(
+        _sendError(
             ErrorType.Management, callback, ExceptionCode.StoreNotFound.index);
         return;
       }
 
       if (!(store is IStore)) {
-        sendError(ErrorType.Management, callback,
+        _sendError(ErrorType.Management, callback,
             ExceptionCode.ResourceIsNotStore.index);
         return;
       }
@@ -1695,7 +1712,7 @@ class DistributedConnection extends NetworkConnection with IStore {
       if (store.instance?.applicable(
               _session as Session, ActionType.CreateResource, null) !=
           Ruling.Allowed) {
-        sendError(
+        _sendError(
             ErrorType.Management, callback, ExceptionCode.CreateDenied.index);
         return;
       }
@@ -1706,7 +1723,7 @@ class DistributedConnection extends NetworkConnection with IStore {
         if (parent != null) if (parent.instance
                 ?.applicable(_session as Session, ActionType.AddChild, null) !=
             Ruling.Allowed) {
-          sendError(ErrorType.Management, callback,
+          _sendError(ErrorType.Management, callback,
               ExceptionCode.AddChildDenied.index);
           return;
         }
@@ -1726,7 +1743,7 @@ class DistributedConnection extends NetworkConnection with IStore {
         var type = null; //Type.getType(className);
 
         if (type == null) {
-          sendError(ErrorType.Management, callback,
+          _sendError(ErrorType.Management, callback,
               ExceptionCode.ClassNotFound.index);
           return;
         }
@@ -1776,13 +1793,13 @@ class DistributedConnection extends NetworkConnection with IStore {
               Warehouse.put<IResource>(
                   name, resource as IResource, store, parent)
                 ..then((ok) {
-                  sendReply(IIPPacketAction.CreateResource, callback)
+                  _sendReply(IIPPacketAction.CreateResource, callback)
                     ..addUint32((resource.instance as Instance).id)
                     ..done();
                 })
                 ..error((ex) {
                   // send some error
-                  sendError(ErrorType.Management, callback,
+                  _sendError(ErrorType.Management, callback,
                       ExceptionCode.AddToStoreFailed.index);
                 });
             });
@@ -1795,7 +1812,7 @@ class DistributedConnection extends NetworkConnection with IStore {
   void iipRequestDeleteResource(int callback, int resourceId) {
     Warehouse.getById(resourceId).then((r) {
       if (r == null) {
-        sendError(ErrorType.Management, callback,
+        _sendError(ErrorType.Management, callback,
             ExceptionCode.ResourceNotFound.index);
         return;
       }
@@ -1803,16 +1820,16 @@ class DistributedConnection extends NetworkConnection with IStore {
       if (r.instance?.store?.instance
               ?.applicable(_session as Session, ActionType.Delete, null) !=
           Ruling.Allowed) {
-        sendError(
+        _sendError(
             ErrorType.Management, callback, ExceptionCode.DeleteDenied.index);
         return;
       }
 
       if (Warehouse.remove(r))
-        sendReply(IIPPacketAction.DeleteResource, callback).done();
+        _sendReply(IIPPacketAction.DeleteResource, callback).done();
       //SendParams((byte)0x84, callback);
       else
-        sendError(
+        _sendError(
             ErrorType.Management, callback, ExceptionCode.DeleteFailed.index);
     });
   }
@@ -1821,7 +1838,7 @@ class DistributedConnection extends NetworkConnection with IStore {
       [bool all = false]) {
     Warehouse.getById(resourceId).then((r) {
       if (r == null) {
-        sendError(ErrorType.Management, callback,
+        _sendError(ErrorType.Management, callback,
             ExceptionCode.ResourceNotFound.index);
         return;
       }
@@ -1830,7 +1847,7 @@ class DistributedConnection extends NetworkConnection with IStore {
       if (r.instance?.applicable(
               _session as Session, ActionType.InquireAttributes, null) !=
           Ruling.Allowed) {
-        sendError(ErrorType.Management, callback,
+        _sendError(ErrorType.Management, callback,
             ExceptionCode.ViewAttributeDenied.index);
         return;
       }
@@ -1842,7 +1859,7 @@ class DistributedConnection extends NetworkConnection with IStore {
       var st = r.instance?.getAttributes(attrs);
 
       if (st != null)
-        sendReply(
+        _sendReply(
             all
                 ? IIPPacketAction.GetAllAttributes
                 : IIPPacketAction.GetAttributes,
@@ -1850,7 +1867,7 @@ class DistributedConnection extends NetworkConnection with IStore {
           ..addDC(Codec.compose(st, this))
           ..done();
       else
-        sendError(ErrorType.Management, callback,
+        _sendError(ErrorType.Management, callback,
             ExceptionCode.GetAttributesFailed.index);
     });
   }
@@ -1858,14 +1875,14 @@ class DistributedConnection extends NetworkConnection with IStore {
   void iipRequestAddChild(int callback, int parentId, int childId) {
     Warehouse.getById(parentId).then((parent) {
       if (parent == null) {
-        sendError(ErrorType.Management, callback,
+        _sendError(ErrorType.Management, callback,
             ExceptionCode.ResourceNotFound.index);
         return;
       }
 
       Warehouse.getById(childId).then((child) {
         if (child == null) {
-          sendError(ErrorType.Management, callback,
+          _sendError(ErrorType.Management, callback,
               ExceptionCode.ResourceNotFound.index);
           return;
         }
@@ -1873,7 +1890,7 @@ class DistributedConnection extends NetworkConnection with IStore {
         if (parent.instance
                 ?.applicable(_session as Session, ActionType.AddChild, null) !=
             Ruling.Allowed) {
-          sendError(ErrorType.Management, callback,
+          _sendError(ErrorType.Management, callback,
               ExceptionCode.AddChildDenied.index);
           return;
         }
@@ -1881,14 +1898,14 @@ class DistributedConnection extends NetworkConnection with IStore {
         if (child.instance
                 ?.applicable(_session as Session, ActionType.AddParent, null) !=
             Ruling.Allowed) {
-          sendError(ErrorType.Management, callback,
+          _sendError(ErrorType.Management, callback,
               ExceptionCode.AddParentDenied.index);
           return;
         }
 
         parent.instance?.children.add(child);
 
-        sendReply(IIPPacketAction.AddChild, callback).done();
+        _sendReply(IIPPacketAction.AddChild, callback).done();
         //child.instance.Parents
       });
     });
@@ -1897,14 +1914,14 @@ class DistributedConnection extends NetworkConnection with IStore {
   void iipRequestRemoveChild(int callback, int parentId, int childId) {
     Warehouse.getById(parentId).then((parent) {
       if (parent == null) {
-        sendError(ErrorType.Management, callback,
+        _sendError(ErrorType.Management, callback,
             ExceptionCode.ResourceNotFound.index);
         return;
       }
 
       Warehouse.getById(childId).then((child) {
         if (child == null) {
-          sendError(ErrorType.Management, callback,
+          _sendError(ErrorType.Management, callback,
               ExceptionCode.ResourceNotFound.index);
           return;
         }
@@ -1912,7 +1929,7 @@ class DistributedConnection extends NetworkConnection with IStore {
         if (parent.instance?.applicable(
                 _session as Session, ActionType.RemoveChild, null) !=
             Ruling.Allowed) {
-          sendError(ErrorType.Management, callback,
+          _sendError(ErrorType.Management, callback,
               ExceptionCode.AddChildDenied.index);
           return;
         }
@@ -1920,14 +1937,14 @@ class DistributedConnection extends NetworkConnection with IStore {
         if (child.instance?.applicable(
                 _session as Session, ActionType.RemoveParent, null) !=
             Ruling.Allowed) {
-          sendError(ErrorType.Management, callback,
+          _sendError(ErrorType.Management, callback,
               ExceptionCode.AddParentDenied.index);
           return;
         }
 
         parent.instance?.children.remove(child);
 
-        sendReply(IIPPacketAction.RemoveChild, callback).done();
+        _sendReply(IIPPacketAction.RemoveChild, callback).done();
         //child.instance.Parents
       });
     });
@@ -1936,7 +1953,7 @@ class DistributedConnection extends NetworkConnection with IStore {
   void iipRequestRenameResource(int callback, int resourceId, String name) {
     Warehouse.getById(resourceId).then((resource) {
       if (resource == null) {
-        sendError(ErrorType.Management, callback,
+        _sendError(ErrorType.Management, callback,
             ExceptionCode.ResourceNotFound.index);
         return;
       }
@@ -1944,25 +1961,25 @@ class DistributedConnection extends NetworkConnection with IStore {
       if (resource.instance
               ?.applicable(_session as Session, ActionType.Rename, null) !=
           Ruling.Allowed) {
-        sendError(
+        _sendError(
             ErrorType.Management, callback, ExceptionCode.RenameDenied.index);
         return;
       }
 
       resource.instance?.name = name;
-      sendReply(IIPPacketAction.RenameResource, callback).done();
+      _sendReply(IIPPacketAction.RenameResource, callback).done();
     });
   }
 
   void iipRequestResourceChildren(int callback, int resourceId) {
     Warehouse.getById(resourceId).then((resource) {
       if (resource == null) {
-        sendError(ErrorType.Management, callback,
+        _sendError(ErrorType.Management, callback,
             ExceptionCode.ResourceNotFound.index);
         return;
       }
 
-      sendReply(IIPPacketAction.ResourceChildren, callback)
+      _sendReply(IIPPacketAction.ResourceChildren, callback)
         ..addDC(Codec.compose(
             resource.instance?.children.toList() as List<IResource>, this))
         ..done();
@@ -1972,12 +1989,12 @@ class DistributedConnection extends NetworkConnection with IStore {
   void iipRequestResourceParents(int callback, int resourceId) {
     Warehouse.getById(resourceId).then((resource) {
       if (resource == null) {
-        sendError(ErrorType.Management, callback,
+        _sendError(ErrorType.Management, callback,
             ExceptionCode.ResourceNotFound.index);
         return;
       }
 
-      sendReply(IIPPacketAction.ResourceParents, callback)
+      _sendReply(IIPPacketAction.ResourceParents, callback)
         ..addDC(Codec.compose(
             resource.instance?.parents.toList() as List<IResource>, this))
         ..done();
@@ -1988,7 +2005,7 @@ class DistributedConnection extends NetworkConnection with IStore {
       [bool all = false]) {
     Warehouse.getById(resourceId).then((r) {
       if (r == null) {
-        sendError(ErrorType.Management, callback,
+        _sendError(ErrorType.Management, callback,
             ExceptionCode.ResourceNotFound.index);
         return;
       }
@@ -1996,7 +2013,7 @@ class DistributedConnection extends NetworkConnection with IStore {
       if (r.instance?.store?.instance?.applicable(
               _session as Session, ActionType.UpdateAttributes, null) !=
           Ruling.Allowed) {
-        sendError(ErrorType.Management, callback,
+        _sendError(ErrorType.Management, callback,
             ExceptionCode.UpdateAttributeDenied.index);
         return;
       }
@@ -2006,14 +2023,14 @@ class DistributedConnection extends NetworkConnection with IStore {
       if (!all) attrs = attributes.getStringArray(0, attributes.length);
 
       if (r.instance?.removeAttributes(attrs) == true)
-        sendReply(
+        _sendReply(
                 all
                     ? IIPPacketAction.ClearAllAttributes
                     : IIPPacketAction.ClearAttributes,
                 callback)
             .done();
       else
-        sendError(ErrorType.Management, callback,
+        _sendError(ErrorType.Management, callback,
             ExceptionCode.UpdateAttributeFailed.index);
     });
   }
@@ -2022,7 +2039,7 @@ class DistributedConnection extends NetworkConnection with IStore {
       [bool clearAttributes = false]) {
     Warehouse.getById(resourceId).then((r) {
       if (r == null) {
-        sendError(ErrorType.Management, callback,
+        _sendError(ErrorType.Management, callback,
             ExceptionCode.ResourceNotFound.index);
         return;
       }
@@ -2030,7 +2047,7 @@ class DistributedConnection extends NetworkConnection with IStore {
       if (r.instance?.store?.instance?.applicable(
               _session as Session, ActionType.UpdateAttributes, null) !=
           Ruling.Allowed) {
-        sendError(ErrorType.Management, callback,
+        _sendError(ErrorType.Management, callback,
             ExceptionCode.UpdateAttributeDenied.index);
         return;
       }
@@ -2041,14 +2058,14 @@ class DistributedConnection extends NetworkConnection with IStore {
         if (r.instance?.setAttributes(
                 attrs as Map<String, dynamic>, clearAttributes) ==
             true)
-          sendReply(
+          _sendReply(
                   clearAttributes
                       ? IIPPacketAction.ClearAllAttributes
                       : IIPPacketAction.ClearAttributes,
                   callback)
               .done();
         else
-          sendError(ErrorType.Management, callback,
+          _sendError(ErrorType.Management, callback,
               ExceptionCode.UpdateAttributeFailed.index);
       });
     });
@@ -2057,7 +2074,7 @@ class DistributedConnection extends NetworkConnection with IStore {
   void iipRequestLinkTemplates(int callback, String resourceLink) {
     var queryCallback = (List<IResource>? r) {
       if (r == null)
-        sendError(ErrorType.Management, callback,
+        _sendError(ErrorType.Management, callback,
             ExceptionCode.ResourceNotFound.index);
       else {
         var list = r.where((x) =>
@@ -2066,7 +2083,7 @@ class DistributedConnection extends NetworkConnection with IStore {
             Ruling.Denied);
 
         if (list.length == 0)
-          sendError(ErrorType.Management, callback,
+          _sendError(ErrorType.Management, callback,
               ExceptionCode.ResourceNotFound.index);
         else {
           // get all templates related to this resource
@@ -2087,7 +2104,7 @@ class DistributedConnection extends NetworkConnection with IStore {
           });
 
           // digggg
-          sendReply(IIPPacketAction.LinkTemplates, callback)
+          _sendReply(IIPPacketAction.LinkTemplates, callback)
             ..addDC(TransmissionType.compose(
                 TransmissionTypeIdentifier.RawData, msg.toDC()))
             ..done();
@@ -2104,13 +2121,13 @@ class DistributedConnection extends NetworkConnection with IStore {
   void iipRequestTemplateFromClassName(int callback, String className) {
     var t = Warehouse.getTemplateByClassName(className);
     if (t != null) {
-      sendReply(IIPPacketAction.TemplateFromClassName, callback)
+      _sendReply(IIPPacketAction.TemplateFromClassName, callback)
         ..addDC(TransmissionType.compose(
             TransmissionTypeIdentifier.RawData, t.content))
         ..done();
     } else {
       // reply failed
-      sendError(
+      _sendError(
           ErrorType.Management, callback, ExceptionCode.TemplateNotFound.index);
     }
   }
@@ -2118,13 +2135,13 @@ class DistributedConnection extends NetworkConnection with IStore {
   void iipRequestTemplateFromClassId(int callback, Guid classId) {
     var t = Warehouse.getTemplateByClassId(classId);
     if (t != null)
-      sendReply(IIPPacketAction.TemplateFromClassId, callback)
+      _sendReply(IIPPacketAction.TemplateFromClassId, callback)
         ..addDC(TransmissionType.compose(
             TransmissionTypeIdentifier.RawData, t.content))
         ..done();
     else {
       // reply failed
-      sendError(
+      _sendError(
           ErrorType.Management, callback, ExceptionCode.TemplateNotFound.index);
     }
   }
@@ -2132,13 +2149,13 @@ class DistributedConnection extends NetworkConnection with IStore {
   void iipRequestTemplateFromResourceId(int callback, int resourceId) {
     Warehouse.getById(resourceId).then((r) {
       if (r != null)
-        sendReply(IIPPacketAction.TemplateFromResourceId, callback)
+        _sendReply(IIPPacketAction.TemplateFromResourceId, callback)
           ..addDC(TransmissionType.compose(TransmissionTypeIdentifier.RawData,
               r.instance?.template.content ?? new DC(0)))
           ..done();
       else {
         // reply failed
-        sendError(ErrorType.Management, callback,
+        _sendError(ErrorType.Management, callback,
             ExceptionCode.TemplateNotFound.index);
       }
     });
@@ -2147,7 +2164,7 @@ class DistributedConnection extends NetworkConnection with IStore {
   void iipRequestQueryResources(int callback, String resourceLink) {
     Warehouse.query(resourceLink).then((r) {
       if (r == null) {
-        sendError(ErrorType.Management, callback,
+        _sendError(ErrorType.Management, callback,
             ExceptionCode.ResourceNotFound.index);
       } else {
         var list = r
@@ -2158,10 +2175,10 @@ class DistributedConnection extends NetworkConnection with IStore {
             .toList();
 
         if (list.length == 0)
-          sendError(ErrorType.Management, callback,
+          _sendError(ErrorType.Management, callback,
               ExceptionCode.ResourceNotFound.index);
         else
-          sendReply(IIPPacketAction.QueryLink, callback)
+          _sendReply(IIPPacketAction.QueryLink, callback)
             ..addDC(Codec.compose(list, this))
             ..done();
       }
@@ -2171,7 +2188,7 @@ class DistributedConnection extends NetworkConnection with IStore {
   void iipRequestProcedureCall(int callback, String procedureCall,
       TransmissionType transmissionType, DC content) {
     // server not implemented
-    sendError(
+    _sendError(
         ErrorType.Management, callback, ExceptionCode.GeneralFailure.index);
 
     // if (server == null)
@@ -2218,7 +2235,7 @@ class DistributedConnection extends NetworkConnection with IStore {
     var template = Warehouse.getTemplateByClassId(classId);
 
     if (template == null) {
-      sendError(
+      _sendError(
           ErrorType.Management, callback, ExceptionCode.TemplateNotFound.index);
       return;
     }
@@ -2227,7 +2244,7 @@ class DistributedConnection extends NetworkConnection with IStore {
 
     if (ft == null) {
       // no function at this index
-      sendError(
+      _sendError(
           ErrorType.Management, callback, ExceptionCode.MethodNotFound.index);
       return;
     }
@@ -2281,7 +2298,7 @@ class DistributedConnection extends NetworkConnection with IStore {
                   r.internal_invoke(index, arguments as Map<UInt8, dynamic>);
               if (rt != null) {
                 rt.then((res) {
-                  sendReply(IIPPacketAction.InvokeFunction, callback)
+                  _sendReply(IIPPacketAction.InvokeFunction, callback)
                     ..addDC(Codec.compose(res, this))
                     ..done();
                 });
@@ -2314,8 +2331,8 @@ class DistributedConnection extends NetworkConnection with IStore {
         if (et != null) {
           if (r is DistributedResource) {
             r.listen(et.name).then((x) {
-              sendReply(IIPPacketAction.Listen, callback).done();
-            }).error((x) => sendError(ErrorType.Exception, callback,
+              _sendReply(IIPPacketAction.Listen, callback).done();
+            }).error((x) => _sendError(ErrorType.Exception, callback,
                 ExceptionCode.GeneralFailure.index));
           } else {
             // if (!subscriptions.ContainsKey(r))
@@ -2336,12 +2353,12 @@ class DistributedConnection extends NetworkConnection with IStore {
           }
         } else {
           // pt not found
-          sendError(ErrorType.Management, callback,
+          _sendError(ErrorType.Management, callback,
               ExceptionCode.MethodNotFound.index);
         }
       } else {
         // resource not found
-        sendError(ErrorType.Management, callback,
+        _sendError(ErrorType.Management, callback,
             ExceptionCode.ResourceNotFound.index);
       }
     });
@@ -2355,8 +2372,8 @@ class DistributedConnection extends NetworkConnection with IStore {
         if (et != null) {
           if (r is DistributedResource) {
             r.unlisten(et.name).then((x) {
-              sendReply(IIPPacketAction.Unlisten, callback).done();
-            }).error((x) => sendError(ErrorType.Exception, callback,
+              _sendReply(IIPPacketAction.Unlisten, callback).done();
+            }).error((x) => _sendError(ErrorType.Exception, callback,
                 ExceptionCode.GeneralFailure.index));
           } else {
             // if (!subscriptions.ContainsKey(r))
@@ -2377,12 +2394,12 @@ class DistributedConnection extends NetworkConnection with IStore {
           }
         } else {
           // pt not found
-          sendError(ErrorType.Management, callback,
+          _sendError(ErrorType.Management, callback,
               ExceptionCode.MethodNotFound.index);
         }
       } else {
         // resource not found
-        sendError(ErrorType.Management, callback,
+        _sendError(ErrorType.Management, callback,
             ExceptionCode.ResourceNotFound.index);
       }
     });
@@ -2427,7 +2444,7 @@ class DistributedConnection extends NetworkConnection with IStore {
           if (results != null) {
             var history = DataSerializer.historyComposer(results, this, true);
 
-            sendReply(IIPPacketAction.ResourceHistory, callback)
+            _sendReply(IIPPacketAction.ResourceHistory, callback)
               ..addDC(history)
               ..done();
           }
@@ -2494,10 +2511,10 @@ class DistributedConnection extends NetworkConnection with IStore {
               // propagation
               (r as DistributedResource).set(index, value)
                 ..then((x) {
-                  sendReply(IIPPacketAction.SetProperty, callback).done();
+                  _sendReply(IIPPacketAction.SetProperty, callback).done();
                 })
                 ..error((x) {
-                  sendError(x.type, callback, x.code, x.message);
+                  _sendError(x.type, callback, x.code, x.message);
                 });
             } else {
               var pi = null;
@@ -2506,13 +2523,13 @@ class DistributedConnection extends NetworkConnection with IStore {
                 if (r.instance?.applicable(_session as Session,
                         ActionType.SetProperty, pt, this) ==
                     Ruling.Denied) {
-                  sendError(ErrorType.Exception, callback,
+                  _sendError(ErrorType.Exception, callback,
                       ExceptionCode.SetPropertyDenied.index);
                   return;
                 }
 
                 if (pi == null) {
-                  sendError(ErrorType.Management, callback,
+                  _sendError(ErrorType.Management, callback,
                       ExceptionCode.ReadOnlyProperty.index);
                   return;
                 }
@@ -2526,25 +2543,25 @@ class DistributedConnection extends NetworkConnection with IStore {
 
                 try {
                   pi.setValue(r, value);
-                  sendReply(IIPPacketAction.SetProperty, callback).done();
+                  _sendReply(IIPPacketAction.SetProperty, callback).done();
                 } catch (ex) {
-                  sendError(ErrorType.Exception, callback, 0, ex.toString());
+                  _sendError(ErrorType.Exception, callback, 0, ex.toString());
                 }
               } else {
                 // pt found, pi not found, this should never happen
-                sendError(ErrorType.Management, callback,
+                _sendError(ErrorType.Management, callback,
                     ExceptionCode.PropertyNotFound.index);
               }
             }
           });
         } else {
           // property not found
-          sendError(ErrorType.Management, callback,
+          _sendError(ErrorType.Management, callback,
               ExceptionCode.PropertyNotFound.index);
         }
       } else {
         // resource not found
-        sendError(ErrorType.Management, callback,
+        _sendError(ErrorType.Management, callback,
             ExceptionCode.ResourceNotFound.index);
       }
     });
@@ -3154,7 +3171,7 @@ class DistributedConnection extends NetworkConnection with IStore {
     var c = _callbackCounter++;
     _requests.add(c, reply);
 
-    sendParams()
+    _sendParams()
       ..addUint8((0x40 | IIPPacketAction.StaticCall))
       ..addUint32(c)
       ..addGuid(classId)
@@ -3187,7 +3204,7 @@ class DistributedConnection extends NetworkConnection with IStore {
 
     var callName = DC.stringToBytes(procedureCall);
 
-    sendParams()
+    _sendParams()
       ..addUint8(0x40 | IIPPacketAction.ProcedureCall)
       ..addUint32(c)
       ..addUint16(callName.length)
@@ -3210,7 +3227,7 @@ class DistributedConnection extends NetworkConnection with IStore {
       jitter = (diff - interval).abs();
     }
 
-    sendParams()
+    _sendParams()
       ..addUint8(0x80 | IIPPacketAction.KeepAlive)
       ..addUint32(callbackId)
       ..addDateTime(now)
