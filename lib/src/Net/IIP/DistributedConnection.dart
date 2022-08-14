@@ -25,6 +25,7 @@ SOFTWARE.
 import 'dart:async';
 
 import 'package:collection/collection.dart';
+import 'ConnectionStatus.dart';
 
 import '../../Data/IntType.dart';
 
@@ -279,7 +280,10 @@ class DistributedConnection extends NetworkConnection with IStore {
     if (_openReply != null)
       throw AsyncException(ErrorType.Exception, 0, "Connection in progress");
 
+    status = ConnectionStatus.Connecting;
+
     _openReply = new AsyncReply<bool>();
+
     //print("_openReply hash ${_openReply.hashCode}");
 
     if (hostname != null) {
@@ -339,6 +343,7 @@ class DistributedConnection extends NetworkConnection with IStore {
     // clean up
     _ready = false;
     _readyToEstablish = false;
+    status = ConnectionStatus.Closed;
 
     //print("Disconnected ..");
 
@@ -1062,6 +1067,7 @@ class DistributedConnection extends NetworkConnection with IStore {
                   ..done();
 
                 _ready = true;
+                status = ConnectionStatus.Connected;
 
                 _openReply?.trigger(true);
                 _openReply = null;
@@ -1128,6 +1134,7 @@ class DistributedConnection extends NetworkConnection with IStore {
               _session?.id = _authPacket.sessionId;
 
               _ready = true;
+              status = ConnectionStatus.Connected;
 
               _openReply?.trigger(true);
               _openReply = null;
@@ -3149,6 +3156,8 @@ class DistributedConnection extends NetworkConnection with IStore {
       ..addDC(Codec.compose(info.value, this))
       ..done();
   }
+
+  ConnectionStatus status = ConnectionStatus.Closed;
 
   @override
   getProperty(String name) => null;
