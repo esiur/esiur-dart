@@ -224,6 +224,18 @@ class DistributedConnection extends NetworkConnection with IStore {
       var secure = instance?.attributes.containsKey("secure") == true ||
           instance?.attributes.containsKey("wss") == true;
 
+      if (instance?.attributes.containsKey("autoReconnect") ?? false)
+        autoReconnect = instance?.attributes["autoReconnect"] == true;
+
+      if (instance?.attributes.containsKey("reconnectInterval") ?? false)
+        reconnectInterval = instance?.attributes["reconnectInterval"];
+
+      if (instance?.attributes.containsKey("keepAliveInterval") ?? false)
+        keepAliveInterval = instance?.attributes["keepAliveInterval"];
+
+      if (instance?.attributes.containsKey("keepAliveTime") ?? false)
+        keepAliveTime = instance?.attributes["keepAliveTime"];
+
       if (instance?.attributes.containsKey("username") == true &&
           instance?.attributes.containsKey("password") == true) {
         var username = instance?.attributes["username"] as String;
@@ -594,7 +606,7 @@ class DistributedConnection extends NetworkConnection with IStore {
 
   Timer? _keepAliveTimer;
 
-  int KeepAliveInterval = 30;
+  int keepAliveInterval = 30;
 
   void init() {
     _queue.then((x) {
@@ -636,7 +648,7 @@ class DistributedConnection extends NetworkConnection with IStore {
         jitter = x?[1];
 
         _keepAliveTimer =
-            Timer(Duration(seconds: KeepAliveInterval), _keepAliveTimerElapsed);
+            Timer(Duration(seconds: keepAliveInterval), _keepAliveTimerElapsed);
 
         //print("Keep Alive Received ${jitter}");
 
@@ -1142,7 +1154,7 @@ class DistributedConnection extends NetworkConnection with IStore {
 
               // start perodic keep alive timer
               _keepAliveTimer = Timer(
-                  Duration(seconds: KeepAliveInterval), _keepAliveTimerElapsed);
+                  Duration(seconds: keepAliveInterval), _keepAliveTimerElapsed);
             }
           } else if (_authPacket.command == IIPAuthPacketCommand.Error) {
             _invalidCredentials = true;

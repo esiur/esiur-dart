@@ -83,7 +83,7 @@ class TemplateGenerator {
     template.properties.forEach((p) {
       if (p.inherited) return;
       var ptTypeName = getTypeName(template, p.valueType, templates);
-      rt.writeln("${ptTypeName}? ${p.name};");
+      rt.writeln("${ptTypeName} ${p.name};");
       rt.writeln();
     });
 
@@ -362,7 +362,7 @@ class TemplateGenerator {
       }).join("\r\n");
 
       var typesFile = makeImports(null) +
-          "\r\n void init_${dir}(){ ${defineCreators} \r\n ${putTemplates}}";
+          "\r\n void init_${dir?.replaceAll('.', '_')}(){ ${defineCreators} \r\n ${putTemplates}}";
 
       var f = File("${dstDir.path}/init.g.dart");
       f.writeAsStringSync(typesFile);

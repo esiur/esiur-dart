@@ -485,7 +485,7 @@ class DC with IterableMixin<int> {
       //var h = this.getUint32(offset + 4);
       //return h * TWO_PWR_32 + ((l >= 0) ? l : TWO_PWR_32 + l);
     } else {
-      return _dv.getUint64(offset);
+      return _dv.getUint64(offset, endian);
     }
   }
 
@@ -523,7 +523,7 @@ class DC with IterableMixin<int> {
       //var h = this.getUint32(offset + 4);
       //return h * TWO_PWR_32 + ((l >= 0) ? l : TWO_PWR_32 + l);
     } else {
-      return _dv.getUint64(offset);
+      return _dv.getUint64(offset, endian);
     }
     // if (kIsWeb) {
     //   print("getUint64");
