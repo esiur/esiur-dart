@@ -521,7 +521,7 @@ class TemplateGenerator {
       var ptTypeName = getTypeName(template, p.valueType, templates);
       rt.writeln("${ptTypeName} get ${p.name} { return get(${p.index}); }");
       rt.writeln(
-          "set ${p.name}(${ptTypeName} value) { set(${p.index}, value); }");
+          "set ${p.name}(${ptTypeName} value) { setSync(${p.index}, value); }");
     });
 
     template.events.where((e) => !e.inherited).forEach((e) {

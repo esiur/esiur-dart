@@ -359,6 +359,21 @@ class DistributedResource extends IResource {
     }
   }
 
+  dynamic setSync(int index, dynamic value) async {
+    if (_destroyed) throw new Exception("Trying to access a destroyed object.");
+
+    if (_suspended) throw new Exception("Trying to access a suspended object.");
+
+    if (!_attached) return null;
+
+    if (index >= _properties.length)
+      throw Exception("Property with index `${index}` not found.");
+
+    if (_properties[index] == value) return value;
+
+    return await set(index, value);
+  }
+
   /// <summary>
   /// Set property value.
   /// </summary>
