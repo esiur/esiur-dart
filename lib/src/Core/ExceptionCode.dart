@@ -1,4 +1,5 @@
 enum ExceptionCode {
+  RuntimeException,
   HostNotReachable,
   AccessDenied,
   UserOrTokenNotFound,
