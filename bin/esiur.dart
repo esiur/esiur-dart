@@ -24,16 +24,12 @@ void main(List<String> arguments) async {
       ..addOption('username', abbr: 'u')
       ..addOption('password', abbr: 'p')
       ..addOption('dir', abbr: 'd')
+      ..addFlag('sync', abbr: 's', defaultsTo: false)
       ..addFlag(
         "getx",
         abbr: 'x',
         defaultsTo: false,
-        help: "Generate apropriate getx bindings for resources",
-      )
-      ..addFlag(
-        "namedargs",
-        help:
-            "Use named arguments instead of positional arguments for resource methods",
+        help: "Generate apropriate getx bindings for resources.",
       );
 
     var results = parser.parse(arguments.skip(2));
@@ -45,14 +41,12 @@ void main(List<String> arguments) async {
     //print("Username ${username} password ${password} dir ${dir}");
 
     // make template
-    var destDir = await TemplateGenerator.getTemplate(
-      link,
-      dir: dir,
-      username: username,
-      password: password,
-      getx: results['getx'],
-      namedArgs: results["namedargs"],
-    );
+    var destDir = await TemplateGenerator.getTemplate(link,
+        dir: dir,
+        username: username,
+        password: password,
+        getx: results['getx'],
+        asyncSetters: !results['sync']);
 
     print("Generated directory `${destDir}`");
 
@@ -72,12 +66,13 @@ void printUsage() {
   print("");
   print("Available commands:");
   print("\tget-template\tGet a template from an IIP link.");
-  print("\tversion: print esiur version.");
+  print("\tversion: Print Esiur version.");
   print("");
   print("Global options:");
   print("\t-u, --username\tAuthentication username");
   print("\t-p, --password\tAuthentication password");
   print("\t-d, --dir\tName of the directory to generate model inside.");
+  print("\t-s, --async\tSynchronous property setters.");
 }
 
 void printVersion() async {

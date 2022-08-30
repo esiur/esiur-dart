@@ -443,13 +443,17 @@ class DistributedConnection extends NetworkConnection with IStore {
 
             if (dataType.identifier ==
                 TransmissionTypeIdentifier.ResourceList) {
+              // remove from suspended.
+              _suspendedResources.remove(r.distributedResourceInstanceId);
+
               // parse them as int
               var id = data.getUint32(8);
+
+              // id changed ?
               if (id != r.distributedResourceInstanceId)
                 r.distributedResourceInstanceId = id;
 
               _neededResources[id] = r;
-              _suspendedResources.remove(id);
 
               await fetch(id, null);
             }

@@ -266,14 +266,12 @@ class TemplateGenerator {
     return v == null || v == "";
   }
 
-  static Future<String> getTemplate(
-    String url, {
-    String? dir,
-    String? username,
-    String? password,
-    bool getx = false,
-    bool namedArgs = false,
-  }) async {
+  static Future<String> getTemplate(String url,
+      {String? dir,
+      String? username,
+      String? password,
+      bool getx = false,
+      bool asyncSetters = true}) async {
     try {
       if (!_urlRegex.hasMatch(url)) throw Exception("Invalid IIP URL");
 
@@ -328,7 +326,8 @@ class TemplateGenerator {
         var source = "";
         if (tmp.type == TemplateType.Resource) {
           source = makeImports(tmp) +
-              generateClass(tmp, templates, getx: getx, namedArgs: namedArgs);
+              generateClass(tmp, templates,
+                  getx: getx, asyncSetters: asyncSetters);
         } else if (tmp.type == TemplateType.Record) {
           source = makeImports(tmp) + generateRecord(tmp, templates);
         } else if (tmp.type == TemplateType.Enum) {
@@ -418,7 +417,7 @@ class TemplateGenerator {
     TypeTemplate template,
     List<TypeTemplate> templates, {
     bool getx = false,
-    bool namedArgs = false,
+    bool asyncSetters = true,
   }) {
     var className = template.className.split('.').last;
 
@@ -520,8 +519,13 @@ class TemplateGenerator {
     template.properties.where((p) => !p.inherited).forEach((p) {
       var ptTypeName = getTypeName(template, p.valueType, templates);
       rt.writeln("${ptTypeName} get ${p.name} { return get(${p.index}); }");
-      rt.writeln(
-          "set ${p.name}(${ptTypeName} value) { setSync(${p.index}, value); }");
+
+      if (asyncSetters)
+        rt.writeln(
+            "set ${p.name}(${ptTypeName} value) { set(${p.index}, value); }");
+      else
+        rt.writeln(
+            "set ${p.name}(${ptTypeName} value) { setSync(${p.index}, value); }");
     });
 
     template.events.where((e) => !e.inherited).forEach((e) {
