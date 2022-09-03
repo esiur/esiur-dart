@@ -205,7 +205,7 @@ class TypeTemplate {
       for (var i = 0; i < funcs.length; i++) {
         var fi = funcs[i];
 
-        List<ArgumentTemplate> args = fi.argsType
+        List<ArgumentTemplate> args = fi.args
             .asMap()
             .entries
             .map((arg) => ArgumentTemplate(

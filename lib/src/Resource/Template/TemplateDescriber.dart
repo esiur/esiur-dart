@@ -57,8 +57,12 @@ class Prop {
   //final bool isNullable;
   final String? readAnnotation;
   final String? writeAnnotation;
+  final bool recordable;
+
   const Prop(this.name, this.type,
-      [this.readAnnotation = null, this.writeAnnotation = null]);
+      [this.readAnnotation = null,
+      this.writeAnnotation = null,
+      this.recordable = false]);
 }
 
 class Evt {
@@ -83,11 +87,11 @@ class Const {
 class Func {
   final String name;
   final Type returnType;
-  final List<Arg> argsType;
+  final List<Arg> args;
   //final bool isNullable;
   final String? annotation;
   final bool isStatic;
-  const Func(this.name, this.returnType, this.argsType,
+  const Func(this.name, this.returnType, this.args,
       [this.annotation = null, this.isStatic = false]);
 }
 
