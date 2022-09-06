@@ -2782,8 +2782,8 @@ class DistributedConnection extends NetworkConnection with IStore {
 
         if (resource == null) {
           template =
-              Warehouse.getTemplateByClassId(classId, TemplateType.Wrapper);
-          if (template?.definedType != null) {
+              Warehouse.getTemplateByClassId(classId, TemplateType.Resource);
+          if (template?.definedType != null && (template?.isWrapper ?? false)) {
             dr = Warehouse.createInstance(template?.definedType as Type);
             dr.internal_init(this, id, rt[1] as int, rt[2] as String);
           } else {
