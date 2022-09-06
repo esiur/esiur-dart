@@ -23,7 +23,11 @@ import 'ConstantTemplate.dart';
 import 'TemplateType.dart';
 
 class TypeTemplate {
-  late Guid _classId;
+  late bool _isWrapper;
+
+  bool get isWrapper => _isWrapper;
+
+   late Guid _classId;
   Guid? _parentId = null;
 
   String? _annotation;
@@ -125,23 +129,17 @@ class TypeTemplate {
 
     var instance = Warehouse.createInstance(type);
 
-    TemplateDescriber describer;
-
-    if (instance is DistributedResource) {
-      _templateType = TemplateType.Wrapper;
-      describer = instance.template;
-    } else if (instance is IResource) {
+    if (instance is IResource) {
       _templateType = TemplateType.Resource;
-      describer = instance.template;
     } else if (instance is IRecord) {
       _templateType = TemplateType.Record;
-      describer = instance.template;
     } else if (instance is IEnum) {
       _templateType = TemplateType.Enum;
-      describer = instance.template;
     } else
       throw new Exception(
           "Type must implement IResource, IRecord, IEnum or a subtype of DistributedResource.");
+
+    _isWrapper = (instance is DistributedResource);
 
     // if (instance is IRecord)
     //   _templateType = TemplateType.Record;
@@ -149,6 +147,8 @@ class TypeTemplate {
     //   _templateType = TemplateType.Resource;
     // else
     //   throw new Exception("Type is neither a resource nor a record.");
+
+    TemplateDescriber describer = instance.template;
 
     _definedType = type;
 
@@ -199,53 +199,56 @@ class TypeTemplate {
       }
     }
 
-    if (describer.functions != null) {
-      var funcs = describer.functions as List<Func>;
+    if (_templateType == TemplateType.Resource) {
+      if (describer.functions != null) {
+        var funcs = describer.functions as List<Func>;
 
-      for (var i = 0; i < funcs.length; i++) {
-        var fi = funcs[i];
+        for (var i = 0; i < funcs.length; i++) {
+          var fi = funcs[i];
 
-        List<ArgumentTemplate> args = fi.args
-            .asMap()
-            .entries
-            .map((arg) => ArgumentTemplate(
-                arg.value.name,
-                RepresentationType.fromType(arg.value.type) ??
-                    RepresentationType.Dynamic,
-                arg.value.optional,
-                arg.key))
-            .toList();
+          List<ArgumentTemplate> args = fi.args
+              .asMap()
+              .entries
+              .map((arg) => ArgumentTemplate(
+                  arg.value.name,
+                  RepresentationType.fromType(arg.value.type) ??
+                      RepresentationType.Dynamic,
+                  arg.value.optional,
+                  arg.key))
+              .toList();
 
-        var ft = FunctionTemplate(
-            this,
-            i,
-            fi.name,
-            false,
-            fi.isStatic,
-            args,
-            RepresentationType.fromType(fi.returnType) ??
-                RepresentationType.Void,
-            fi.annotation);
+          var ft = FunctionTemplate(
+              this,
+              i,
+              fi.name,
+              false,
+              fi.isStatic,
+              args,
+              RepresentationType.fromType(fi.returnType) ??
+                  RepresentationType.Void,
+              fi.annotation);
 
-        functions.add(ft);
+          functions.add(ft);
+        }
       }
-    }
 
-    if (describer.events != null) {
-      var evts = describer.events as List<Evt>;
-      for (var i = 0; i < evts.length; i++) {
-        var ei = evts[i];
+      if (describer.events != null) {
+        var evts = describer.events as List<Evt>;
+        for (var i = 0; i < evts.length; i++) {
+          var ei = evts[i];
 
-        var et = new EventTemplate(
-            this,
-            i,
-            ei.name,
-            false,
-            RepresentationType.fromType(ei.type) ?? RepresentationType.Dynamic,
-            ei.annotation,
-            ei.listenable);
+          var et = new EventTemplate(
+              this,
+              i,
+              ei.name,
+              false,
+              RepresentationType.fromType(ei.type) ??
+                  RepresentationType.Dynamic,
+              ei.annotation,
+              ei.listenable);
 
-        events.add(et);
+          events.add(et);
+        }
       }
     }
 

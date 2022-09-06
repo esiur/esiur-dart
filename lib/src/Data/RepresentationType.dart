@@ -167,7 +167,7 @@ class RepresentationType {
       return Warehouse.getTemplateByClassId(guid!, TemplateType.Record)
           ?.definedType;
     else if (identifier == RepresentationTypeIdentifier.TypedResource)
-      return Warehouse.getTemplateByClassId(guid!, TemplateType.Unspecified)
+      return Warehouse.getTemplateByClassId(guid!, TemplateType.Resource)
           ?.definedType;
     else if (identifier == RepresentationTypeIdentifier.Enum)
       return Warehouse.getTemplateByClassId(guid!, TemplateType.Enum)

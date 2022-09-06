@@ -22,7 +22,6 @@ SOFTWARE.
 
 */
 
- 
 import '../Data/IntType.dart';
 
 import '../Data/TransmissionType.dart';
@@ -66,10 +65,8 @@ class Warehouse {
   static KeyList<TemplateType, KeyList<Guid, TypeTemplate>> _initTemplates() {
     var rt = new KeyList<TemplateType, KeyList<Guid, TypeTemplate>>();
 
-    rt.add(TemplateType.Unspecified, new KeyList<Guid, TypeTemplate>());
     rt.add(TemplateType.Resource, new KeyList<Guid, TypeTemplate>());
     rt.add(TemplateType.Record, new KeyList<Guid, TypeTemplate>());
-    rt.add(TemplateType.Wrapper, new KeyList<Guid, TypeTemplate>());
     rt.add(TemplateType.Enum, new KeyList<Guid, TypeTemplate>());
 
     return rt;
@@ -561,6 +558,9 @@ class Warehouse {
   /// </summary>
   /// <param name="template">Resource template.</param>
   static void putTemplate(TypeTemplate template) {
+    if (_templates[template.type]?.containsKey(template.classId) ?? false)
+      throw Exception("Template with same class Id already exists.");
+
     _templates[template.type]?[template.classId] = template;
   }
 
@@ -588,18 +588,18 @@ class Warehouse {
   /// <param name="classId">Class Id.</param>
   /// <returns>Resource template.</returns>
   static TypeTemplate? getTemplateByClassId(Guid classId,
-      [TemplateType templateType = TemplateType.Unspecified]) {
-    if (templateType == TemplateType.Unspecified) {
-      // look in resources
+      [TemplateType? templateType = null]) {
+    if (templateType == null) {
+      // look into resources
       var template = _templates[TemplateType.Resource]?[classId];
       if (template != null) return template;
 
-      // look in records
+      // look into records
       template = _templates[TemplateType.Record]?[classId];
       if (template != null) return template;
 
-      // look in wrappers
-      template = _templates[TemplateType.Wrapper]?[classId];
+      // look into enums
+      template = _templates[TemplateType.Enum]?[classId];
       return template;
     } else {
       return _templates[templateType]?[classId];
@@ -612,22 +612,22 @@ class Warehouse {
   /// <param name="className">Class name.</param>
   /// <returns>Resource template.</returns>
   static TypeTemplate? getTemplateByClassName(String className,
-      [TemplateType templateType = TemplateType.Unspecified]) {
-    if (templateType == TemplateType.Unspecified) {
-      // look in resources
+      [TemplateType? templateType = null]) {
+    if (templateType == null) {
+      // look into resources
       var template = _templates[TemplateType.Resource]
           ?.values
           .firstWhere((x) => x.className == className);
       if (template != null) return template;
 
-      // look in records
+      // look into records
       template = _templates[TemplateType.Record]
           ?.values
           .firstWhere((x) => x.className == className);
       if (template != null) return template;
 
-      // look in wrappers
-      template = _templates[TemplateType.Wrapper]
+      // look into wrappers
+      template = _templates[TemplateType.Enum]
           ?.values
           .firstWhere((x) => x.className == className);
       return template;

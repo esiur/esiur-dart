@@ -147,8 +147,7 @@ class TemplateGenerator {
         name = _translateClassName(templates
             .singleWhere((x) =>
                 x.classId == representationType.guid &&
-                (x.type == TemplateType.Resource ||
-                    x.type == TemplateType.Wrapper))
+                (x.type == TemplateType.Resource))
             .className);
     } else if (representationType.identifier ==
         RepresentationTypeIdentifier.TypedRecord) {
@@ -345,8 +344,7 @@ class TemplateGenerator {
       var defineCreators = templates.map((tmp) {
         // creator
         var className = _translateClassName(tmp.className);
-        if (tmp.type == TemplateType.Resource ||
-            tmp.type == TemplateType.Wrapper) {
+        if (tmp.type == TemplateType.Resource) {
           return "Warehouse.defineType<${className}>(() => ${className}(), RepresentationType(RepresentationTypeIdentifier.TypedResource, false, Guid.parse('${tmp.classId.toString()}')));\r\n";
         } else if (tmp.type == TemplateType.Record) {
           return "Warehouse.defineType<${className}>(() => ${className}(), RepresentationType(RepresentationTypeIdentifier.TypedRecord, false, Guid.parse('${tmp.classId.toString()}')));\r\n";
@@ -429,8 +427,7 @@ class TemplateGenerator {
       parentName = _translateClassName(templates
           .singleWhere((x) =>
               (x.classId == template.parentId) &&
-              (x.type == TemplateType.Resource ||
-                  x.type == TemplateType.Wrapper))
+              (x.type == TemplateType.Resource))
           .className);
       rt.writeln("class ${className} extends ${parentName} {");
     } else {
