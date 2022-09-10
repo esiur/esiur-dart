@@ -114,7 +114,7 @@ class TemplateGenerator {
     var descProps = template.properties //.where((p) => !p.inherited)
         .map((p) {
       var ptTypeName = getTypeName(template, p.valueType, templates);
-      return "Prop('${p.name}', getTypeOf<${ptTypeName}>(), ${_escape(p.readAnnotation)}, ${_escape(p.writeAnnotation)})";
+      return "Prop('${p.name}', getTypeOf<${ptTypeName}>(), ${toLiteral(p.readAnnotation)}, ${toLiteral(p.writeAnnotation)})";
     }).join(', ');
 
     if (parentName != null)
@@ -372,13 +372,6 @@ class TemplateGenerator {
     }
   }
 
-  static String _escape(String? str) {
-    if (str == null)
-      return "null";
-    else
-      return "r'$str'";
-  }
-
   static String generateEnum(
       TypeTemplate template, List<TypeTemplate> templates) {
     var className = template.className.split('.').last;
@@ -400,7 +393,7 @@ class TemplateGenerator {
     // add template
     var descConsts = template.constants.map((p) {
       var ctTypeName = getTypeName(template, p.valueType, templates);
-      return "Const('${p.name}', getTypeOf<${ctTypeName}>(), ${p.value}, ${_escape(p.annotation)})";
+      return "Const('${p.name}', getTypeOf<${ctTypeName}>(), ${p.value}, ${toLiteral(p.annotation)})";
     }).join(', ');
 
     rt.writeln("""@override
@@ -539,7 +532,7 @@ class TemplateGenerator {
     var descProps = template.properties //.where((p) => !p.inherited)
         .map((p) {
       var ptTypeName = getTypeName(template, p.valueType, templates);
-      return "Prop('${p.name}', getTypeOf<${ptTypeName}>(), ${_escape(p.readAnnotation)}, ${_escape(p.writeAnnotation)})";
+      return "Prop('${p.name}', getTypeOf<${ptTypeName}>(), ${toLiteral(p.readAnnotation)}, ${toLiteral(p.writeAnnotation)})";
     }).join(', ');
 
     var descFuncs = template.functions //.where((f) => !f.inherited)
@@ -551,14 +544,14 @@ class TemplateGenerator {
         return "Arg('${a.name}', getTypeOf<${atTypeName}>(), ${a.optional})";
       }).join(', ');
 
-      return "Func('${f.name}', getTypeOf<${ftTypeName}>(), [${args}], ${_escape(f.annotation)})";
+      return "Func('${f.name}', getTypeOf<${ftTypeName}>(), [${args}], ${toLiteral(f.annotation)})";
     }).join(', ');
 
     var descEvents = template.events
         //.where((e) => !e.inherited)
         .map((e) {
       var etTypeName = getTypeName(template, e.argumentType, templates);
-      return "Evt('${e.name}', getTypeOf<${etTypeName}>(), ${e.listenable}, ${_escape(e.annotation)})";
+      return "Evt('${e.name}', getTypeOf<${etTypeName}>(), ${e.listenable}, ${toLiteral(e.annotation)})";
     }).join(', ');
 
     if (parentName != null)
