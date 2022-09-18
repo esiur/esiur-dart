@@ -78,6 +78,11 @@ class KeyList<KT, T> extends IEventHandler with MapMixin<KT, T> {
     }
   }
 
+  T? first(bool Function(T element) selector) {
+    final res = _map.where(selector);
+    return res.isEmpty ? null : res.first;
+  }
+
   _itemDestroyed(T sender) {
     removeValue(sender);
   }

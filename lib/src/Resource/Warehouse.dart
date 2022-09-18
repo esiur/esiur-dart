@@ -570,6 +570,7 @@ class Warehouse {
   /// <param name="type">.Net type.</param>
   /// <returns>Resource template.</returns>
   static TypeTemplate? getTemplateByType(Type type) {
+    
     // loaded ?
     for (var tmps in _templates.values)
       for (var tmp in tmps.values) if (tmp.definedType == type) return tmp;

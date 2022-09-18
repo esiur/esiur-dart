@@ -73,6 +73,12 @@ class AutoList<T, ST> extends IDestructible with IterableMixin<T> {
     emitArgs("add", [_state, value]);
   }
 
+ 
+  T? first(bool Function(T element) selector) {
+    final res = _list.where(selector);
+    return res.isEmpty ? null : res.first;
+  }
+
   /// <summary>
   /// Add an array of items to the list
   /// </summary>
