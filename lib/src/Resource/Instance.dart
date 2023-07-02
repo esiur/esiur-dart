@@ -45,6 +45,10 @@ class Instance extends IEventHandler {
 
   int _id;
 
+  bool _isDestroyed;
+
+  bool get isDestroyed => _isDestroyed;
+
   /// <summary>
   /// Instance attributes are custom properties associated with the instance, a place to store information by IStore.
   /// </summary>
@@ -619,6 +623,7 @@ class Instance extends IEventHandler {
   }
 
   void resource_OnDestroy(sender) {
+    _isDestroyed = true;
     emitArgs("resourceDestroyed", [sender]);
   }
 }

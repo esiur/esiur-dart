@@ -122,7 +122,7 @@ class DataSerializer {
       return DataSerializerComposeResults(
           TransmissionTypeIdentifier.Null, DC(0));
 
-    var cts = template.constants.where((x) => x.value == value);
+    var cts = template.constants.where((x) => x.value == value.value);
 
     if (cts.isEmpty)
       return DataSerializerComposeResults(

@@ -670,6 +670,8 @@ class Warehouse {
 
     resource.destroy();
 
+    resource.instance = null;
+    
     return true;
   }
 
