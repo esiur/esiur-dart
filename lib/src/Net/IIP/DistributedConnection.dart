@@ -473,6 +473,8 @@ class DistributedConnection extends NetworkConnection with IStore {
       return false;
     }
 
+    emitArgs("resumed", []);
+
     return true;
   }
 
