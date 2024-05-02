@@ -45,7 +45,7 @@ class Instance extends IEventHandler {
 
   int _id;
 
-  bool _isDestroyed;
+  bool _isDestroyed = false;
 
   bool get isDestroyed => _isDestroyed;
 
@@ -482,7 +482,7 @@ class Instance extends IEventHandler {
 
         if (pi.parents.count == 0) break;
 
-        p = pi.parents.first;
+        p = pi.parents.firstOrNull!;
       }
 
       return l.join("/");

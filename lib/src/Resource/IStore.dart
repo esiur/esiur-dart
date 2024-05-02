@@ -31,7 +31,7 @@ import '../Data/PropertyValue.dart';
 // old
 // abstract class IStore extends IResource
 // new
-abstract class IStore implements IResource {
+abstract mixin class IStore implements IResource {
   AsyncReply<IResource?> get(String path);
   // AsyncReply<IResource?> retrieve(int iid);
   AsyncReply<bool> put(IResource resource);
