@@ -1158,6 +1158,7 @@ class DistributedConnection extends NetworkConnection with IStore {
             else if (_authPacket.event == IIPAuthPacketEvent.IndicationEstablished)
             {
                 session.id = _authPacket.sessionId;
+                session.authorizedAccount =  _authPacket.accountId!.getString(0, _authPacket.accountId!.length);
 
                 _ready = true;
                 _status = ConnectionStatus.Connected;
@@ -1166,7 +1167,7 @@ class DistributedConnection extends NetworkConnection with IStore {
 
                 if (this.instance == null)
                 {
-                    Warehouse.put(this.hashCode.toString().replaceAll("/", "_"), this, null, server).then((x) 
+                    Warehouse.put(session.authorizedAccount!.replaceAll("/", "_"), this, null, server).then((x) 
                     {
                         _openReply?.trigger(true);
 
@@ -1626,10 +1627,14 @@ class DistributedConnection extends NetworkConnection with IStore {
 
             session.id = n;
 
+            var accountId = DC.stringToBytes(session.authorizedAccount!);
+
             _sendParams()
                 ..addUint8(IIPAuthPacketEvent.IndicationEstablished)
                 ..addUint8(n.length)
                 ..addDC(n)
+                ..addUint8(accountId.length)
+                ..addDC(accountId)
                 ..done();
 
             if (this.instance == null)

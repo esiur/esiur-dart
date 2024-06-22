@@ -49,7 +49,8 @@ class IIPAuthPacket {
   DC? challenge;
   DC? asymetricEncryptionKey;
   DC? sessionId;
-
+  DC? accountId;
+  
   TransmissionType? dataType;
 
   int reference = 0;
@@ -298,7 +299,7 @@ class IIPAuthPacket {
 
       } else if (event == IIPAuthPacketEvent.IndicationEstablished) {
 
-        if (_notEnough(offset, ends, 1)) 
+        if (_notEnough(offset, ends, 2)) 
             return -_dataLengthNeeded;
 
         var sessionLength = data[offset++];
@@ -309,6 +310,20 @@ class IIPAuthPacket {
         sessionId = data.clip(offset, sessionLength);
 
         offset += sessionLength;
+
+
+        if (_notEnough(offset, ends, 1))
+          return -_dataLengthNeeded;
+
+        var accountLength = data[offset++];
+
+        if (_notEnough(offset, ends, accountLength))
+            return -_dataLengthNeeded;
+
+        accountId = data.clip(offset, accountLength);
+
+        offset += accountLength;
+
 
       } else if (event == IIPAuthPacketEvent.IAuthPlain ||
           event == IIPAuthPacketEvent.IAuthHashed ||
