@@ -214,6 +214,7 @@ class Codec {
     UInt8: DataSerializer.uInt8Composer,
     Int16: DataSerializer.int16Composer,
     UInt16: DataSerializer.uInt16Composer,
+    Float32: DataSerializer.float128Composer,
     int: DataSerializer.int64Composer,
     //[typeof(long?)] = DataSerializer.Int64Composer,
     //[typeof(ulong)] = DataSerializer.UIn64Composer,

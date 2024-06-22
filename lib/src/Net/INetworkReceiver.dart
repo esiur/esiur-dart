@@ -1,6 +1,6 @@
 import 'NetworkBuffer.dart';
 
-abstract mixin class INetworkReceiver<T>
+ abstract class INetworkReceiver<T>
 {
     void networkClose(T sender);
     void networkReceive(T sender, NetworkBuffer buffer);

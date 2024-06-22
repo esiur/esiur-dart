@@ -482,7 +482,8 @@ class Instance extends IEventHandler {
 
         if (pi.parents.count == 0) break;
 
-        p = pi.parents.firstOrNull!;
+        p = pi.parents.first;
+              
       }
 
       return l.join("/");

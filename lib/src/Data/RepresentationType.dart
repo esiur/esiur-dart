@@ -1,3 +1,5 @@
+import 'package:esiur/src/Data/IntType.dart';
+
 import 'IEnum.dart';
 import '../Resource/Template/TemplateType.dart';
 import 'IRecord.dart';
@@ -135,15 +137,15 @@ class RepresentationType {
     RepresentationTypeIdentifier.Dynamic: [dynamic, dynamic],
     RepresentationTypeIdentifier.Bool: [bool, getNullableType<bool>()],
     RepresentationTypeIdentifier.Char: [String, getNullableType<String>()],
-    RepresentationTypeIdentifier.UInt8: [int, getNullableType<int>()],
-    RepresentationTypeIdentifier.Int8: [int, getNullableType<int>()],
-    RepresentationTypeIdentifier.Int16: [int, getNullableType<int>()],
-    RepresentationTypeIdentifier.UInt16: [int, getNullableType<int>()],
-    RepresentationTypeIdentifier.Int32: [int, getNullableType<int>()],
-    RepresentationTypeIdentifier.UInt32: [int, getNullableType<int>()],
+    RepresentationTypeIdentifier.UInt8: [UInt8, getNullableType<UInt8>()],
+    RepresentationTypeIdentifier.Int8: [Int8, getNullableType<Int8>()],
+    RepresentationTypeIdentifier.Int16: [Int16, getNullableType<Int16>()],
+    RepresentationTypeIdentifier.UInt16: [UInt16, getNullableType<UInt16>()],
+    RepresentationTypeIdentifier.Int32: [Int32, getNullableType<Int32>()],
+    RepresentationTypeIdentifier.UInt32: [UInt32, getNullableType<UInt32>()],
     RepresentationTypeIdentifier.Int64: [int, getNullableType<int>()],
     RepresentationTypeIdentifier.UInt64: [int, getNullableType<int>()],
-    RepresentationTypeIdentifier.Float32: [double, getNullableType<double>()],
+    RepresentationTypeIdentifier.Float32: [Float32, getNullableType<Float32>()],
     RepresentationTypeIdentifier.Float64: [double, getNullableType<double>()],
     RepresentationTypeIdentifier.Decimal: [double, getNullableType<double>()],
     RepresentationTypeIdentifier.String: [String, getNullableType<String>()],

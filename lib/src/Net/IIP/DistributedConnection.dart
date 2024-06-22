@@ -25,6 +25,16 @@ SOFTWARE.
 import 'dart:async';
 
 import 'package:collection/collection.dart';
+import 'package:web_socket_channel/status.dart';
+import '../../Misc/Global.dart';
+import '../../Security/Membership/AuthorizationResults.dart';
+import '../../Security/Membership/AuthorizationResultsResponse.dart';
+import '../Packets/IIPAuthPacketAcknowledge.dart';
+import '../Packets/IIPAuthPacketEvent.dart';
+import '../Packets/IIPAuthPacketHeader.dart';
+import '../Packets/IIPAuthPacketIAuthHeader.dart';
+import '../Packets/IIPAuthPacketInitialize.dart';
+import '../Sockets/SocketState.dart';
 import 'ConnectionStatus.dart';
 
 import '../../Data/IntType.dart';
@@ -92,36 +102,51 @@ import '../../Security/Integrity/SHA256.dart';
 import '../../Resource/ResourceTrigger.dart';
 import './DistributedServer.dart';
 
+import '../Packets/IIPAuthPacketHashAlgorithm.dart';
+
 class DistributedConnection extends NetworkConnection with IStore {
-  //public delegate void ReadyEvent(DistributedConnection sender);
-  //public delegate void ErrorEvent(DistributedConnection sender, byte errorCode, string errorMessage);
 
-  /// <summary>
-  /// Ready event is raised when the connection is fully established.
-  /// </summary>
-  //public event ReadyEvent OnReady;
+  // fields
+  bool _invalidCredentials = false;
 
-  /// <summary>
-  /// Error event
-  /// </summary>
-  //public event ErrorEvent OnError;
-
-  AsyncReply<bool>? _openReply;
-
-  DistributedServer? _server;
+  Timer? _keepAliveTimer;
+  DateTime? _lastKeepAliveSent;
+  DateTime? _lastKeepAliveReceived;
 
   IIPPacket _packet = new IIPPacket();
   IIPAuthPacket _authPacket = new IIPAuthPacket();
 
-  Session? _session;
+  Session _session = new Session();
+  AsyncReply<bool>? _openReply;
 
   DC? _localPasswordOrToken;
-  DC? _localNonce, _remoteNonce;
 
+  bool _ready = false, _readyToEstablish = false;
   String? _hostname;
   int _port = 10518;
 
-  bool _ready = false, _readyToEstablish = false;
+  DistributedServer? _server;
+  DateTime? _loginDate;
+
+  // Properties
+  DateTime? get loginDate => _loginDate;
+
+  int jitter = 0;
+  ConnectionStatus _status = ConnectionStatus.Closed;
+  ConnectionStatus get status => _status;
+
+
+  //Attributes
+  int keepAliveTime = 10;
+  int keepAliveInterval = 30;
+  AsyncReply Function (Map<UInt8, dynamic>)? authenticator;
+  bool autoReconnect = false;
+  int reconnectInterval = 5;
+
+  DistributedServer? get server => _server;
+
+
+
 
   KeyList<int, WeakReference<DistributedResource>> _attachedResources =
       new KeyList<int, WeakReference<DistributedResource>>();
@@ -149,34 +174,13 @@ class DistributedConnection extends NetworkConnection with IStore {
 
   Map<IResource, List<int>> _subscriptions = new Map<IResource, List<int>>();
 
-  DateTime? _lastKeepAliveSent;
-  DateTime? _lastKeepAliveReceived;
-  int jitter = 0;
-  int keepAliveTime = 10;
-  int reconnectInterval = 5;
 
-  DistributedServer? server;
-
-  /// <summary>
-  /// Local username to authenticate ourselves.
-  /// </summary>
-  String get localUsername => _session?.localAuthentication.username ?? "";
-
-  /// <summary>
-  /// Peer's username.
-  /// </summary>
-  String get remoteUsername =>
-      _session?.remoteAuthentication.username ?? ""; // { get; set; }
-
-  /// <summary>
-  /// Working domain.
-  /// </summary>
-  //public string Domain { get { return domain; } }
+ 
 
   /// <summary>
   /// The session related to this connection.
   /// </summary>
-  Session? get session => _session;
+  Session get session => _session;
 
   /// <summary>
   /// Distributed server responsible for this connection, usually for incoming connections.
@@ -292,26 +296,41 @@ class DistributedConnection extends NetworkConnection with IStore {
     if (_openReply != null)
       throw AsyncException(ErrorType.Exception, 0, "Connection in progress");
 
-    status = ConnectionStatus.Connecting;
+    _status = ConnectionStatus.Connecting;
 
     _openReply = new AsyncReply<bool>();
 
-    //print("_openReply hash ${_openReply.hashCode}");
 
     if (hostname != null) {
-      _session =
-          new Session(new ClientAuthentication(), new HostAuthentication());
+      _session = new Session();
 
-      _session?.localAuthentication.method = method;
-      _session?.localAuthentication.tokenIndex = tokenIndex;
-      _session?.localAuthentication.domain = domain;
-      _session?.localAuthentication.username = username;
+      _session.authenticationType = AuthenticationType.Client;
+      _session.localMethod = method;
+      _session.remoteMethod = AuthenticationMethod.None;
+
+      _session.localHeaders[IIPAuthPacketHeader.Domain] = domain;
+      _session.localHeaders[IIPAuthPacketHeader.Nonce] = Global.generateCode(32);
+
+      if (method == AuthenticationMethod.Credentials)
+      {
+        _session.localHeaders[IIPAuthPacketHeader.Username] = username;
+      }
+      else if (method == AuthenticationMethod.Token)
+      {
+        _session.localHeaders[IIPAuthPacketHeader.TokenIndex] = tokenIndex;
+      }
+      else if (method == AuthenticationMethod.Certificate)
+      {
+        throw Exception("Unsupported authentication method.");
+      }
+
       _localPasswordOrToken = passwordOrToken;
       _invalidCredentials = false;
+
     }
 
-    if (_session == null)
-      throw AsyncException(ErrorType.Exception, 0, "Session not initialized");
+    //if (_session == null)
+    //  throw AsyncException(ErrorType.Exception, 0, "Session not initialized");
 
     if (socket == null) {
       if (useWebsocket || kIsWeb) {
@@ -323,7 +342,8 @@ class DistributedConnection extends NetworkConnection with IStore {
     _port = port ?? _port;
     _hostname = hostname ?? _hostname;
 
-    if (_hostname == null) throw Exception("Host not specified.");
+    if (_hostname == null) 
+        throw Exception("Host not specified.");
 
     _connectSocket(socket);
 
@@ -347,15 +367,13 @@ class DistributedConnection extends NetworkConnection with IStore {
       });
   }
 
-  bool autoReconnect = false;
-  bool _invalidCredentials = false;
 
   @override
   void disconnected() {
     // clean up
     _ready = false;
     _readyToEstablish = false;
-    status = ConnectionStatus.Closed;
+    _status = ConnectionStatus.Closed;
 
     //print("Disconnected ..");
 
@@ -489,40 +507,55 @@ class DistributedConnection extends NetworkConnection with IStore {
   Instance? instance;
 
   _declare() {
-    var dmn = DC.stringToBytes(_session?.localAuthentication.domain ?? "");
 
-    if (_session?.localAuthentication.method ==
-        AuthenticationMethod.Credentials) {
-      // declare (Credentials -> No Auth, No Enctypt)
+      // if (session.KeyExchanger != null)
+      // {
+      //     // create key
+      //     var key = session.keyExchanger.GetPublicKey();
+      //     session.localHeaders[IIPAuthPacketHeader.CipherKey] = key;
+      // }
 
-      var un = DC.stringToBytes(_session?.localAuthentication.username ?? "");
 
-      _sendParams()
-        ..addUint8(0x60)
-        ..addUint8(dmn.length)
-        ..addDC(dmn)
-        ..addDC(_localNonce as DC)
-        ..addUint8(un.length)
-        ..addDC(un)
-        ..done(); //, dmn, localNonce, (byte)un.Length, un);
-    } else if (_session?.localAuthentication.method ==
-        AuthenticationMethod.Token) {
-      _sendParams()
-        ..addUint8(0x70)
-        ..addUint8(dmn.length)
-        ..addDC(dmn)
-        ..addDC(_localNonce as DC)
-        ..addUint64(_session?.localAuthentication.tokenIndex ?? 0)
-        ..done(); //, dmn, localNonce, token
+      if (session.localMethod == AuthenticationMethod.Credentials
+          && session.remoteMethod == AuthenticationMethod.None)
+      {
+          // change to Map<byte, object> for compatibility
+          var headers = Codec.compose(session.localHeaders, this);
 
-    } else if (_session?.localAuthentication.method ==
-        AuthenticationMethod.None) {
-      _sendParams()
-        ..addUint8(0x40)
-        ..addUint8(dmn.length)
-        ..addDC(dmn)
-        ..done(); //, dmn, localNonce, token
-    }
+          // declare (Credentials -> No Auth, No Enctypt)
+          _sendParams()
+              ..addUint8(IIPAuthPacketInitialize.CredentialsNoAuth)
+              ..addDC(headers)
+              ..done();
+
+      }
+      else if (session.localMethod == AuthenticationMethod.Token
+          && session.remoteMethod == AuthenticationMethod.None)
+      {
+          // change to Map<byte, object> for compatibility
+          var headers = Codec.compose(session.localHeaders, this);
+
+          _sendParams()
+              ..addUint8(IIPAuthPacketInitialize.TokenNoAuth)
+              ..addDC(headers)
+              ..done();
+      }
+      else if (session.localMethod == AuthenticationMethod.None
+          && session.remoteMethod == AuthenticationMethod.None)
+      {
+          // change to Map<byte, object> for compatibility
+          var headers = Codec.compose(session.localHeaders, this);
+
+          // @REVIEW: MITM Attack can still occure
+          _sendParams()
+              ..addUint8(IIPAuthPacketInitialize.NoAuthNoAuth)
+              ..addDC(headers)
+              ..done();
+      }
+      else
+      {
+          throw new Exception("Authentication method is not implemented.");
+      }
   }
 
   /// <summary>
@@ -530,21 +563,16 @@ class DistributedConnection extends NetworkConnection with IStore {
   /// </summary>
   /// <param name="socket">Any socket that implements ISocket.</param>
   assign(ISocket socket) {
-    super.assign(socket);
 
-    _session?.remoteAuthentication.source
-        ?.attributes[SourceAttributeType.IPv4] = socket.remoteEndPoint?.address;
-    _session?.remoteAuthentication.source
-        ?.attributes[SourceAttributeType.Port] = socket.remoteEndPoint?.port;
-    _session?.localAuthentication.source?.attributes[SourceAttributeType.IPv4] =
-        socket.localEndPoint?.address;
-    _session?.localAuthentication.source?.attributes[SourceAttributeType.Port] =
-        socket.localEndPoint?.port;
+      super.assign(socket);
 
-    if (_session?.localAuthentication.type == AuthenticationType.Client) {
-      // declare (Credentials -> No Auth, No Enctypt)
-      _declare();
-    }
+      
+      session.localHeaders[IIPAuthPacketHeader.IPv4] = socket.remoteEndPoint?.address;
+      if (socket.state == SocketState.Established &&
+          session.authenticationType == AuthenticationType.Client)
+      {
+          _declare();
+      }
   }
 
   /// <summary>
@@ -592,11 +620,9 @@ class DistributedConnection extends NetworkConnection with IStore {
   /// Create a new instance of a distributed connection
   /// </summary>
   DistributedConnection() {
-    //myId = Global.GenerateCode(12);
-    // localParams.Host = DistributedParameters.HostType.Host;
-    _session =
-        new Session(new HostAuthentication(), new ClientAuthentication());
-    init();
+      session.authenticationType = AuthenticationType.Host;
+      session.localMethod = AuthenticationMethod.None;
+      init();
   }
 
   String? link(IResource resource) {
@@ -610,9 +636,6 @@ class DistributedConnection extends NetworkConnection with IStore {
     return null;
   }
 
-  Timer? _keepAliveTimer;
-
-  int keepAliveInterval = 30;
 
   void init() {
     _queue.then((x) {
@@ -624,11 +647,14 @@ class DistributedConnection extends NetworkConnection with IStore {
 
     var r = new Random();
     var n = new DC(32);
-    for (var i = 0; i < 32; i++) n[i] = r.nextInt(255);
-    _localNonce = n;
+    for (var i = 0; i < 32; i++) 
+      n[i] = r.nextInt(255);
+     
+     session.localHeaders[IIPAuthPacketHeader.Nonce] = n;
 
-    // _keepAliveTimer =
-    //     Timer(Duration(seconds: KeepAliveInterval), _keepAliveTimer_Elapsed);
+    // removed because dart timers start at initialization
+    //  _keepAliveTimer =
+    //      Timer(Duration(seconds: keepAliveInterval), _keepAliveTimerElapsed);
   }
 
   void _keepAliveTimerElapsed() {
@@ -682,69 +708,64 @@ class DistributedConnection extends NetworkConnection with IStore {
 
   int processPacket(
       DC msg, int offset, int ends, NetworkBuffer data, int chunkId) {
-    var packet = new IIPPacket();
 
     if (_ready) {
-      //print("Inc " + msg.length.toString());
 
-      var rt = packet.parse(msg, offset, ends);
+      var rt = _packet.parse(msg, offset, ends);
 
-      //print("Packet " + packet.toString());
 
       if (rt <= 0) {
-        // print("hold");
         var size = ends - offset;
         data.holdFor(msg, offset, size, size - rt);
         return ends;
       } else {
-        //print("CMD ${packet.command} ${offset} ${ends}");
 
         offset += rt;
 
-        if (packet.command == IIPPacketCommand.Event) {
-          switch (packet.event) {
+        if (_packet.command == IIPPacketCommand.Event) {
+          switch (_packet.event) {
             case IIPPacketEvent.ResourceReassigned:
               iipEventResourceReassigned(
-                  packet.resourceId, packet.newResourceId);
+                  _packet.resourceId, _packet.newResourceId);
               break;
             case IIPPacketEvent.ResourceDestroyed:
-              iipEventResourceDestroyed(packet.resourceId);
+              iipEventResourceDestroyed(_packet.resourceId);
               break;
             case IIPPacketEvent.PropertyUpdated:
-              iipEventPropertyUpdated(packet.resourceId, packet.methodIndex,
-                  packet.dataType ?? TransmissionType.Null, msg);
+              iipEventPropertyUpdated(_packet.resourceId, _packet.methodIndex,
+                  _packet.dataType ?? TransmissionType.Null, msg);
               break;
             case IIPPacketEvent.EventOccurred:
-              iipEventEventOccurred(packet.resourceId, packet.methodIndex,
-                  packet.dataType ?? TransmissionType.Null, msg);
+              iipEventEventOccurred(_packet.resourceId, _packet.methodIndex,
+                  _packet.dataType ?? TransmissionType.Null, msg);
               break;
 
             case IIPPacketEvent.ChildAdded:
-              iipEventChildAdded(packet.resourceId, packet.childId);
+              iipEventChildAdded(_packet.resourceId, _packet.childId);
               break;
             case IIPPacketEvent.ChildRemoved:
-              iipEventChildRemoved(packet.resourceId, packet.childId);
+              iipEventChildRemoved(_packet.resourceId, _packet.childId);
               break;
             case IIPPacketEvent.Renamed:
-              iipEventRenamed(packet.resourceId, packet.resourceName);
+              iipEventRenamed(_packet.resourceId, _packet.resourceName);
               break;
             case IIPPacketEvent.AttributesUpdated:
               // @TODO: fix this
               //iipEventAttributesUpdated(packet.resourceId, packet.dataType. ?? TransmissionType.Null);
               break;
           }
-        } else if (packet.command == IIPPacketCommand.Request) {
-          switch (packet.action) {
+        } else if (_packet.command == IIPPacketCommand.Request) {
+          switch (_packet.action) {
             // Manage
             case IIPPacketAction.AttachResource:
-              iipRequestAttachResource(packet.callbackId, packet.resourceId);
+              iipRequestAttachResource(_packet.callbackId, _packet.resourceId);
               break;
             case IIPPacketAction.ReattachResource:
               iipRequestReattachResource(
-                  packet.callbackId, packet.resourceId, packet.resourceAge);
+                  _packet.callbackId, _packet.resourceId, _packet.resourceAge);
               break;
             case IIPPacketAction.DetachResource:
-              iipRequestDetachResource(packet.callbackId, packet.resourceId);
+              iipRequestDetachResource(_packet.callbackId, _packet.resourceId);
               break;
             case IIPPacketAction.CreateResource:
 
@@ -753,70 +774,70 @@ class DistributedConnection extends NetworkConnection with IStore {
               //  packet.resourceId, packet.content);
               break;
             case IIPPacketAction.DeleteResource:
-              iipRequestDeleteResource(packet.callbackId, packet.resourceId);
+              iipRequestDeleteResource(_packet.callbackId, _packet.resourceId);
               break;
             case IIPPacketAction.AddChild:
               iipRequestAddChild(
-                  packet.callbackId, packet.resourceId, packet.childId);
+                  _packet.callbackId, _packet.resourceId, _packet.childId);
               break;
             case IIPPacketAction.RemoveChild:
               iipRequestRemoveChild(
-                  packet.callbackId, packet.resourceId, packet.childId);
+                  _packet.callbackId, _packet.resourceId, _packet.childId);
               break;
             case IIPPacketAction.RenameResource:
               iipRequestRenameResource(
-                  packet.callbackId, packet.resourceId, packet.resourceName);
+                  _packet.callbackId, _packet.resourceId, _packet.resourceName);
               break;
 
             // Inquire
             case IIPPacketAction.TemplateFromClassName:
               iipRequestTemplateFromClassName(
-                  packet.callbackId, packet.className);
+                  _packet.callbackId, _packet.className);
               break;
             case IIPPacketAction.TemplateFromClassId:
-              iipRequestTemplateFromClassId(packet.callbackId, packet.classId);
+              iipRequestTemplateFromClassId(_packet.callbackId, _packet.classId);
               break;
             case IIPPacketAction.TemplateFromResourceId:
               iipRequestTemplateFromResourceId(
-                  packet.callbackId, packet.resourceId);
+                  _packet.callbackId, _packet.resourceId);
               break;
             case IIPPacketAction.QueryLink:
-              iipRequestQueryResources(packet.callbackId, packet.resourceLink);
+              iipRequestQueryResources(_packet.callbackId, _packet.resourceLink);
               break;
 
             case IIPPacketAction.ResourceChildren:
-              iipRequestResourceChildren(packet.callbackId, packet.resourceId);
+              iipRequestResourceChildren(_packet.callbackId, _packet.resourceId);
               break;
             case IIPPacketAction.ResourceParents:
-              iipRequestResourceParents(packet.callbackId, packet.resourceId);
+              iipRequestResourceParents(_packet.callbackId, _packet.resourceId);
               break;
 
             case IIPPacketAction.ResourceHistory:
-              iipRequestInquireResourceHistory(packet.callbackId,
-                  packet.resourceId, packet.fromDate, packet.toDate);
+              iipRequestInquireResourceHistory(_packet.callbackId,
+                  _packet.resourceId, _packet.fromDate, _packet.toDate);
               break;
 
             case IIPPacketAction.LinkTemplates:
-              iipRequestLinkTemplates(packet.callbackId, packet.resourceLink);
+              iipRequestLinkTemplates(_packet.callbackId, _packet.resourceLink);
               break;
 
             // Invoke
             case IIPPacketAction.InvokeFunction:
               iipRequestInvokeFunction(
-                  packet.callbackId,
-                  packet.resourceId,
-                  packet.methodIndex,
-                  packet.dataType ?? TransmissionType.Null,
+                  _packet.callbackId,
+                  _packet.resourceId,
+                  _packet.methodIndex,
+                  _packet.dataType ?? TransmissionType.Null,
                   msg);
               break;
 
             case IIPPacketAction.Listen:
               iipRequestListen(
-                  packet.callbackId, packet.resourceId, packet.methodIndex);
+                  _packet.callbackId, _packet.resourceId, _packet.methodIndex);
               break;
             case IIPPacketAction.Unlisten:
               iipRequestUnlisten(
-                  packet.callbackId, packet.resourceId, packet.methodIndex);
+                  _packet.callbackId, _packet.resourceId, _packet.methodIndex);
               break;
 /*
                         case IIPPacketAction.GetProperty:
@@ -829,10 +850,10 @@ class DistributedConnection extends NetworkConnection with IStore {
 */
             case IIPPacketAction.SetProperty:
               iipRequestSetProperty(
-                  packet.callbackId,
-                  packet.resourceId,
-                  packet.methodIndex,
-                  packet.dataType ?? TransmissionType.Null,
+                  _packet.callbackId,
+                  _packet.resourceId,
+                  _packet.methodIndex,
+                  _packet.dataType ?? TransmissionType.Null,
                   msg);
               break;
 
@@ -865,53 +886,53 @@ class DistributedConnection extends NetworkConnection with IStore {
 
             case IIPPacketAction.KeepAlive:
               iipRequestKeepAlive(
-                  packet.callbackId, packet.currentTime, packet.interval);
+                  _packet.callbackId, _packet.currentTime, _packet.interval);
               break;
 
             case IIPPacketAction.ProcedureCall:
-              iipRequestProcedureCall(packet.callbackId, packet.procedure,
-                  packet.dataType as TransmissionType, msg);
+              iipRequestProcedureCall(_packet.callbackId, _packet.procedure,
+                  _packet.dataType as TransmissionType, msg);
               break;
 
             case IIPPacketAction.StaticCall:
-              iipRequestStaticCall(packet.callbackId, packet.classId,
-                  packet.methodIndex, packet.dataType as TransmissionType, msg);
+              iipRequestStaticCall(_packet.callbackId, _packet.classId,
+                  _packet.methodIndex, _packet.dataType as TransmissionType, msg);
               break;
           }
-        } else if (packet.command == IIPPacketCommand.Reply) {
-          switch (packet.action) {
+        } else if (_packet.command == IIPPacketCommand.Reply) {
+          switch (_packet.action) {
             // Manage
             case IIPPacketAction.AttachResource:
-              iipReply(packet.callbackId, [
-                packet.classId,
-                packet.resourceAge,
-                packet.resourceLink,
-                packet.dataType ?? TransmissionType.Null,
+              iipReply(_packet.callbackId, [
+                _packet.classId,
+                _packet.resourceAge,
+                _packet.resourceLink,
+                _packet.dataType ?? TransmissionType.Null,
                 msg
               ]);
               break;
 
             case IIPPacketAction.ReattachResource:
-              iipReply(packet.callbackId, [
-                packet.resourceAge,
-                packet.dataType ?? TransmissionType.Null,
+              iipReply(_packet.callbackId, [
+                _packet.resourceAge,
+                _packet.dataType ?? TransmissionType.Null,
                 msg
               ]);
 
               break;
             case IIPPacketAction.DetachResource:
-              iipReply(packet.callbackId);
+              iipReply(_packet.callbackId);
               break;
 
             case IIPPacketAction.CreateResource:
-              iipReply(packet.callbackId, [packet.resourceId]);
+              iipReply(_packet.callbackId, [_packet.resourceId]);
               break;
 
             case IIPPacketAction.DeleteResource:
             case IIPPacketAction.AddChild:
             case IIPPacketAction.RemoveChild:
             case IIPPacketAction.RenameResource:
-              iipReply(packet.callbackId);
+              iipReply(_packet.callbackId);
               break;
 
             // Inquire
@@ -919,12 +940,12 @@ class DistributedConnection extends NetworkConnection with IStore {
             case IIPPacketAction.TemplateFromClassName:
             case IIPPacketAction.TemplateFromClassId:
             case IIPPacketAction.TemplateFromResourceId:
-              if (packet.dataType != null) {
-                var content = msg.clip(packet.dataType?.offset ?? 0,
-                    packet.dataType?.contentLength ?? 0);
-                iipReply(packet.callbackId, [TypeTemplate.parse(content)]);
+              if (_packet.dataType != null) {
+                var content = msg.clip(_packet.dataType?.offset ?? 0,
+                    _packet.dataType?.contentLength ?? 0);
+                iipReply(_packet.callbackId, [TypeTemplate.parse(content)]);
               } else {
-                iipReportError(packet.callbackId, ErrorType.Management,
+                iipReportError(_packet.callbackId, ErrorType.Management,
                     ExceptionCode.TemplateNotFound.index, "Template not found");
               }
 
@@ -935,16 +956,16 @@ class DistributedConnection extends NetworkConnection with IStore {
             case IIPPacketAction.ResourceParents:
             case IIPPacketAction.ResourceHistory:
             case IIPPacketAction.LinkTemplates:
-              iipReply(packet.callbackId,
-                  [packet.dataType ?? TransmissionType.Null, msg]);
+              iipReply(_packet.callbackId,
+                  [_packet.dataType ?? TransmissionType.Null, msg]);
               break;
 
             // Invoke
             case IIPPacketAction.InvokeFunction:
             case IIPPacketAction.StaticCall:
             case IIPPacketAction.ProcedureCall:
-              iipReplyInvoke(packet.callbackId,
-                  packet.dataType ?? TransmissionType.Null, msg);
+              iipReplyInvoke(_packet.callbackId,
+                  _packet.dataType ?? TransmissionType.Null, msg);
               break;
 
             // case IIPPacketAction.GetProperty:
@@ -958,44 +979,44 @@ class DistributedConnection extends NetworkConnection with IStore {
             case IIPPacketAction.Listen:
             case IIPPacketAction.Unlisten:
             case IIPPacketAction.SetProperty:
-              iipReply(packet.callbackId);
+              iipReply(_packet.callbackId);
               break;
 
             // Attribute
             case IIPPacketAction.GetAllAttributes:
             case IIPPacketAction.GetAttributes:
-              iipReply(packet.callbackId,
-                  [packet.dataType ?? TransmissionType.Null, msg]);
+              iipReply(_packet.callbackId,
+                  [_packet.dataType ?? TransmissionType.Null, msg]);
               break;
 
             case IIPPacketAction.UpdateAllAttributes:
             case IIPPacketAction.UpdateAttributes:
             case IIPPacketAction.ClearAllAttributes:
             case IIPPacketAction.ClearAttributes:
-              iipReply(packet.callbackId);
+              iipReply(_packet.callbackId);
               break;
 
             case IIPPacketAction.KeepAlive:
-              iipReply(packet.callbackId, [packet.currentTime, packet.jitter]);
+              iipReply(_packet.callbackId, [_packet.currentTime, _packet.jitter]);
               break;
           }
-        } else if (packet.command == IIPPacketCommand.Report) {
-          switch (packet.report) {
+        } else if (_packet.command == IIPPacketCommand.Report) {
+          switch (_packet.report) {
             case IIPPacketReport.ManagementError:
-              iipReportError(packet.callbackId, ErrorType.Management,
-                  packet.errorCode, null);
+              iipReportError(_packet.callbackId, ErrorType.Management,
+                  _packet.errorCode, null);
               break;
             case IIPPacketReport.ExecutionError:
-              iipReportError(packet.callbackId, ErrorType.Exception,
-                  packet.errorCode, packet.errorMessage);
+              iipReportError(_packet.callbackId, ErrorType.Exception,
+                  _packet.errorCode, _packet.errorMessage);
               break;
             case IIPPacketReport.ProgressReport:
-              iipReportProgress(packet.callbackId, ProgressType.Execution,
-                  packet.progressValue, packet.progressMax);
+              iipReportProgress(_packet.callbackId, ProgressType.Execution,
+                  _packet.progressValue, _packet.progressMax);
               break;
             case IIPPacketReport.ChunkStream:
-              iipReportChunk(packet.callbackId,
-                  packet.dataType ?? TransmissionType.Null, msg);
+              iipReportChunk(_packet.callbackId,
+                  _packet.dataType ?? TransmissionType.Null, msg);
               break;
           }
         }
@@ -1003,176 +1024,22 @@ class DistributedConnection extends NetworkConnection with IStore {
     } else {
       var rt = _authPacket.parse(msg, offset, ends);
 
+    
       if (rt <= 0) {
         data.holdForNeeded(msg, ends - rt);
         return ends;
       } else {
         offset += rt;
 
-        if (_session?.localAuthentication.type == AuthenticationType.Host) {
-          if (_authPacket.command == IIPAuthPacketCommand.Declare) {
-            if (_authPacket.remoteMethod == AuthenticationMethod.Credentials &&
-                _authPacket.localMethod == AuthenticationMethod.None) {
-              /*
-                            server.membership.userExists(_authPacket.remoteUsername, _authPacket.domain).then((x)
-                            {
-                                if (x)
-                                {
-                                    _session.remoteAuthentication.username = _authPacket.remoteUsername;
-                                    _remoteNonce = _authPacket.remoteNonce;
-                                    _session.remoteAuthentication.domain = _authPacket.domain;
-                                    sendParams()
-                                                .addUint8(0xa0)
-                                                .addDC(_localNonce)
-                                                .done();
-                                }
-                                else
-                                {
-                                    sendParams().addUint8(0xc0).addUint8(1).addUint16(14).addString("User not found").done();
-                                }
-                            });
-                            */
-
-            }
-          } else if (_authPacket.command == IIPAuthPacketCommand.Action) {
-            if (_authPacket.action == IIPAuthPacketAction.AuthenticateHash) {
-              var remoteHash = _authPacket.hash;
-
-              /*
-                            server.membership.getPassword(_session.remoteAuthentication.username,
-                                                          _session.remoteAuthentication.domain).then((pw)
-                                                          {
-                                                              if (pw != null)
-                                                              {
-                                                                  //var hash = hashFunc.ComputeHash(BinaryList.ToBytes(pw, remoteNonce, localNonce));
-                                                                  var hash = SHA256.compute((new BinaryList())
-                                                                                                    .addDC(pw)
-                                                                                                    .addDC(_remoteNonce)
-                                                                                                    .addDC(_localNonce)
-                                                                                                    .toDC());
-                                                                  if (hash.sequenceEqual(remoteHash))
-                                                                  {
-                                                                      // send our hash
-                                                                      //var localHash = hashFunc.ComputeHash(BinaryList.ToBytes(localNonce, remoteNonce, pw));
-                                                                      //SendParams((byte)0, localHash);
-
-                                                                      var localHash = SHA256.compute
-                                                                              ((new BinaryList()).addDC(_localNonce).addDC(_remoteNonce).addDC(pw).toDC());
-                                                                      sendParams().addUint8(0).addDC(localHash).done();
-
-                                                                      _readyToEstablish = true;
-                                                                  }
-                                                                  else
-                                                                  {
-                                                                      sendParams().addUint8(0xc0).addUint8(1).addUint16(5).addString("Error").done();
-                                                                  }
-                                                              }
-                                                          });
-                                                          */
-            } else if (_authPacket.action ==
-                IIPAuthPacketAction.NewConnection) {
-              if (_readyToEstablish) {
-                var r = new Random();
-
-                var sid = DC(32);
-
-                for (var i = 0; i < 32; i++) sid[i] = r.nextInt(255);
-                _session?.id = sid;
-
-                _sendParams()
-                  ..addUint8(0x28)
-                  ..addDC(sid)
-                  ..done();
-
-                _ready = true;
-                status = ConnectionStatus.Connected;
-
-                _openReply?.trigger(true);
-                _openReply = null;
-                emitArgs("ready", []);
-                //OnReady?.Invoke(this);
-                // server.membership.login(session);
-
-              }
-            }
-          }
-        } else if (_session?.localAuthentication.type ==
-            AuthenticationType.Client) {
-          if (_authPacket.command == IIPAuthPacketCommand.Acknowledge) {
-            if (_authPacket.remoteMethod == AuthenticationMethod.None) {
-              _sendParams()
-                ..addUint8(0x20)
-                ..addUint16(0)
-                ..done();
-            } else if (_authPacket.remoteMethod ==
-                    AuthenticationMethod.Credentials ||
-                _authPacket.remoteMethod == AuthenticationMethod.Token) {
-              _remoteNonce = _authPacket.remoteNonce;
-
-              // send our hash
-              var localHash = SHA256.compute((BinaryList()
-                    ..addDC(_localPasswordOrToken as DC)
-                    ..addDC(_localNonce as DC)
-                    ..addDC(_remoteNonce as DC))
-                  .toDC());
-
-              _sendParams()
-                ..addUint8(0)
-                ..addDC(localHash)
-                ..done();
-            }
-            //SendParams((byte)0, localHash);
-          } else if (_authPacket.command == IIPAuthPacketCommand.Action) {
-            if (_authPacket.action == IIPAuthPacketAction.AuthenticateHash) {
-              // check if the server knows my password
-              var remoteHash = SHA256.compute((BinaryList()
-                    ..addDC(_remoteNonce as DC)
-                    ..addDC(_localNonce as DC)
-                    ..addDC(_localPasswordOrToken as DC))
-                  .toDC());
-
-              if (remoteHash.sequenceEqual(_authPacket.hash)) {
-                // send establish request
-                _sendParams()
-                  ..addUint8(0x20)
-                  ..addUint16(0)
-                  ..done();
-              } else {
-                _sendParams()
-                  ..addUint8(0xc0)
-                  ..addUint8(ExceptionCode.ChallengeFailed.index)
-                  ..addUint16(16)
-                  ..addString("Challenge Failed")
-                  ..done();
-
-                //SendParams((byte)0xc0, 1, 5, DC.ToBytes("Error"));
-              }
-            } else if (_authPacket.action ==
-                IIPAuthPacketAction.ConnectionEstablished) {
-              _session?.id = _authPacket.sessionId;
-
-              _ready = true;
-              status = ConnectionStatus.Connected;
-
-              _openReply?.trigger(true);
-              _openReply = null;
-              emitArgs("ready", []);
-
-              // start perodic keep alive timer
-              _keepAliveTimer = Timer(
-                  Duration(seconds: keepAliveInterval), _keepAliveTimerElapsed);
-            }
-          } else if (_authPacket.command == IIPAuthPacketCommand.Error) {
-            _invalidCredentials = true;
-            var ex = AsyncException(ErrorType.Management, _authPacket.errorCode,
-                _authPacket.errorMessage);
-            _openReply?.triggerError(ex);
-            _openReply = null;
-            emitArgs("error", [ex]);
-            //OnError?.Invoke(this, authPacket.ErrorCode, authPacket.ErrorMessage);
-            close();
-          }
+        if (session.authenticationType == AuthenticationType.Host)
+        {
+            _processHostAuth(msg);
         }
+        else if (session.authenticationType == AuthenticationType.Client)
+        {
+            _processClientAuth(msg);
+        }
+
       }
     }
 
@@ -1181,6 +1048,701 @@ class DistributedConnection extends NetworkConnection with IStore {
     //if (offset < ends)
     //  processPacket(msg, offset, ends, data, chunkId);
   }
+
+
+  void _processClientAuth(DC data)
+  {
+    if (_authPacket.command == IIPAuthPacketCommand.Acknowledge)
+        {
+            // if there is a mismatch in authentication
+            if (session.localMethod != _authPacket.remoteMethod
+                || session.remoteMethod != _authPacket.localMethod)
+            {
+                _openReply?.triggerError(new Exception("Peer refused authentication method."));
+                _openReply = null;
+            }
+
+            // Parse remote headers
+
+            var dataType = _authPacket.dataType!;
+
+            var pr = Codec.parse(data, dataType.offset, this, null, dataType);
+
+            var rt= pr.reply.result as Map<UInt8, dynamic>;
+
+            session.remoteHeaders = rt;
+
+            if (session.localMethod == AuthenticationMethod.None)
+            {
+                // send establish
+                _sendParams()
+                            ..addUint8(IIPAuthPacketAction.EstablishNewSession)
+                            ..done();
+            }
+            else if (session.localMethod == AuthenticationMethod.Credentials
+                    || session.localMethod == AuthenticationMethod.Token)
+            {
+                var remoteNonce = session.remoteHeaders[IIPAuthPacketHeader.Nonce];
+                var localNonce = session.localHeaders[IIPAuthPacketHeader.Nonce];
+
+                // send our hash
+                // local nonce + password or token + remote nonce
+                var challenge = SHA256.compute((new BinaryList()
+                                                    ..addDC(localNonce)
+                                                    ..addDC(_localPasswordOrToken!)
+                                                    ..addDC(remoteNonce))
+                                                    .toDC());
+
+
+                _sendParams()
+                    ..addUint8(IIPAuthPacketAction.AuthenticateHash)
+                    ..addUint8(IIPAuthPacketHashAlgorithm.SHA256)
+                    ..addUint16(challenge.length)
+                    ..addDC(challenge)
+                    ..done();
+            }
+
+        }
+        else if (_authPacket.command == IIPAuthPacketCommand.Action)
+        {
+            if (_authPacket.action == IIPAuthPacketAction.AuthenticateHash)
+            {
+                var remoteNonce = session.remoteHeaders[IIPAuthPacketHeader.Nonce];
+                var localNonce = session.localHeaders[IIPAuthPacketHeader.Nonce];
+
+                // check if the server knows my password
+
+                var challenge = SHA256.compute((new BinaryList()
+                                                        ..addDC(remoteNonce)
+                                                        ..addDC(_localPasswordOrToken!)
+                                                        ..addDC(localNonce)
+                                                  ).toDC());
+
+
+                if (challenge.sequenceEqual(_authPacket.challenge))
+                {
+                    // send establish request
+                    _sendParams()
+                                ..addUint8(IIPAuthPacketAction.EstablishNewSession)
+                                ..done();
+                }
+                else
+                {
+                    _sendParams()
+                                ..addUint8(IIPAuthPacketEvent.ErrorTerminate)
+                                ..addUint8(ExceptionCode.ChallengeFailed.index)
+                                ..addUint16(16)
+                                ..addString("Challenge Failed")
+                                ..done();
+
+                }
+            }
+        }
+        else if (_authPacket.command == IIPAuthPacketCommand.Event)
+        {
+            if (_authPacket.event == IIPAuthPacketEvent.ErrorTerminate
+                || _authPacket.event == IIPAuthPacketEvent.ErrorMustEncrypt
+                || _authPacket.event == IIPAuthPacketEvent.ErrorRetry)
+            {
+                _invalidCredentials = true;
+                _openReply?.triggerError(new AsyncException(ErrorType.Management, _authPacket.errorCode, _authPacket.message));
+                _openReply = null;
+
+                var ex = AsyncException(ErrorType.Management, _authPacket.errorCode,
+                _authPacket.message);
+
+                emitArgs("error", [ex]);
+
+                close();
+            }
+            else if (_authPacket.event == IIPAuthPacketEvent.IndicationEstablished)
+            {
+                session.id = _authPacket.sessionId;
+
+                _ready = true;
+                _status = ConnectionStatus.Connected;
+
+                // put it in the warehouse
+
+                if (this.instance == null)
+                {
+                    Warehouse.put(this.hashCode.toString().replaceAll("/", "_"), this, null, server).then((x) 
+                    {
+                        _openReply?.trigger(true);
+
+                        emitArgs("ready", []);
+                        _openReply = null;
+
+                    }).error((x) 
+                    {
+                        _openReply?.triggerError(x);
+                        _openReply = null;
+                    });
+                }
+                else
+                {
+                    _openReply?.trigger(true);
+                    _openReply = null;
+                    emitArgs("ready", []);
+                }
+
+                // start perodic keep alive timer
+                _keepAliveTimer =
+                    Timer(Duration(seconds: keepAliveInterval), _keepAliveTimerElapsed);
+
+
+            }
+            else if (_authPacket.event == IIPAuthPacketEvent.IAuthPlain)
+            {
+                var dataType = _authPacket.dataType!;
+                var pr = Codec.parse(data, dataType.offset, this, null, dataType);
+                var rt = pr.reply.result;
+
+                Map<UInt8, dynamic> headers = rt;
+                //headers[IIPAuthPacketIAuthHeader.Reference] = rt;
+
+                if (authenticator == null)
+                {
+                    _sendParams()
+                     ..addUint8(IIPAuthPacketEvent.ErrorTerminate)
+                     ..addUint8(ExceptionCode.NotSupported.index)
+                     ..addUint16(13)
+                     ..addString("Not supported")
+                     ..done();
+                }
+                else
+                {
+                    authenticator!(headers).then((response)
+                    {
+                        _sendParams()
+                            ..addUint8(IIPAuthPacketAction.IAuthPlain)
+                            ..addUint32(headers[IIPAuthPacketIAuthHeader.Reference])
+                            ..addDC(Codec.compose(response, this))
+                            ..done();
+                    })
+                    .timeout(headers.containsKey(IIPAuthPacketIAuthHeader.Timeout) ? 
+                        headers[IIPAuthPacketIAuthHeader.Timeout] * 1000 : 30000,
+                       onTimeout:  () {
+                            _sendParams()
+                                ..addUint8(IIPAuthPacketEvent.ErrorTerminate)
+                                ..addUint8(ExceptionCode.Timeout.index)
+                                ..addUint16(7)
+                                ..addString("Timeout")
+                                ..done();
+                        }
+                       );
+                }
+            }
+            else if (_authPacket.event == IIPAuthPacketEvent.IAuthHashed)
+            {
+                var dataType = _authPacket.dataType!;
+                var parsed = Codec.parse(data, dataType.offset, this, null, dataType);
+                Map<UInt8, dynamic> headers = parsed.reply.result;
+
+
+                if (authenticator == null)
+                {
+                    _sendParams()
+                     ..addUint8(IIPAuthPacketEvent.ErrorTerminate)
+                     ..addUint8(ExceptionCode.NotSupported.index)
+                     ..addUint16(13)
+                     ..addString("Not supported")
+                     ..done();
+                }
+                else
+                {
+
+                    authenticator!(headers).then((response)
+                    {
+
+                        var hash = SHA256.compute((new BinaryList()
+                            ..addDC(session.localHeaders[IIPAuthPacketHeader.Nonce])
+                            ..addDC(Codec.compose(response, this))
+                            ..addDC(session.remoteHeaders[IIPAuthPacketHeader.Nonce])
+                        ).toDC());
+
+                        _sendParams()
+                            ..addUint8(IIPAuthPacketAction.IAuthHashed)
+                            ..addUint32(headers[IIPAuthPacketIAuthHeader.Reference])
+                            ..addUint8(IIPAuthPacketHashAlgorithm.SHA256)
+                            ..addUint16(hash.length)
+                            ..addDC(hash)
+                            ..done();
+                    })
+                    .timeout(headers.containsKey(IIPAuthPacketIAuthHeader.Timeout) ?
+                        headers[IIPAuthPacketIAuthHeader.Timeout] * 1000 : 30000,
+                        onTimeout:  () {
+                        _sendParams()
+                            ..addUint8(IIPAuthPacketEvent.ErrorTerminate)
+                            ..addUint8(ExceptionCode.Timeout.index)
+                            ..addUint16(7)
+                            ..addString("Timeout")
+                            ..done();
+                    });
+                }
+            }
+            else if (_authPacket.event == IIPAuthPacketEvent.IAuthEncrypted)
+            {
+                throw new Exception("IAuthEncrypted not implemented.");
+            }
+        }
+    }
+
+    void _processHostAuth(DC data)
+    {
+        if (_authPacket.command == IIPAuthPacketCommand.Initialize)
+        {
+            // Parse headers
+
+            var dataType = _authPacket.dataType!;
+
+            var parsed = Codec.parse(data, dataType.offset, this, null, dataType);
+
+            Map<UInt8, dynamic> rt = parsed.reply.result;
+
+
+            session.remoteHeaders = rt;
+            session.remoteMethod = _authPacket.localMethod;
+
+
+            if (_authPacket.initialization == IIPAuthPacketInitialize.CredentialsNoAuth)
+            {
+                try
+                {
+
+                    var username = session.remoteHeaders[IIPAuthPacketHeader.Username];
+                    var domain = session.remoteHeaders[IIPAuthPacketHeader.Domain];
+
+                    if (_server?.membership == null)
+                    {
+                        var errMsg = DC.stringToBytes("Membership not set.");
+
+                        _sendParams()
+                            ..addUint8(IIPAuthPacketEvent.ErrorTerminate)
+                            ..addUint8(ExceptionCode.GeneralFailure.index)
+                            ..addUint16(errMsg.length)
+                            ..addDC(errMsg)
+                            ..done();
+                    }
+                    else { 
+                      _server!.membership!.userExists(username, domain).then((x)
+                      {
+                          if (x != null)
+                          {
+                              session.authorizedAccount = x;
+
+                              var localHeaders = session.localHeaders;
+
+                              _sendParams()
+                                          ..addUint8(IIPAuthPacketAcknowledge.NoAuthCredentials)
+                                          ..addDC(Codec.compose(localHeaders, this))
+                                          ..done();
+                          }
+                          else
+                          {
+                              // Send user not found error
+                              _sendParams()
+                                          ..addUint8(IIPAuthPacketEvent.ErrorTerminate)
+                                          ..addUint8(ExceptionCode.UserOrTokenNotFound.index)
+                                          ..addUint16(14)
+                                          ..addString("User not found")
+                                          ..done();
+                          }
+                      });
+                    }
+                }
+                catch (ex)
+                {
+                    // Send the server side error
+                    var errMsg = DC.stringToBytes(ex.toString());
+
+                    _sendParams()
+                        ..addUint8(IIPAuthPacketEvent.ErrorTerminate)
+                        ..addUint8(ExceptionCode.GeneralFailure.index)
+                        ..addUint16(errMsg.length)
+                        ..addDC(errMsg)
+                        ..done();
+                }
+            }
+            else if (_authPacket.initialization == IIPAuthPacketInitialize.TokenNoAuth)
+            {
+                try
+                {
+                    if (_server?.membership == null)
+                    {
+                        _sendParams()
+                            ..addUint8(IIPAuthPacketEvent.ErrorTerminate)
+                            ..addUint8(ExceptionCode.UserOrTokenNotFound.index)
+                            ..addUint16(15)
+                            ..addString("Token not found")
+                            ..done();
+                    }
+                    // Check if user and token exists
+                    else
+                    {
+                        int tokenIndex = session.remoteHeaders[IIPAuthPacketHeader.TokenIndex];
+                        String domain = session.remoteHeaders[IIPAuthPacketHeader.Domain];
+
+
+                        _server!.membership!.tokenExists(tokenIndex, domain).then((x)
+                        {
+                            if (x != null)
+                            {
+                                session.authorizedAccount = x;
+
+                                var localHeaders = session.localHeaders;
+
+                                _sendParams()
+                                            ..addUint8(IIPAuthPacketAcknowledge.NoAuthToken)
+                                            ..addDC(Codec.compose(localHeaders, this))
+                                            ..done();
+
+                            }
+                            else
+                            {
+                                // Send token not found error.
+                                _sendParams()
+                                            ..addUint8(IIPAuthPacketEvent.ErrorTerminate)
+                                            ..addUint8(ExceptionCode.UserOrTokenNotFound.index)
+                                            ..addUint16(15)
+                                            ..addString("Token not found")
+                                            ..done();
+                            }
+                        });
+                    }
+                }
+                catch (ex)
+                {
+                    // Sender server side error.
+
+                    var errMsg = DC.stringToBytes(ex.toString());
+
+                    _sendParams()
+                        ..addUint8(IIPAuthPacketEvent.ErrorTerminate)
+                        ..addUint8(ExceptionCode.GeneralFailure.index)
+                        ..addUint16(errMsg.length)
+                        ..addDC(errMsg)
+                        ..done();
+                }
+            }
+            else if (_authPacket.initialization == IIPAuthPacketInitialize.NoAuthNoAuth)
+            {
+                try
+                {
+                    // Check if guests are allowed
+                    if (_server?.membership?.guestsAllowed ?? true)
+                    {
+                        var localHeaders = session.localHeaders;
+
+                        session.authorizedAccount = "g-" + Global.generateCode();
+
+                        _readyToEstablish = true;
+
+                        _sendParams()
+                                    ..addUint8(IIPAuthPacketAcknowledge.NoAuthNoAuth)
+                                    ..addDC(Codec.compose(localHeaders, this))
+                                    ..done();
+                    }
+                    else
+                    {
+                        // Send access denied error because the server does not allow guests.
+                        _sendParams()
+                                    ..addUint8(IIPAuthPacketEvent.ErrorTerminate)
+                                    ..addUint8(ExceptionCode.AccessDenied.index)
+                                    ..addUint16(18)
+                                    ..addString("Guests not allowed")
+                                    ..done();
+                    }
+                }
+                catch (ex)
+                {
+                    // Send the server side error.
+                    var errMsg = DC.stringToBytes(ex.toString());
+
+                    _sendParams()
+                        ..addUint8(IIPAuthPacketEvent.ErrorTerminate)
+                        ..addUint8(ExceptionCode.GeneralFailure.index)
+                        ..addUint16(errMsg.length)
+                        ..addDC(errMsg)
+                        ..done();
+                }
+            }
+
+        }
+        else if (_authPacket.command == IIPAuthPacketCommand.Action)
+        {
+            if (_authPacket.action == IIPAuthPacketAction.AuthenticateHash)
+            {
+                var remoteHash = _authPacket.challenge;
+                AsyncReply<DC?> reply;
+
+                try
+                {
+                    if (session.remoteMethod == AuthenticationMethod.Credentials)
+                    {
+                        reply = server!.membership!.getPassword(session.remoteHeaders[IIPAuthPacketHeader.Username],
+                                                      session.remoteHeaders[IIPAuthPacketHeader.Domain]);
+                    }
+                    else if (session.remoteMethod == AuthenticationMethod.Token)
+                    {
+                        reply = _server!.membership!.getToken(session.remoteHeaders[IIPAuthPacketHeader.TokenIndex],
+                                                      session.remoteHeaders[IIPAuthPacketHeader.Domain]);
+                    }
+                    else
+                    {
+                      // Error
+                      throw Exception("Unsupported authentication method");
+                    }
+
+                    reply.then((pw)
+                    {
+                        if (pw != null)
+                        {
+                            var localNonce = session.localHeaders[IIPAuthPacketHeader.Nonce];
+                            var remoteNonce = session.remoteHeaders[IIPAuthPacketHeader.Nonce];
+
+
+                            var hash = SHA256.compute((new BinaryList()
+                                                                ..addDC(remoteNonce)
+                                                                ..addDC(pw)
+                                                                ..addDC(localNonce)
+                                                       ).toDC());
+
+                            if (hash.sequenceEqual(remoteHash))
+                            {
+                                // send our hash
+                                var localHash = SHA256.compute((new BinaryList()
+                                                    ..addDC(localNonce)
+                                                    ..addDC(pw)
+                                                    ..addDC(remoteNonce)
+                                                  ).toDC());
+
+                                _sendParams()
+                                    ..addUint8(IIPAuthPacketAction.AuthenticateHash)
+                                    ..addUint8(IIPAuthPacketHashAlgorithm.SHA256)
+                                    ..addUint16(localHash.length)
+                                    ..addDC(localHash)
+                                    ..done();
+
+                                _readyToEstablish = true;
+                            }
+                            else
+                            {
+                                _sendParams()
+                                    ..addUint8(IIPAuthPacketEvent.ErrorTerminate)
+                                    ..addUint8(ExceptionCode.AccessDenied.index)
+                                    ..addUint16(13)
+                                    ..addString("Access Denied")
+                                    ..done();
+                            }
+                        }
+                    });
+                }
+                catch (ex)
+                {
+                    var errMsg = DC.stringToBytes(ex.toString());
+
+                    _sendParams()
+                        ..addUint8(IIPAuthPacketEvent.ErrorTerminate)
+                        ..addUint8(ExceptionCode.GeneralFailure.index)
+                        ..addUint16(errMsg.length)
+                        ..addDC(errMsg)
+                        ..done();
+                }
+            }
+            else if (_authPacket.action == IIPAuthPacketAction.IAuthPlain)
+            {
+                var reference = _authPacket.reference;
+                var dataType = _authPacket.dataType!;
+
+                var parsed = Codec.parse(data, dataType.offset, this, null, dataType);
+
+                var value = parsed.reply.result;
+
+                _server?.membership?.authorizePlain(session, reference, value)
+                    .then((x) => _processAuthorization(x));
+
+
+            }
+            else if (_authPacket.action == IIPAuthPacketAction.IAuthHashed)
+            {
+                var reference = _authPacket.reference;
+                var value = _authPacket.challenge!;
+                var algorithm = _authPacket.hashAlgorithm;
+
+                _server?.membership?.authorizeHashed(session, reference, algorithm, value)
+                    .then((x) => _processAuthorization(x));
+
+            }
+            else if (_authPacket.action == IIPAuthPacketAction.IAuthEncrypted)
+            {
+                var reference = _authPacket.reference;
+                var value = _authPacket.challenge!;
+                var algorithm = _authPacket.publicKeyAlgorithm;
+
+                _server?.membership?.authorizeEncrypted(session, reference, algorithm, value)
+                    .then((x) => _processAuthorization(x));
+            }
+            else if (_authPacket.action == IIPAuthPacketAction.EstablishNewSession)
+            {
+                if (_readyToEstablish)
+                {
+
+                    if (_server?.membership == null)
+                    {
+                        _processAuthorization(null);
+                    }
+                    else
+                    {
+                        server?.membership?.authorize(session).then((x) 
+                        {
+                            _processAuthorization(x);
+                        });
+                    }
+
+                }
+                else
+                {
+                    _sendParams()
+                        ..addUint8(IIPAuthPacketEvent.ErrorTerminate)
+                        ..addUint8(ExceptionCode.GeneralFailure.index)
+                        ..addUint16(9)
+                        ..addString("Not ready")
+                        ..done();
+                }
+            }
+        }
+    }
+
+    _processAuthorization(AuthorizationResults? results)
+    {
+        if (results == null || results.response == AuthorizationResultsResponse.Success)
+        {
+            
+            var r = new Random();
+            var n = new DC(32);
+            for (var i = 0; i < 32; i++) 
+              n[i] = r.nextInt(255);
+
+            session.id = n;
+
+            _sendParams()
+                ..addUint8(IIPAuthPacketEvent.IndicationEstablished)
+                ..addUint8(n.length)
+                ..addDC(n)
+                ..done();
+
+            if (this.instance == null)
+            {
+                Warehouse.put(this.hashCode.toString().replaceAll("/", "_"), this, null, _server).then((x)
+                {
+                    _ready = true;
+                    _status = ConnectionStatus.Connected;
+                    _openReply?.trigger(true);
+                    _openReply = null;
+                    emitArgs("ready", []);
+
+                    _server?.membership?.login(session);
+                    _loginDate = DateTime.now();
+
+                }).error((x)
+                {
+                    _openReply?.triggerError(x);
+                    _openReply = null;
+
+                });
+            }
+            else
+            {
+                _ready = true;
+                _status = ConnectionStatus.Connected;
+
+                _openReply?.trigger(true);
+                _openReply = null;
+
+                emitArgs("ready", []);
+
+                server?.membership?.login(session);
+            }
+        }
+        else if (results.response == AuthorizationResultsResponse.Failed)
+        {
+            _sendParams()
+                ..addUint8(IIPAuthPacketEvent.ErrorTerminate)
+                ..addUint8(ExceptionCode.ChallengeFailed.index)
+                ..addUint16(21)
+                ..addString("Authentication failed")
+                ..done();
+        }
+        else if (results.response == AuthorizationResultsResponse.Expired)
+        {
+            _sendParams()
+                ..addUint8(IIPAuthPacketEvent.ErrorTerminate)
+                ..addUint8(ExceptionCode.Timeout.index)
+                ..addUint16(22)
+                ..addString("Authentication expired")
+                ..done();
+        }
+        else if (results.response == AuthorizationResultsResponse.ServiceUnavailable)
+        {
+            _sendParams()
+                ..addUint8(IIPAuthPacketEvent.ErrorTerminate)
+                ..addUint8(ExceptionCode.GeneralFailure.index)
+                ..addUint16(19)
+                ..addString("Service unavailable")
+                ..done();
+        }
+        else if (results.response == AuthorizationResultsResponse.IAuthPlain)
+        {
+            var args = <int, dynamic>
+            {
+                IIPAuthPacketIAuthHeader.Reference: results.reference,
+                IIPAuthPacketIAuthHeader.Destination: results.destination,
+                IIPAuthPacketIAuthHeader.Timeout: results.timeout,
+                IIPAuthPacketIAuthHeader.Clue: results.clue,
+                IIPAuthPacketIAuthHeader.RequiredFormat: results.requiredFormat,
+            };
+
+            _sendParams()
+                ..addUint8(IIPAuthPacketEvent.IAuthPlain)
+                ..addDC(Codec.compose(args, this))
+                ..done();
+
+        }
+        else if (results.response == AuthorizationResultsResponse.IAuthHashed)
+        {
+            var args = <int, dynamic>
+            {
+                IIPAuthPacketIAuthHeader.Reference: results.reference,
+                IIPAuthPacketIAuthHeader.Destination: results.destination,
+                IIPAuthPacketIAuthHeader.Timeout: results.timeout,
+                IIPAuthPacketIAuthHeader.Clue: results.clue,
+                IIPAuthPacketIAuthHeader.RequiredFormat: results.requiredFormat,
+            };
+
+            _sendParams()
+                ..addUint8(IIPAuthPacketEvent.IAuthHashed)
+                ..addDC(Codec.compose(args, this))
+                ..done();
+
+        }
+        else if (results.response == AuthorizationResultsResponse.IAuthEncrypted)
+        {
+            var args = <int, dynamic>
+            {
+                IIPAuthPacketIAuthHeader.Destination: results.destination,
+                IIPAuthPacketIAuthHeader.Timeout: results.timeout,
+                IIPAuthPacketIAuthHeader.Clue: results.clue,
+                IIPAuthPacketIAuthHeader.RequiredFormat: results.requiredFormat,
+            };
+
+            _sendParams()
+                ..addUint8(IIPAuthPacketEvent.IAuthEncrypted)
+                ..addDC(Codec.compose(args, this))
+                ..done();
+        }
+    }
+
 
   @override
   void dataReceived(NetworkBuffer data) {
@@ -3160,8 +3722,9 @@ class DistributedConnection extends NetworkConnection with IStore {
         return;
     }
 
-    if (info.receivers != null &&
-        this._session != null) if (!info.receivers!(this._session!)) return;
+    if (info.receivers != null)
+        if (!info.receivers!(this._session)) 
+          return;
 
     if (info.resource.instance?.applicable(_session as Session,
             ActionType.ReceiveEvent, info.eventTemplate, info.issuer) ==
@@ -3175,7 +3738,6 @@ class DistributedConnection extends NetworkConnection with IStore {
       ..done();
   }
 
-  ConnectionStatus status = ConnectionStatus.Closed;
 
   @override
   getProperty(String name) => null;

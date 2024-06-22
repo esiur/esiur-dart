@@ -14,6 +14,7 @@ class FactoryEntry<T> {
   final Function instanceCreator;
   final Function arrayCreator = () => <T>[];
   final RepresentationType representationType;
+  final Function mapCreator = () => Map<T, dynamic>();
 
   bool isMapKeySubType(Map map) {
     return map is Map<T, dynamic>;

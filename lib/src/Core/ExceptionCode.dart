@@ -36,5 +36,7 @@ enum ExceptionCode {
   AlreadyUnlistened,
   NotListenable,
   ParseError,
-  Timeout
+  Timeout,
+  NotSupported,
+  NotImplemented
 }

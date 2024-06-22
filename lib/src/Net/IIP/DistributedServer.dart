@@ -1,3 +1,5 @@
+import 'package:esiur/src/Security/Membership/IMembership.dart';
+
 import '../../Resource/Template/TemplateDescriber.dart';
 
 import '../../Resource/IResource.dart';
@@ -31,4 +33,6 @@ class DistributedServer extends IResource {
   @override
   TemplateDescriber get template =>
       TemplateDescriber("Esiur.Net.IIP.DistributedServer");
+
+  IMembership? membership;
 }

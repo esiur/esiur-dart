@@ -9,8 +9,8 @@
 
     enum AuthenticationMethod
     {
-         None,
-         Certificate,
-         Credentials,
-         Token,
+        None,
+        Credentials,
+        Token,
+        Certificate
     }

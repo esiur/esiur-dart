@@ -510,6 +510,11 @@ class Warehouse {
     return _factory[type]?.arrayCreator.call() as List<T>;
   }
 
+  static Map<T, dynamic> createMap<T>(Type keyType) {
+    return _factory[keyType]?.mapCreator.call() as Map<T, dynamic>;
+  }
+
+
   static AsyncReply<T> newResource<T extends IResource>(String name,
       [IStore? store = null,
       IResource? parent = null,
@@ -759,6 +764,8 @@ class Warehouse {
           RepresentationType(RepresentationTypeIdentifier.Int64, false)))
       ..addAll(_getTypeEntries<bool>(() => false,
           RepresentationType(RepresentationTypeIdentifier.Bool, false)))
+      ..addAll(_getTypeEntries<Float32>(() => 0.0,
+          RepresentationType(RepresentationTypeIdentifier.Float64, false)))
       ..addAll(_getTypeEntries<double>(() => 0.0,
           RepresentationType(RepresentationTypeIdentifier.Float64, false)))
       ..addAll(_getTypeEntries<String>(() => "",

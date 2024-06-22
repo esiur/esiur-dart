@@ -35,35 +35,35 @@ class DataSerializer {
   static DataSerializerComposeResults int32Composer(
       value, DistributedConnection? connection) {
     var rt = new DC(4);
-    rt.setInt32(0, (value as Int32).toInt());
+    rt.setInt32(0, (value as Int32).toNum());
     return DataSerializerComposeResults(TransmissionTypeIdentifier.Int32, rt);
   }
 
   static DataSerializerComposeResults uInt32Composer(
       value, DistributedConnection? connection) {
     var rt = new DC(4);
-    rt.setUint32(0, (value as UInt32).toInt());
+    rt.setUint32(0, (value as UInt32).toNum());
     return DataSerializerComposeResults(TransmissionTypeIdentifier.UInt32, rt);
   }
 
   static DataSerializerComposeResults int16Composer(
       value, DistributedConnection? connection) {
     var rt = new DC(2);
-    rt.setInt16(0, (value as Int16).toInt());
+    rt.setInt16(0, (value as Int16).toNum());
     return DataSerializerComposeResults(TransmissionTypeIdentifier.Int16, rt);
   }
 
   static DataSerializerComposeResults uInt16Composer(
       value, DistributedConnection? connection) {
     var rt = new DC(2);
-    rt.setUint16(0, (value as UInt16).toInt());
+    rt.setUint16(0, (value as UInt16).toNum());
     return DataSerializerComposeResults(TransmissionTypeIdentifier.UInt16, rt);
   }
 
   static DataSerializerComposeResults float32Composer(
       value, DistributedConnection? connection) {
     var rt = new DC(4);
-    rt.setFloat32(0, value as double);
+    rt.setFloat32(0, (value as Float32).toNum());
     return DataSerializerComposeResults(TransmissionTypeIdentifier.Float32, rt);
   }
 
@@ -140,14 +140,14 @@ class DataSerializer {
   static DataSerializerComposeResults uInt8Composer(
       value, DistributedConnection? connection) {
     var rt = new DC(1);
-    rt[0] = (value as UInt8).toInt();
+    rt[0] = (value as UInt8).toNum();
     return DataSerializerComposeResults(TransmissionTypeIdentifier.UInt8, rt);
   }
 
   static DataSerializerComposeResults int8Composer(
       value, DistributedConnection? connection) {
     var rt = new DC(1);
-    rt[0] = (value as Int8).toInt();
+    rt[0] = (value as Int8).toNum();
     return DataSerializerComposeResults(TransmissionTypeIdentifier.Int8, rt);
   }
 

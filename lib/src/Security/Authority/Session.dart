@@ -21,32 +21,28 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
+
 import '../../Data/DC.dart';
-import 'Authentication.dart';
+import '../../Data/IntType.dart';
 import '../../Data/KeyList.dart';
+import 'AuthenticationMethod.dart';
+import 'AuthenticationType.dart';
 
 class Session
 {
-    Authentication get localAuthentication => _localAuth;
-    Authentication get remoteAuthentication => _remoteAuth;
-
-    // public Source Source { get; }
     DC? id;
-
-    //DateTime get creation => _creation;
-
-    //public DateTime Modification { get; }
+    DateTime creation = DateTime.now();
+    DateTime modification = DateTime.now();
+    
     final KeyList<String, dynamic> variables =  new KeyList<String, dynamic>();
 
-      //KeyList<string, object> Variables { get; }
-    //IStore Store { get; }
+    Map<UInt8, dynamic> localHeaders  =  Map<UInt8, dynamic>();
+    Map<UInt8, dynamic> remoteHeaders =  Map<UInt8, dynamic>();
 
-    //string id;
-    Authentication _localAuth, _remoteAuth;
-    
+    AuthenticationMethod localMethod = AuthenticationMethod.None;
+    AuthenticationMethod remoteMethod = AuthenticationMethod.None;
 
-    Session(this._localAuth, this._remoteAuth)
-    {
-          
-    }
+    AuthenticationType authenticationType = AuthenticationType.Host ;
+
+    String? authorizedAccount;
 }

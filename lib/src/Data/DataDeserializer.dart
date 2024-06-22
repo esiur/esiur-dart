@@ -45,13 +45,13 @@ class DataDeserializer {
 
   static AsyncReply byteParser(DC data, int offset, int length,
       DistributedConnection? connection, List<int>? requestSequence) {
-    return new AsyncReply<int>.ready(data[offset]);
+    return new AsyncReply<UInt8>.ready(data[offset].cast());
   }
 
   static AsyncReply sByteParser(DC data, int offset, int length,
       DistributedConnection? connection, List<int>? requestSequence) {
-    return new AsyncReply<int>.ready(
-        data[offset] > 127 ? data[offset] - 256 : data[offset]);
+    return new AsyncReply<Int8>.ready(
+        data[offset] > 127 ? (data[offset] - 256).cast() : data[offset].cast());
   }
 
   static AsyncReply char16Parser(DC data, int offset, int length,
@@ -66,27 +66,27 @@ class DataDeserializer {
 
   static AsyncReply int16Parser(DC data, int offset, int length,
       DistributedConnection? connection, List<int>? requestSequence) {
-    return AsyncReply<int>.ready(data.getInt16(offset));
+    return AsyncReply<Int16>.ready(data.getInt16(offset).cast());
   }
 
   static AsyncReply uInt16Parser(DC data, int offset, int length,
       DistributedConnection? connection, List<int>? requestSequence) {
-    return AsyncReply<int>.ready(data.getUint16(offset));
+    return AsyncReply<UInt16>.ready(data.getUint16(offset).cast());
   }
 
   static AsyncReply int32Parser(DC data, int offset, int length,
       DistributedConnection? connection, List<int>? requestSequence) {
-    return AsyncReply<int>.ready(data.getInt32(offset));
+    return AsyncReply<Int32>.ready(data.getInt32(offset).cast());
   }
 
   static AsyncReply uInt32Parser(DC data, int offset, int length,
       DistributedConnection? connection, List<int>? requestSequence) {
-    return AsyncReply<int>.ready(data.getUint32(offset));
+    return AsyncReply<UInt32>.ready(data.getUint32(offset).cast());
   }
 
   static AsyncReply float32Parser(DC data, int offset, int length,
       DistributedConnection? connection, List<int>? requestSequence) {
-    return AsyncReply<double>.ready(data.getFloat32(offset));
+    return AsyncReply<Float32>.ready(data.getFloat32(offset).cast());
   }
 
   static AsyncReply float64Parser(DC data, int offset, int length,
@@ -322,7 +322,10 @@ class DataDeserializer {
     offset += valueRep.size;
     length -= valueRep.size;
 
-    var map = Map();
+
+    var keyRuntimeType = keyRep.type.getRuntimeType();
+
+    var map = keyRuntimeType == null ? Map() : Warehouse.createMap(keyRuntimeType);
     var rt = new AsyncReply();
 
     var results = new AsyncBag();

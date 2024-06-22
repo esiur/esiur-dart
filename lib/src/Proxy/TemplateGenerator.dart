@@ -209,22 +209,22 @@ class TemplateGenerator {
           name = "double";
           break;
         case RepresentationTypeIdentifier.Float32:
-          name = "double";
+          name = "Float32";
           break;
         case RepresentationTypeIdentifier.Float64:
           name = "double";
           break;
         case RepresentationTypeIdentifier.Int16:
-          name = "int";
+          name = "Int16";
           break;
         case RepresentationTypeIdentifier.Int32:
-          name = "int";
+          name = "Int32";
           break;
         case RepresentationTypeIdentifier.Int64:
           name = "int";
           break;
         case RepresentationTypeIdentifier.Int8:
-          name = "int";
+          name = "Int8";
           break;
         case RepresentationTypeIdentifier.String:
           name = "String";
@@ -233,16 +233,16 @@ class TemplateGenerator {
           name = "Map";
           break;
         case RepresentationTypeIdentifier.UInt16:
-          name = "int";
+          name = "UInt16";
           break;
         case RepresentationTypeIdentifier.UInt32:
-          name = "int";
+          name = "UInt32";
           break;
         case RepresentationTypeIdentifier.UInt64:
           name = "int";
           break;
         case RepresentationTypeIdentifier.UInt8:
-          name = "int";
+          name = "UInt8";
           break;
         case RepresentationTypeIdentifier.List:
           name = "List";
