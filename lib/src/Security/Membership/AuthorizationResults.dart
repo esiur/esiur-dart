@@ -2,17 +2,22 @@ import '../../Net/Packets/IIPAuthPacketIAuthDestination.dart';
 import '../../Net/Packets/IIPAuthPacketIAuthFormat.dart';
 import 'AuthorizationResultsResponse.dart';
 
-class AuthorizationResults
-    {
-        AuthorizationResultsResponse response = AuthorizationResultsResponse.Failed;
-        int destination = IIPAuthPacketIAuthDestination.Self;
-        int requiredFormat = IIPAuthPacketIAuthFormat.None ;
-        String clue = "";
+class AuthorizationResults {
+  AuthorizationResultsResponse response = AuthorizationResultsResponse.Failed;
 
-        int timeout = 0; // 0 means no timeout
-        int reference = 0;
+  int reference = 0;
+  int destination = IIPAuthPacketIAuthDestination.Self;
+  String? clue;
 
-        DateTime issue = DateTime.now();
+  IIPAuthPacketIAuthFormat? requiredFormat;
+  IIPAuthPacketIAuthFormat? contentFormat;
+  dynamic content;
 
-        //bool expired => timeout == 0 ? false : (DateTime.UtcNow - Issue).TotalSeconds > Timeout;
-    }
+  int? trials;
+
+  DateTime? issue;
+  DateTime? expire;
+
+  int get timeout =>
+      expire != null ? DateTime.now().difference(expire!).inSeconds : 0;
+}

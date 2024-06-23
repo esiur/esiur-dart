@@ -87,7 +87,7 @@ class DistributedResource extends IResource {
   void destroy() {
     _destroyed = true;
     _attached = false;
-    _connection?.detachResource(_instanceId as int);
+    _connection?.sendDetachRequest(_instanceId as int);
     emitArgs("destroy", [this]);
   }
 
@@ -391,12 +391,7 @@ class DistributedResource extends IResource {
     var reply = new AsyncReply<dynamic>();
     var con = _connection as DistributedConnection;
 
-    var parameters = Codec.compose(value, con);
-    (con.sendRequest(IIPPacketAction.SetProperty)
-          ..addUint32(_instanceId as int)
-          ..addUint8(index)
-          ..addDC(parameters))
-        .done()
+    con.sendSetProperty(_instanceId as int, index, value)
       ..then((res) {
         // not really needed, server will always send property modified,
         // this only happens if the programmer forgot to emit in property setter
