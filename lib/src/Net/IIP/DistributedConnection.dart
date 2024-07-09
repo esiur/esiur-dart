@@ -1727,15 +1727,25 @@ class DistributedConnection extends NetworkConnection with IStore {
 
   AsyncReply<dynamic>? sendDetachRequest(int instanceId) {
     try {
-      if (_attachedResources.containsKey(instanceId))
+      var sendDetach = false;
+
+      if (_attachedResources.containsKey(instanceId)){
         _attachedResources.remove(instanceId);
+        sendDetach = true;
+      }
 
-      if (_suspendedResources.containsKey(instanceId))
+      if (_suspendedResources.containsKey(instanceId)){
         _suspendedResources.remove(instanceId);
+        sendDetach = true;
+      }
 
-      return (_sendRequest(IIPPacketAction.DetachResource)
-            ..addUint32(instanceId))
-          .done();
+      if (sendDetach)
+        return (_sendRequest(IIPPacketAction.DetachResource)
+              ..addUint32(instanceId))
+            .done();
+
+      return null;
+
     } catch (ex) {
       return null;
     }
@@ -1815,10 +1825,16 @@ class DistributedConnection extends NetworkConnection with IStore {
     }
   }
 
-  void iipEventResourceReassigned(int resourceId, int newResourceId) {}
+  void iipEventResourceReassigned(int resourceId, int newResourceId) {
+
+  }
 
   void iipEventResourceDestroyed(int resourceId) {
     var r = _attachedResources[resourceId]?.target;
+
+    // remove from attached to avoid sending unnecessary deattach request when Destroy() is called
+    _attachedResources.remove(resourceId);
+
     if (r != null) {
       r.destroy();
       return;
@@ -1827,7 +1843,6 @@ class DistributedConnection extends NetworkConnection with IStore {
       _neededResources.remove(resourceId);
     }
 
-    _attachedResources.remove(resourceId);
   }
 
   // @TODO: Check for deadlocks
