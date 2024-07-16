@@ -25,6 +25,7 @@ SOFTWARE.
 import 'dart:async';
 
 import 'package:collection/collection.dart';
+import 'package:esiur/src/Net/IIP/DistributedResourceAttachRequestInfo.dart';
 import 'package:esiur/src/Security/Membership/AuthorizationRequest.dart';
 import 'package:web_socket_channel/status.dart';
 import '../../Misc/Global.dart';
@@ -152,8 +153,8 @@ class DistributedConnection extends NetworkConnection with IStore {
   KeyList<int, WeakReference<DistributedResource>> _suspendedResources =
       new KeyList<int, WeakReference<DistributedResource>>();
 
-  KeyList<int, AsyncReply<DistributedResource>> _resourceRequests =
-      new KeyList<int, AsyncReply<DistributedResource>>();
+  KeyList<int, DistributedResourceAttachRequestInfo> _resourceRequests =
+      new KeyList<int, DistributedResourceAttachRequestInfo>();
 
   KeyList<Guid, AsyncReply<TypeTemplate?>> _templateRequests =
       new KeyList<Guid, AsyncReply<TypeTemplate?>>();
@@ -374,7 +375,7 @@ class DistributedConnection extends NetworkConnection with IStore {
 
     _resourceRequests.values.forEach((x) {
       try {
-        x.triggerError(
+        x.reply.triggerError(
             AsyncException(ErrorType.Management, 0, "Connection closed"));
       } catch (ex) {}
     });
@@ -407,7 +408,6 @@ class DistributedConnection extends NetworkConnection with IStore {
       // @TODO: implement this
       // if (ready)
       //   _server.membership?.Logout(session);
-
     } else if (autoReconnect && !_invalidCredentials) {
       Future.delayed(Duration(seconds: reconnectInterval), reconnect);
     } else {
@@ -1729,12 +1729,12 @@ class DistributedConnection extends NetworkConnection with IStore {
     try {
       var sendDetach = false;
 
-      if (_attachedResources.containsKey(instanceId)){
+      if (_attachedResources.containsKey(instanceId)) {
         _attachedResources.remove(instanceId);
         sendDetach = true;
       }
 
-      if (_suspendedResources.containsKey(instanceId)){
+      if (_suspendedResources.containsKey(instanceId)) {
         _suspendedResources.remove(instanceId);
         sendDetach = true;
       }
@@ -1745,7 +1745,6 @@ class DistributedConnection extends NetworkConnection with IStore {
             .done();
 
       return null;
-
     } catch (ex) {
       return null;
     }
@@ -1825,9 +1824,7 @@ class DistributedConnection extends NetworkConnection with IStore {
     }
   }
 
-  void iipEventResourceReassigned(int resourceId, int newResourceId) {
-
-  }
+  void iipEventResourceReassigned(int resourceId, int newResourceId) {}
 
   void iipEventResourceDestroyed(int resourceId) {
     var r = _attachedResources[resourceId]?.target;
@@ -1842,7 +1839,6 @@ class DistributedConnection extends NetworkConnection with IStore {
       // @TODO: handle this mess
       _neededResources.remove(resourceId);
     }
-
   }
 
   // @TODO: Check for deadlocks
@@ -3161,27 +3157,32 @@ class DistributedConnection extends NetworkConnection with IStore {
 
     resource = _neededResources[id];
 
-    var request = _resourceRequests[id];
+    var requestInfo = _resourceRequests[id];
 
     //print("fetch $id");
 
-    if (request != null) {
-      if (resource != null && (requestSequence?.contains(id) ?? false))
+    if (requestInfo != null) {
+      if (resource != null && (requestSequence?.contains(id) ?? false)) {
         return AsyncReply<DistributedResource>.ready(resource);
-      return request;
+      } else if (resource != null && requestInfo.requestSequence.contains(id)) {
+        return AsyncReply<DistributedResource>.ready(resource);
+      } else {
+        return requestInfo.reply;
+      }
     } else if (resource != null && !resource.distributedResourceSuspended) {
       // @REVIEW: this should never happen
       print("DCON: Resource not moved to attached.");
       return new AsyncReply<DistributedResource>.ready(resource);
     }
 
-    var reply = new AsyncReply<DistributedResource>();
-    _resourceRequests.add(id, reply);
-
     //print("AttachResource sent ${id}");
 
     var newSequence =
         requestSequence != null ? List<int>.from(requestSequence) : <int>[];
+
+    var reply = new AsyncReply<DistributedResource>();
+    _resourceRequests.add(
+        id, DistributedResourceAttachRequestInfo(reply, newSequence));
 
     newSequence.add(id);
 
