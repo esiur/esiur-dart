@@ -37,9 +37,7 @@ import '../../Data/KeyValuePair.dart';
 import '../../Resource/IResource.dart';
 import '../../Core/AsyncReply.dart';
 import '../../Data/PropertyValue.dart';
-import '../../Data/Codec.dart';
 import './DistributedConnection.dart';
-import '../Packets/IIPPacketAction.dart';
 
 import '../../Resource/Template/EventTemplate.dart';
 

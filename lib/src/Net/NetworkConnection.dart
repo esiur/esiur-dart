@@ -31,7 +31,8 @@ import 'NetworkBuffer.dart';
 import '../Data/DC.dart';
 import 'Sockets/IPEndPoint.dart';
 
-class NetworkConnection extends IDestructible with INetworkReceiver<ISocket> {
+class NetworkConnection extends IDestructible
+    implements INetworkReceiver<ISocket> {
   ISocket? _sock;
 
   DateTime _lastAction = DateTime.now();

@@ -83,7 +83,7 @@ class TemplateGenerator {
     template.properties.forEach((p) {
       if (p.inherited) return;
       var ptTypeName = getTypeName(template, p.valueType, templates);
-      rt.writeln("${ptTypeName} ${p.name};");
+      rt.writeln("late ${ptTypeName} ${p.name};");
       rt.writeln();
     });
 

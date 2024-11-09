@@ -1,4 +1,4 @@
-import 'package:esiur/src/Security/Membership/IMembership.dart';
+import '../../Security/Membership/IMembership.dart';
 
 import '../../Resource/Template/TemplateDescriber.dart';
 

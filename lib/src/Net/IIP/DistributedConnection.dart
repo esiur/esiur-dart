@@ -25,8 +25,8 @@ SOFTWARE.
 import 'dart:async';
 
 import 'package:collection/collection.dart';
-import 'package:esiur/src/Net/IIP/DistributedResourceAttachRequestInfo.dart';
-import 'package:esiur/src/Security/Membership/AuthorizationRequest.dart';
+import 'DistributedResourceAttachRequestInfo.dart';
+import '../../Security/Membership/AuthorizationRequest.dart';
 import 'package:web_socket_channel/status.dart';
 import '../../Misc/Global.dart';
 import '../../Security/Membership/AuthorizationResults.dart';
@@ -106,7 +106,7 @@ import './DistributedServer.dart';
 
 import '../Packets/IIPAuthPacketHashAlgorithm.dart';
 
-class DistributedConnection extends NetworkConnection with IStore {
+class DistributedConnection extends NetworkConnection implements IStore {
   // fields
   bool _invalidCredentials = false;
 

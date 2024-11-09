@@ -1,5 +1,5 @@
-import 'package:esiur/esiur.dart';
 
+import '../../Data/IntType.dart';
 import '../../Net/Packets/IIPAuthPacketIAuthDestination.dart';
 import '../../Net/Packets/IIPAuthPacketIAuthFormat.dart';
 import '../../Net/Packets/IIPAuthPacketIAuthHeader.dart';

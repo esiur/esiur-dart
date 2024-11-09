@@ -1,4 +1,4 @@
-import 'package:esiur/src/Data/IntType.dart';
+import 'IntType.dart';
 
 import 'IEnum.dart';
 import '../Resource/Template/TemplateType.dart';
