@@ -302,8 +302,7 @@ class DistributedConnection extends NetworkConnection implements IStore {
       _session.remoteMethod = AuthenticationMethod.None;
 
       _session.localHeaders[IIPAuthPacketHeader.Domain] = domain;
-      _session.localHeaders[IIPAuthPacketHeader.Nonce] =
-          Global.generateCode(32);
+      _session.localHeaders[IIPAuthPacketHeader.Nonce] = Global.generateDC(32);
 
       if (method == AuthenticationMethod.Credentials) {
         _session.localHeaders[IIPAuthPacketHeader.Username] = username;
