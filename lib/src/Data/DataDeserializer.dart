@@ -161,10 +161,18 @@ class DataDeserializer {
 
     var template = Warehouse.getTemplateByClassId(classId, TemplateType.Record);
 
-    var initRecord = (TypeTemplate template) =>
+    var initRecord = (TypeTemplate? template) =>
         listParser(data, offset, length, connection, requestSequence).then((r) {
           var ar = r as List;
           IRecord record;
+
+          if (template == null) {
+            reply.triggerError(AsyncException(
+                ErrorType.Management,
+                ExceptionCode.TemplateNotFound.index,
+                "Template not found for record."));
+            return;
+          }
 
           if (template.definedType != null) {
             record = Warehouse.createInstance(template.definedType!) as IRecord;
@@ -184,19 +192,12 @@ class DataDeserializer {
 
     if (template != null) {
       initRecord(template);
-    } else {
-      if (connection == null)
-        throw Exception("Can't parse record with no connection");
-
+    } else if (connection != null) {
       connection.getTemplate(classId).then((tmp) {
-        if (tmp == null)
-          reply.triggerError(AsyncException(
-              ErrorType.Management,
-              ExceptionCode.TemplateNotFound.index,
-              "Template not found for record."));
-        else
-          initRecord(tmp);
+        initRecord(tmp);
       }).error((x) => reply.triggerError(x));
+    } else {
+      initRecord(null);
     }
 
     return reply;
@@ -322,10 +323,10 @@ class DataDeserializer {
     offset += valueRep.size;
     length -= valueRep.size;
 
-
     var keyRuntimeType = keyRep.type.getRuntimeType();
 
-    var map = keyRuntimeType == null ? Map() : Warehouse.createMap(keyRuntimeType);
+    var map =
+        keyRuntimeType == null ? Map() : Warehouse.createMap(keyRuntimeType);
     var rt = new AsyncReply();
 
     var results = new AsyncBag();
