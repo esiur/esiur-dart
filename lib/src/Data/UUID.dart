@@ -1,18 +1,18 @@
 import 'DC.dart';
 
-class Guid {
+class UUID {
   late DC _data;
 
-  Guid(this._data) {}
+  UUID(this._data) {}
 
-  Guid.parse(String data) {
+  UUID.parse(String data) {
     _data = DC.fromHex(data, '');
   }
 
   DC get value => _data;
 
   bool operator ==(other) {
-    if (other is Guid)
+    if (other is UUID)
       return _data.sequenceEqual(other._data);
     else
       return false;

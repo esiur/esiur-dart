@@ -24,7 +24,7 @@ SOFTWARE.
 import '../../Data/TransmissionType.dart';
 
 import '../../Data/DC.dart';
-import '../../Data/Guid.dart';
+import '../../Data/UUID.dart';
 
 import 'IIPPacketAction.dart';
 import 'IIPPacketCommand.dart';
@@ -59,7 +59,7 @@ class IIPPacket {
   String errorMessage = "";
   String className = "";
   String resourceLink = "";
-  Guid classId = Guid(DC(0));
+  UUID classId = UUID(DC(0));
   int methodIndex = 0;
   String methodName = "";
   int callbackId = 0;
@@ -264,7 +264,7 @@ class IIPPacket {
       } else if (action == IIPPacketAction.TemplateFromClassId) {
         if (_notEnough(offset, ends, 16)) return -_dataLengthNeeded;
 
-        classId = data.getGuid(offset);
+        classId = data.getUUID(offset);
         offset += 16;
       } else if (action == IIPPacketAction.TemplateFromResourceId) {
         if (_notEnough(offset, ends, 4)) return -_dataLengthNeeded;
@@ -406,7 +406,7 @@ class IIPPacket {
       } else if (action == IIPPacketAction.StaticCall) {
         if (_notEnough(offset, ends, 18)) return -_dataLengthNeeded;
 
-        classId = data.getGuid(offset);
+        classId = data.getUUID(offset);
         offset += 16;
 
         methodIndex = data[offset++];
@@ -422,7 +422,7 @@ class IIPPacket {
           action == IIPPacketAction.ReattachResource) {
         if (_notEnough(offset, ends, 26)) return -_dataLengthNeeded;
 
-        classId = data.getGuid(offset);
+        classId = data.getUUID(offset);
         offset += 16;
 
         resourceAge = data.getUint64(offset);

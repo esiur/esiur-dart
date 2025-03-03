@@ -27,7 +27,7 @@
 import '../Core/AsyncReply.dart';
 import 'dart:typed_data';
 import 'DC.dart';
-import 'Guid.dart';
+import 'UUID.dart';
 
 class BinaryList {
   var _list = <int>[];
@@ -52,12 +52,12 @@ class BinaryList {
     _list.insertAll(position, DC.dateTimeArrayToBytes(value, endian));
   }
 
-  void addGuid(Guid value) {
-    _list.addAll(DC.guidToBytes(value));
+  void addUUID(UUID value) {
+    _list.addAll(DC.uuidToBytes(value));
   }
 
-  void insertGuid(int position, Guid value) {
-    _list.insertAll(position, DC.guidToBytes(value));
+  void insertUUID(int position, UUID value) {
+    _list.insertAll(position, DC.uuidToBytes(value));
   }
 
   void addUint8Array(Uint8List value) {

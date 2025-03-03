@@ -13,7 +13,7 @@ import '../Warehouse.dart';
 import './TemplateDescriber.dart';
 
 import './MemberTemplate.dart';
-import '../../Data/Guid.dart';
+import '../../Data/UUID.dart';
 import '../../Data/DC.dart';
 import './EventTemplate.dart';
 import './PropertyTemplate.dart';
@@ -27,8 +27,8 @@ class TypeTemplate {
 
   bool get isWrapper => _isWrapper;
 
-   late Guid _classId;
-  Guid? _parentId = null;
+   late UUID _classId;
+  UUID? _parentId = null;
 
   String? _annotation;
 
@@ -52,7 +52,7 @@ class TypeTemplate {
 
   TemplateType get type => _templateType;
 
-  Guid? get parentId => _parentId;
+  UUID? get parentId => _parentId;
 
   Type? _definedType;
 
@@ -104,13 +104,15 @@ class TypeTemplate {
     return null;
   }
 
-  static Guid getTypeGuid(String typeName) {
+  static UUID getTypeUUID(String typeName) {
     var tn = DC.stringToBytes(typeName);
     var hash = SHA256.compute(tn).clip(0, 16);
-    return new Guid(hash);
+    hash.setUint8(6, (hash.getUint8(6) & 0xF) | 0x80);
+    hash.setUint8(8, (hash.getUint8(8) & 0xF) | 0x80);
+    return new UUID(hash);
   }
 
-  Guid get classId => _classId;
+  UUID get classId => _classId;
 
   String get className => _className;
 
@@ -154,8 +156,8 @@ class TypeTemplate {
 
     _className = describer.nameSpace;
 
-    // set guid
-    _classId = getTypeGuid(_className);
+    // set UUID
+    _classId = getTypeUUID(_className);
 
     _version = describer.version;
 
@@ -264,7 +266,7 @@ class TypeTemplate {
     // bake it binarily
     var b = BinaryList()
       ..addUint8((_annotation != null ? 0x40 : 0x0) | _templateType.index)
-      ..addGuid(classId)
+      ..addUUID(classId)
       ..addUint8(className.length)
       ..addString(className);
 
@@ -304,13 +306,13 @@ class TypeTemplate {
 
     _templateType = TemplateType.values[data.getUint8(offset++) & 0xF];
 
-    _classId = data.getGuid(offset);
+    _classId = data.getUUID(offset);
     offset += 16;
     _className = data.getString(offset + 1, data[offset]);
     offset += data[offset] + 1;
 
     if (hasParent) {
-      _parentId = data.getGuid(offset);
+      _parentId = data.getUUID(offset);
       offset += 16;
     }
 

@@ -24,7 +24,7 @@ import 'dart:typed_data';
 import 'dart:convert';
 import 'BinaryList.dart';
 import 'dart:collection';
-import 'Guid.dart';
+import 'UUID.dart';
 
 const bool kIsWeb = identical(0, 0.0);
 
@@ -100,9 +100,9 @@ class DC with IterableMixin<int> {
     return rt;
   }
 
-  static DC guidToBytes(Guid value) {
+  static DC uuidToBytes(UUID value) {
     var rt = new DC(16);
-    rt.setGuid(0, value);
+    rt.setUUID(0, value);
     return rt;
   }
 
@@ -615,12 +615,12 @@ class DC with IterableMixin<int> {
     return DateTime.fromMillisecondsSinceEpoch((ticks - UNIX_EPOCH) ~/ 10000);
   }
 
-  Guid getGuid(int offset) {
-    return new Guid(this.clip(offset, 16));
+  UUID getUUID(int offset) {
+    return new UUID(this.clip(offset, 16));
   }
 
-  void setGuid(int offset, Guid guid) {
-    set(guid.value, 0, offset, 16);
+  void setUUID(int offset, UUID uuid) {
+    set(uuid.value, 0, offset, 16);
   }
 
   bool sequenceEqual(ar) {

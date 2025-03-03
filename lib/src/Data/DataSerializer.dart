@@ -130,7 +130,7 @@ class DataSerializer {
 
     var rt = BinaryList();
 
-    rt.addGuid(template.classId);
+    rt.addUUID(template.classId);
     rt.addUint8(cts.first.index);
 
     return DataSerializerComposeResults(
@@ -346,7 +346,7 @@ class DataSerializer {
       return DataSerializerComposeResults(
           TransmissionTypeIdentifier.Null, DC(0));
 
-    rt.addDC(DC.guidToBytes(template.classId));
+    rt.addDC(DC.uuidToBytes(template.classId));
 
     var recordData = record.serialize();
 

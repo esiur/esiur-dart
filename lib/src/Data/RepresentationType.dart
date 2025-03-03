@@ -8,7 +8,7 @@ import '../Resource/Warehouse.dart';
 
 import 'BinaryList.dart';
 import 'DC.dart';
-import 'Guid.dart';
+import 'UUID.dart';
 import 'package:collection/collection.dart';
 
 class RepresentationTypeIdentifier {
@@ -83,7 +83,7 @@ class RepresentationType {
   }
 
   RepresentationType toNullable() {
-    return RepresentationType(identifier, true, guid, subTypes);
+    return RepresentationType(identifier, true, uuid, subTypes);
   }
 
   static RepresentationType Void =
@@ -127,7 +127,7 @@ class RepresentationType {
   //       if (name == "List") {
   //         // get sub type
   //         getTypeFromName(args.first.input);
-  //         return RepresentationType(RepresentationTypeIdentifier.TypedList, nullable, guid, subTypes)
+  //         return RepresentationType(RepresentationTypeIdentifier.TypedList, nullable, uuid, subTypes)
   //       }
   //     }
   //  }
@@ -166,13 +166,13 @@ class RepresentationType {
           ? runtimeTypes[identifier]![1]
           : runtimeTypes[identifier]![0];
     if (identifier == RepresentationTypeIdentifier.TypedRecord)
-      return Warehouse.getTemplateByClassId(guid!, TemplateType.Record)
+      return Warehouse.getTemplateByClassId(uuid!, TemplateType.Record)
           ?.definedType;
     else if (identifier == RepresentationTypeIdentifier.TypedResource)
-      return Warehouse.getTemplateByClassId(guid!, TemplateType.Resource)
+      return Warehouse.getTemplateByClassId(uuid!, TemplateType.Resource)
           ?.definedType;
     else if (identifier == RepresentationTypeIdentifier.Enum)
-      return Warehouse.getTemplateByClassId(guid!, TemplateType.Enum)
+      return Warehouse.getTemplateByClassId(uuid!, TemplateType.Enum)
           ?.definedType;
 
     return null;
@@ -180,12 +180,12 @@ class RepresentationType {
 
   int identifier;
   bool nullable;
-  Guid? guid;
+  UUID? uuid;
 
   List<RepresentationType>? subTypes;
 
   RepresentationType(this.identifier, this.nullable,
-      [this.guid, this.subTypes]) {}
+      [this.uuid, this.subTypes]) {}
 
   DC compose() {
     var rt = BinaryList();
@@ -195,7 +195,7 @@ class RepresentationType {
     else
       rt.addUint8(identifier);
 
-    if (guid != null) rt.addDC(DC.guidToBytes(guid!));
+    if (uuid != null) rt.addDC(DC.uuidToBytes(uuid!));
 
     if (subTypes != null)
       for (var i = 0; i < subTypes!.length; i++)
@@ -215,13 +215,13 @@ class RepresentationType {
     var identifier = (header & 0x7F);
 
     if ((header & 0x40) > 0) {
-      var hasGUID = (header & 0x4) > 0;
+      var hasUUID = (header & 0x4) > 0;
       var subsCount = (header >> 3) & 0x7;
 
-      Guid? guid = null;
+      UUID? uuid = null;
 
-      if (hasGUID) {
-        guid = data.getGuid(offset);
+      if (hasUUID) {
+        uuid = data.getUUID(offset);
         offset += 16;
       }
 
@@ -234,7 +234,7 @@ class RepresentationType {
       }
 
       return RepresentationTypeParseResults(offset - oOffset,
-          RepresentationType(identifier, nullable, guid, subs));
+          RepresentationType(identifier, nullable, uuid, subs));
     } else {
       return RepresentationTypeParseResults(
           1, RepresentationType(identifier, nullable, null, null));

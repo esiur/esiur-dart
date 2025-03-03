@@ -141,32 +141,32 @@ class TemplateGenerator {
 
     if (representationType.identifier ==
         RepresentationTypeIdentifier.TypedResource) {
-      if (representationType.guid == forTemplate.classId)
+      if (representationType.uuid == forTemplate.classId)
         name = forTemplate.className.split('.').last;
       else
         name = _translateClassName(templates
             .singleWhere((x) =>
-                x.classId == representationType.guid &&
+                x.classId == representationType.uuid &&
                 (x.type == TemplateType.Resource))
             .className);
     } else if (representationType.identifier ==
         RepresentationTypeIdentifier.TypedRecord) {
-      if (representationType.guid == forTemplate.classId)
+      if (representationType.uuid == forTemplate.classId)
         name = forTemplate.className.split('.').last;
       else
         name = _translateClassName(templates
             .singleWhere((x) =>
-                x.classId == representationType.guid &&
+                x.classId == representationType.uuid &&
                 x.type == TemplateType.Record)
             .className);
     } else if (representationType.identifier ==
         RepresentationTypeIdentifier
-            .Enum) if (representationType.guid == forTemplate.classId)
+            .Enum) if (representationType.uuid == forTemplate.classId)
       name = forTemplate.className.split('.').last;
     else
       name = _translateClassName(templates
           .singleWhere((x) =>
-              x.classId == representationType.guid &&
+              x.classId == representationType.uuid &&
               x.type == TemplateType.Enum)
           .className);
     else if (representationType.identifier ==
@@ -339,17 +339,17 @@ class TemplateGenerator {
       // Warehouse.defineType<test.MyService>(
       //     () => test.MyService(),
       //     RepresentationType(RepresentationTypeIdentifier.TypedResource, false,
-      //         Guid(DC.fromList([1, 2, 3]))));
+      //         UUID(DC.fromList([1, 2, 3]))));
 
       var defineCreators = templates.map((tmp) {
         // creator
         var className = _translateClassName(tmp.className);
         if (tmp.type == TemplateType.Resource) {
-          return "Warehouse.defineType<${className}>(() => ${className}(), RepresentationType(RepresentationTypeIdentifier.TypedResource, false, Guid.parse('${tmp.classId.toString()}')));\r\n";
+          return "Warehouse.defineType<${className}>(() => ${className}(), RepresentationType(RepresentationTypeIdentifier.TypedResource, false, UUID.parse('${tmp.classId.toString()}')));\r\n";
         } else if (tmp.type == TemplateType.Record) {
-          return "Warehouse.defineType<${className}>(() => ${className}(), RepresentationType(RepresentationTypeIdentifier.TypedRecord, false, Guid.parse('${tmp.classId.toString()}')));\r\n";
+          return "Warehouse.defineType<${className}>(() => ${className}(), RepresentationType(RepresentationTypeIdentifier.TypedRecord, false, UUID.parse('${tmp.classId.toString()}')));\r\n";
         } else if (tmp.type == TemplateType.Enum) {
-          return "Warehouse.defineType<${className}>(() => ${className}(), RepresentationType(RepresentationTypeIdentifier.Enum, false, Guid.parse('${tmp.classId.toString()}')));\r\n";
+          return "Warehouse.defineType<${className}>(() => ${className}(), RepresentationType(RepresentationTypeIdentifier.Enum, false, UUID.parse('${tmp.classId.toString()}')));\r\n";
         }
       }).join("\r\n");
 
@@ -496,7 +496,7 @@ class TemplateGenerator {
       rt.writeln("var rt = AsyncReply<$rtTypeName>();");
       if (f.isStatic) {
         rt.writeln(
-            "connection.staticCall(Guid.parse('${template.classId.toString()}'), ${f.index}, args)");
+            "connection.staticCall(UUID.parse('${template.classId.toString()}'), ${f.index}, args)");
       } else {
         rt.writeln("internal_invoke(${f.index}, args)");
       }

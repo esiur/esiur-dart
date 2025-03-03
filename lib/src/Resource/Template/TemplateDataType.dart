@@ -7,7 +7,7 @@
 // import '../../Data/ParseResult.dart';
 
 // import '../../Data/DataType.dart';
-// import '../../Data/Guid.dart';
+// import '../../Data/UUID.dart';
 // import '../../Data/DC.dart';
 // import '../../Data/BinaryList.dart';
 // import 'TypeTemplate.dart';
@@ -16,11 +16,11 @@
 
 // class TemplateDataType {
 //   late int type;
-//   TypeTemplate? get typeTemplate => typeGuid == null
+//   TypeTemplate? get typeTemplate => typeUUID == null
 //       ? null
-//       : Warehouse.getTemplateByClassId(typeGuid as Guid);
+//       : Warehouse.getTemplateByClassId(typeUUID as UUID);
 
-//   Guid? typeGuid;
+//   UUID? typeUUID;
 
 // //  @TODO: implement fromType
 //   TemplateDataType.fromType(type, bool isArray) {
@@ -67,7 +67,7 @@
 //       var template = Warehouse.getTemplateByType(type);
 
 //       if (template != null) {
-//         typeGuid = template.classId;
+//         typeUUID = template.classId;
 //         dt = template.type == TemplateType.Resource
 //             ? DataType.Resource
 //             : DataType.Record;
@@ -78,9 +78,9 @@
 //       //   try {
 //       //     var ins = Warehouse.createInstance(type);
 //       //     if (ins is IResource) {
-//       //       typeGuid = TypeTemplate.getTypeGuid(ins.template.nameSpace);
+//       //       typeUUID = TypeTemplate.getTypeUUID(ins.template.nameSpace);
 //       //     } else if (ins is IRecord) {
-//       //       typeGuid = TypeTemplate.getTypeGuid(ins.template.nameSpace);
+//       //       typeUUID = TypeTemplate.getTypeUUID(ins.template.nameSpace);
 //       //     } else {
 //       //       dt = DataType.Void;
 //       //     }
@@ -101,13 +101,13 @@
 //         type == DataType.RecordArray) {
 //       return (BinaryList()
 //             ..addUint8(type)
-//             ..addDC((typeGuid as Guid).value))
+//             ..addDC((typeUUID as UUID).value))
 //           .toDC();
 //     } else
 //       return DC.fromList([type]);
 //   }
 
-//   TemplateDataType(this.type, this.typeGuid);
+//   TemplateDataType(this.type, this.typeUUID);
 
 //   static ParseResult<TemplateDataType> parse(DC data, int offset) {
 //     var type = data[offset++];
@@ -115,9 +115,9 @@
 //         type == DataType.ResourceArray ||
 //         type == DataType.Record ||
 //         type == DataType.RecordArray) {
-//       var guid = data.getGuid(offset);
+//       var uuid = data.getUUID(offset);
 //       return ParseResult<TemplateDataType>(
-//           17, new TemplateDataType(type, guid));
+//           17, new TemplateDataType(type, uuid));
 //     } else
 //       return ParseResult<TemplateDataType>(1, new TemplateDataType(type, null));
 //   }

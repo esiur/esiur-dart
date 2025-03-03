@@ -155,7 +155,7 @@ class DataDeserializer {
       DistributedConnection? connection, List<int>? requestSequence) {
     var reply = new AsyncReply<IRecord>();
 
-    var classId = data.getGuid(offset);
+    var classId = data.getUUID(offset);
     offset += 16;
     length -= 16;
 
@@ -210,7 +210,7 @@ class DataDeserializer {
 
   static AsyncReply enumParser(DC data, int offset, int length,
       DistributedConnection? connection, List<int>? requestSequence) {
-    var classId = data.getGuid(offset);
+    var classId = data.getUUID(offset);
     offset += 16;
     var index = data[offset++];
 

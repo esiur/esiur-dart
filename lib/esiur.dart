@@ -39,7 +39,7 @@ export 'src/Data/AutoList.dart';
 export 'src/Data/BinaryList.dart';
 export 'src/Data/Codec.dart';
 export 'src/Data/DC.dart';
-export 'src/Data/Guid.dart';
+export 'src/Data/UUID.dart';
 export 'src/Data/KeyList.dart';
 export 'src/Data/NotModified.dart';
 export 'src/Data/PropertyValue.dart';

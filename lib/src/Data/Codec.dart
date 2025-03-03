@@ -35,7 +35,7 @@ import '../Resource/Template/TemplateType.dart';
 
 import 'DataDeserializer.dart';
 import 'DataSerializer.dart';
-import 'Guid.dart';
+import 'UUID.dart';
 import 'IRecord.dart';
 import 'Record.dart';
 import 'ResourceArrayType.dart';

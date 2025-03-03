@@ -40,7 +40,7 @@ import '../Data/AutoList.dart';
 import 'FactoryEntry.dart';
 import 'Template/TemplateType.dart';
 import 'Template/TypeTemplate.dart';
-import '../Data/Guid.dart';
+import '../Data/UUID.dart';
 import '../Data/KeyList.dart';
 import '../Security/Permissions/IPermissionsManager.dart';
 import 'IResource.dart';
@@ -59,15 +59,15 @@ class Warehouse {
       new Map<int, WeakReference<IResource>>();
   static int resourceCounter = 0;
 
-  static KeyList<TemplateType, KeyList<Guid, TypeTemplate>> _templates =
+  static KeyList<TemplateType, KeyList<UUID, TypeTemplate>> _templates =
       _initTemplates(); //
 
-  static KeyList<TemplateType, KeyList<Guid, TypeTemplate>> _initTemplates() {
-    var rt = new KeyList<TemplateType, KeyList<Guid, TypeTemplate>>();
+  static KeyList<TemplateType, KeyList<UUID, TypeTemplate>> _initTemplates() {
+    var rt = new KeyList<TemplateType, KeyList<UUID, TypeTemplate>>();
 
-    rt.add(TemplateType.Resource, new KeyList<Guid, TypeTemplate>());
-    rt.add(TemplateType.Record, new KeyList<Guid, TypeTemplate>());
-    rt.add(TemplateType.Enum, new KeyList<Guid, TypeTemplate>());
+    rt.add(TemplateType.Resource, new KeyList<UUID, TypeTemplate>());
+    rt.add(TemplateType.Record, new KeyList<UUID, TypeTemplate>());
+    rt.add(TemplateType.Enum, new KeyList<UUID, TypeTemplate>());
 
     return rt;
   }
@@ -593,7 +593,7 @@ class Warehouse {
   /// </summary>
   /// <param name="classId">Class Id.</param>
   /// <returns>Resource template.</returns>
-  static TypeTemplate? getTemplateByClassId(Guid classId,
+  static TypeTemplate? getTemplateByClassId(UUID classId,
       [TemplateType? templateType = null]) {
     if (templateType == null) {
       // look into resources

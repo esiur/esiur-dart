@@ -94,7 +94,7 @@ import '../Packets/IIPPacketEvent.dart';
 import '../Packets/IIPPacketReport.dart';
 import '../../Data/BinaryList.dart';
 import '../NetworkConnection.dart';
-import '../../Data/Guid.dart';
+import '../../Data/UUID.dart';
 import '../../Resource/Template/TypeTemplate.dart';
 import '../../Security/Permissions/Ruling.dart';
 import '../../Security/Permissions/ActionType.dart';
@@ -156,13 +156,13 @@ class DistributedConnection extends NetworkConnection implements IStore {
   KeyList<int, DistributedResourceAttachRequestInfo> _resourceRequests =
       new KeyList<int, DistributedResourceAttachRequestInfo>();
 
-  KeyList<Guid, AsyncReply<TypeTemplate?>> _templateRequests =
-      new KeyList<Guid, AsyncReply<TypeTemplate?>>();
+  KeyList<UUID, AsyncReply<TypeTemplate?>> _templateRequests =
+      new KeyList<UUID, AsyncReply<TypeTemplate?>>();
 
   KeyList<String, AsyncReply<TypeTemplate?>> _templateByNameRequests =
       new KeyList<String, AsyncReply<TypeTemplate?>>();
 
-  Map<Guid, TypeTemplate> _templates = new Map<Guid, TypeTemplate>();
+  Map<UUID, TypeTemplate> _templates = new Map<UUID, TypeTemplate>();
   KeyList<int, AsyncReply<dynamic>> _requests =
       new KeyList<int, AsyncReply<dynamic>>();
   int _callbackCounter = 0;
@@ -2013,7 +2013,7 @@ class DistributedConnection extends NetworkConnection implements IStore {
         if (r is DistributedResource) {
           // reply ok
           _sendReply(IIPPacketAction.AttachResource, callback)
-            ..addGuid(r.instance?.template.classId as Guid)
+            ..addUUID(r.instance?.template.classId as UUID)
             ..addUint64(r.instance?.age as int)
             ..addUint16(link.length)
             ..addDC(link)
@@ -2025,7 +2025,7 @@ class DistributedConnection extends NetworkConnection implements IStore {
         } else {
           // reply ok
           _sendReply(IIPPacketAction.AttachResource, callback)
-            ..addGuid((r.instance as Instance).template.classId)
+            ..addUUID((r.instance as Instance).template.classId)
             ..addUint64((r.instance as Instance).age)
             ..addUint16(link.length)
             ..addDC(link)
@@ -2572,7 +2572,7 @@ class DistributedConnection extends NetworkConnection implements IStore {
     }
   }
 
-  void iipRequestTemplateFromClassId(int callback, Guid classId) {
+  void iipRequestTemplateFromClassId(int callback, UUID classId) {
     var t = Warehouse.getTemplateByClassId(classId);
     if (t != null)
       _sendReply(IIPPacketAction.TemplateFromClassId, callback)
@@ -2670,7 +2670,7 @@ class DistributedConnection extends NetworkConnection implements IStore {
     // });
   }
 
-  void iipRequestStaticCall(int callback, Guid classId, int index,
+  void iipRequestStaticCall(int callback, UUID classId, int index,
       TransmissionType transmissionType, DC content) {
     var template = Warehouse.getTemplateByClassId(classId);
 
@@ -3043,9 +3043,9 @@ class DistributedConnection extends NetworkConnection implements IStore {
   /// <summary>
   /// Get the TypeTemplate for a given class Id.
   /// </summary>
-  /// <param name="classId">Class GUID.</param>
+  /// <param name="classId">Class UUID.</param>
   /// <returns>TypeTemplate.</returns>
-  AsyncReply<TypeTemplate?> getTemplate(Guid classId) {
+  AsyncReply<TypeTemplate?> getTemplate(UUID classId) {
     //Warehouse.getTemplateByClassId(classId)
 
     if (_templates.containsKey(classId))
@@ -3056,7 +3056,7 @@ class DistributedConnection extends NetworkConnection implements IStore {
     var reply = new AsyncReply<TypeTemplate>();
     _templateRequests.add(classId, reply);
 
-    (_sendRequest(IIPPacketAction.TemplateFromClassId)..addGuid(classId)).done()
+    (_sendRequest(IIPPacketAction.TemplateFromClassId)..addUUID(classId)).done()
       ..then((rt) {
         if (rt != null) {
           _templateRequests.remove(classId);
@@ -3145,8 +3145,8 @@ class DistributedConnection extends NetworkConnection implements IStore {
   /// <summary>
   /// Fetch a resource from the other end
   /// </summary>
-  /// <param name="classId">Class GUID</param>
-  /// <param name="id">Resource Id</param>Guid classId
+  /// <param name="classId">Class UUID</param>
+  /// <param name="id">Resource Id</param>UUID classId
   /// <returns>DistributedResource</returns>
   AsyncReply<DistributedResource> fetch(int id, List<int>? requestSequence) {
     var resource = _attachedResources[id]?.target;
@@ -3200,7 +3200,7 @@ class DistributedConnection extends NetworkConnection implements IStore {
         DistributedResource dr;
         TypeTemplate? template;
 
-        Guid classId = rt[0] as Guid;
+        UUID classId = rt[0] as UUID;
 
         if (resource == null) {
           template =
@@ -3249,7 +3249,7 @@ class DistributedConnection extends NetworkConnection implements IStore {
 
         if (template == null) {
           //print("tmp == null");
-          getTemplate(rt[0] as Guid)
+          getTemplate(rt[0] as UUID)
             ..then((tmp) {
               // ClassId, ResourceAge, ResourceLink, Content
               if (resource == null) {
@@ -3608,7 +3608,7 @@ class DistributedConnection extends NetworkConnection implements IStore {
       TemplateDescriber("Esiur.Net.IIP.DistributedConnection");
 
   AsyncReply<dynamic> staticCall(
-      Guid classId, int index, Map<UInt8, dynamic> parameters) {
+      UUID classId, int index, Map<UInt8, dynamic> parameters) {
     var pb = Codec.compose(parameters, this);
 
     var reply = AsyncReply<dynamic>();
@@ -3618,7 +3618,7 @@ class DistributedConnection extends NetworkConnection implements IStore {
     _sendParams()
       ..addUint8((0x40 | IIPPacketAction.StaticCall))
       ..addUint32(c)
-      ..addGuid(classId)
+      ..addUUID(classId)
       ..addUint8(index)
       ..addDC(pb)
       ..done();
