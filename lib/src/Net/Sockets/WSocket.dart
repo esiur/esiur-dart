@@ -103,12 +103,32 @@ class WSocket extends ISocket {
         Uri.parse("${secure ? 'wss' : 'ws'}://${hostname}:${port}"),
       ); //binaryType: BinaryType.list);
 
-      _state = SocketState.Established;
+      if (_channel == null)
+      {
+        rt.triggerError(AsyncException(ErrorType.Management,
+            ExceptionCode.HostNotReachable.index, "Can't create WebSocketChannel."));
+      }
+      else 
+      {
+        if (_channel!.closeCode != null)
+            rt.triggerError(AsyncException(ErrorType.Management,
+                ExceptionCode.HostNotReachable.index, "WebSocketChannel " + _channel!.closeCode.toString()));
 
-      begin();
-      receiver?.networkConnect(this);
-      rt.trigger(true);
-    } catch (ex) {
+        _channel!.ready.then((x){
+            _state = SocketState.Established;
+
+            begin();
+            receiver?.networkConnect(this);
+            rt.trigger(true);
+
+        }).onError((ex, s){
+            rt.triggerError(AsyncException(ErrorType.Management,
+                ExceptionCode.HostNotReachable.index, ex.toString()));
+
+        });
+      }
+
+     } catch (ex) {
       rt.triggerError(AsyncException(ErrorType.Management,
           ExceptionCode.HostNotReachable.index, ex.toString()));
     }
