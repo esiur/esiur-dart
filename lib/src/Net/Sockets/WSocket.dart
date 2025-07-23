@@ -50,6 +50,8 @@ class WSocket extends ISocket {
 
   IPEndPoint? _localEP, _remoteEP;
 
+  String wsUrl = "";
+
   bool begin() {
     if (began) return false;
 
@@ -100,7 +102,7 @@ class WSocket extends ISocket {
       _state = SocketState.Connecting;
 
       _channel = WebSocketChannel.connect(
-        Uri.parse("${secure ? 'wss' : 'ws'}://${hostname}:${port}"),
+        Uri.parse("${secure ? 'wss' : 'ws'}://${hostname}:${port}/${wsUrl}"),
       ); //binaryType: BinaryType.list);
 
       if (_channel == null)

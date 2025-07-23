@@ -217,10 +217,13 @@ class DistributedConnection extends NetworkConnection implements IStore {
 
       var domain = instance?.attributes["domain"].toString() ?? address;
 
+
       var ws = instance?.attributes.containsKey("ws") == true ||
           instance?.attributes.containsKey("wss") == true;
       var secure = instance?.attributes.containsKey("secure") == true ||
           instance?.attributes.containsKey("wss") == true;
+
+      var wsUrl = instance?.attributes["wsUrl"].toString() ?? "";
 
       if (instance?.attributes.containsKey("autoReconnect") ?? false)
         autoReconnect = instance?.attributes["autoReconnect"] == true;
@@ -248,6 +251,7 @@ class DistributedConnection extends NetworkConnection implements IStore {
             passwordOrToken: password,
             username: username,
             useWebsocket: ws,
+            wsUrl: wsUrl,
             secureWebSocket: secure);
       } else if (instance?.attributes.containsKey("token") == true) {
         var token =
@@ -286,7 +290,8 @@ class DistributedConnection extends NetworkConnection implements IStore {
       DC? passwordOrToken,
       String? domain,
       bool useWebsocket = false,
-      bool secureWebSocket = false}) {
+      bool secureWebSocket = false,
+      String wsUrl = ""}) {
     if (_openReply != null)
       throw AsyncException(ErrorType.Exception, 0, "Connection in progress");
 
@@ -321,7 +326,7 @@ class DistributedConnection extends NetworkConnection implements IStore {
 
     if (socket == null) {
       if (useWebsocket || kIsWeb) {
-        socket = new WSocket()..secure = secureWebSocket;
+        socket = WSocket() .. secure = true .. wsUrl = wsUrl;
       } else
         socket = new TCPSocket();
     }
