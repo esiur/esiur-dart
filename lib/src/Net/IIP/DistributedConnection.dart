@@ -223,7 +223,7 @@ class DistributedConnection extends NetworkConnection implements IStore {
       var secure = instance?.attributes.containsKey("secure") == true ||
           instance?.attributes.containsKey("wss") == true;
 
-      var wsUrl = instance?.attributes["wsUrl"].toString() ?? "";
+      var wsUrl = instance?.attributes["wsUrl"].toString() ?? "iip";
 
       if (instance?.attributes.containsKey("autoReconnect") ?? false)
         autoReconnect = instance?.attributes["autoReconnect"] == true;
@@ -291,7 +291,7 @@ class DistributedConnection extends NetworkConnection implements IStore {
       String? domain,
       bool useWebsocket = false,
       bool secureWebSocket = false,
-      String wsUrl = ""}) {
+      String wsUrl = "iip"}) {
     if (_openReply != null)
       throw AsyncException(ErrorType.Exception, 0, "Connection in progress");
 

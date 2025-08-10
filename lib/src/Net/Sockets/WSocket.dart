@@ -50,7 +50,7 @@ class WSocket extends ISocket {
 
   IPEndPoint? _localEP, _remoteEP;
 
-  String wsUrl = "";
+  String wsUrl = "iip";
 
   bool begin() {
     if (began) return false;
